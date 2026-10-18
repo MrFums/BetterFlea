@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>BetterFlea</RootNamespace>
+        <AssemblyName>BetterFlea</AssemblyName>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <OutputType>Library</OutputType>
+        <OutputPath>bin\$(Configuration)\$(ProjectName)\$(AssemblyName)\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <!-- Don't put this PC's folder path into the built DLL. -->
+        <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="SPTarkov.Common" Version="4.1.0" />
+        <PackageReference Include="SPTarkov.DI" Version="4.1.0" />
+        <PackageReference Include="SPTarkov.Reflection" Version="4.1.0" />
+        <PackageReference Include="SPTarkov.Server.Core" Version="4.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="_References\**" />
+        <None Remove="_References\**" />
+        <Content Remove="_References\**" />
+        <!-- The game-side plugin is its own project. -->
+        <Compile Remove="Client\**" />
+        <None Remove="Client\**" />
+        <Content Remove="Client\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="config.jsonc" CopyToOutputDirectory="PreserveNewest" />
+        <!-- A copy inside the DLL, written back out if a user deletes config.jsonc. -->
+        <EmbeddedResource Include="config.jsonc" LogicalName="BetterFlea.config.jsonc" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <ServerDir Condition=" '$(ServerDir)' == '' ">S:\SPT4.1_Docker\SPT_Runtime</ServerDir>
+        <ModOutputDir>$(ServerDir)\user\mods\$(AssemblyName)</ModOutputDir>
+        <Version>1.0.0</Version>
+    </PropertyGroup>
+
+    <Target Name="DeployToServer" AfterTargets="AfterBuild">
+        <!-- Live server: always update the dll, but never overwrite a config the user has edited. -->
+        <MakeDir Directories="$(ModOutputDir)"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModOutputDir)" />
+        <Copy SourceFiles="$(OutputPath)config.jsonc" DestinationFolder="$(ModOutputDir)"
+              Condition="!Exists('$(ModOutputDir)\config.jsonc')" />
+    </Target>
+</Project>

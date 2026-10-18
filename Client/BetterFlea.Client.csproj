@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Game-side BepInEx plugin: shows BetterFlea's Flea Market bans and trader purchase locks, and stops listings the server would refuse. -->
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <AssemblyName>BetterFlea.Client</AssemblyName>
+        <RootNamespace>BetterFlea.Client</RootNamespace>
+        <LangVersion>latest</LangVersion>
+        <Nullable>disable</Nullable>
+        <Version>1.0.0</Version>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+        <!-- Don't put this PC's folder path into the built DLL. -->
+        <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <GameDir Condition=" '$(GameDir)' == '' ">E:\Games\SPT4.1</GameDir>
+        <Managed>$(GameDir)\EscapeFromTarkov_Data\Managed</Managed>
+        <BepInExCore>$(GameDir)\BepInEx\core</BepInExCore>
+        <SptPlugins>$(GameDir)\BepInEx\plugins\spt</SptPlugins>
+        <PluginOutputDir>$(GameDir)\BepInEx\plugins\BetterFlea</PluginOutputDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="Assembly-CSharp" HintPath="$(Managed)\Assembly-CSharp.dll" Private="false" />
+        <Reference Include="Comfort" HintPath="$(Managed)\Comfort.dll" Private="false" />
+        <Reference Include="UnityEngine" HintPath="$(Managed)\UnityEngine.dll" Private="false" />
+        <Reference Include="UnityEngine.CoreModule" HintPath="$(Managed)\UnityEngine.CoreModule.dll" Private="false" />
+        <Reference Include="Unity.TextMeshPro" HintPath="$(Managed)\Unity.TextMeshPro.dll" Private="false" />
+        <Reference Include="UnityEngine.UI" HintPath="$(Managed)\UnityEngine.UI.dll" Private="false" />
+        <Reference Include="Sirenix.Serialization" HintPath="$(Managed)\Sirenix.Serialization.dll" Private="false" />
+        <Reference Include="Newtonsoft.Json" HintPath="$(Managed)\Newtonsoft.Json.dll" Private="false" />
+        <Reference Include="BepInEx" HintPath="$(BepInExCore)\BepInEx.dll" Private="false" />
+        <Reference Include="0Harmony" HintPath="$(BepInExCore)\0Harmony.dll" Private="false" />
+        <Reference Include="spt-common" HintPath="$(SptPlugins)\spt-common.dll" Private="false" />
+        <Reference Include="spt-reflection" HintPath="$(SptPlugins)\spt-reflection.dll" Private="false" />
+    </ItemGroup>
+
+    <!-- Copies the plugin into the game. Close the game first, it locks the file while running. -->
+    <Target Name="DeployToGame" AfterTargets="AfterBuild">
+        <MakeDir Directories="$(PluginOutputDir)" />
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginOutputDir)" ContinueOnError="true" />
+    </Target>
+</Project>

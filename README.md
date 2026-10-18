@@ -1,4 +1,5 @@
 # BetterFlea
+By Fums.
 
 **Makes the flea better. More live-like, more control, and a few handy extras.**
 
@@ -160,7 +161,7 @@ The icon comes from the game files on each player's computer.
 - **Other mods that change the Flea Market** (number of offers, prices, items in one offer) can do the same thing as BetterFlea. The mod that loads last usually wins. Turn off the same feature in one of the 2 mods.
 
 ## AI use
-Claude / Gemini helped with BetterFlea development and mainly documentation / commenting. The original server aspects of the mod I had for myself on SPT 3.10 and 3.11 but did not release as I made changes directly to the database as I didn't have that included in the mod. 
+Claude / Gemini helped with BetterFlea development. The original server aspects of the mod I had for myself on SPT 3.10 and 3.11 but did not release as I made changes directly to the database as I didn't have that included in the mod. 
 
 The base of the server mod was written by hand and then passed over with an LLM to review and fix any of my syntax / logic issues as I am still learning C#.
 
