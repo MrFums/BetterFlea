@@ -1,5 +1,4 @@
 # BetterFlea
-By Fums.
 
 **Makes the flea better. More live-like, more control, and a few handy extras.**
 
