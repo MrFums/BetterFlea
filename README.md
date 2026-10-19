@@ -1,5 +1,4 @@
 # BetterFlea
-- Fums
 
 **Makes the flea better (duh). More live-like, much more balanced, and highly configurable.**
 
