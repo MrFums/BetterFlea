@@ -1,7 +1,7 @@
 # BetterFlea
-By Fums.
+- Fums
 
-**Makes the flea better. More live-like, more control, and a few handy extras.**
+**Makes the flea better (duh). More live-like, much more balanced, and highly configurable.**
 
 BetterFlea makes the Flea Market in SPT better. Yeah that's the best I could come up with :) :
 
