@@ -72,6 +72,22 @@ internal static class ArmorOffers
 
     private static double Weight(MongoId tpl) => _itemHelper!.GetItem(tpl).Value?.Properties?.Weight ?? 0;
 
+    // Face shields, visors and night vision on a helmet are listed up or flipped down, however the seller last had them.
+    public static void FlipHinges(List<Item> items)
+    {
+        var chance = Settings.FlippedDownChance;
+        if (!Settings.Enabled || items.Count < 2)
+        {
+            return;
+        }
+
+        foreach (var part in items.Skip(1).Where(item => _itemHelper!.GetItem(item.Template).Value?.Properties?.HasHinge == true))
+        {
+            part.Upd ??= new Upd();
+            part.Upd.Togglable = new UpdTogglable { On = Random.Shared.NextDouble() < chance };
+        }
+    }
+
     public static void FitPlates(List<Item> items)
     {
         var settings = Settings;

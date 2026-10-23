@@ -1768,6 +1768,11 @@ public class OfferPricingPatch : AbstractPatch
         }
 
         OfferQuantityGate.MatchCondition(details);
+        if (details.Creator == OfferCreator.FakePlayer && details.Items is { } offerItems)
+        {
+            ArmorOffers.FlipHinges(offerItems);
+        }
+
         ArmorOffers.LogPriced(details);
     }
 }

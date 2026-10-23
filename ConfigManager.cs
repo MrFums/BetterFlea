@@ -254,6 +254,7 @@ public class ConfigManager(
         rating.NewSellerChance = Math.Clamp(rating.NewSellerChance, 0.0, 1.0);
         rating.RegularChance = Math.Clamp(rating.RegularChance, 0.0, 1.0);
         rating.FlipperChance = Math.Clamp(rating.FlipperChance, 0.0, 1.0);
+        Mod.GeneratedOffers.Armor.FlippedDownChance = Math.Clamp(Mod.GeneratedOffers.Armor.FlippedDownChance, 0.0, 1.0);
 
         var packs = Mod.GeneratedOffers.Packs;
         packs.ScamChance = Math.Clamp(packs.ScamChance, 0.0, 1.0);

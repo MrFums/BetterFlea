@@ -236,6 +236,9 @@ public record ArmorOffersConfig
     [JsonPropertyName("bestKitChance")]
     public double BestKitChance { get; set; } = 0.05;
 
+    [JsonPropertyName("flippedDownChance")]
+    public double FlippedDownChance { get; set; } = 0.3;
+
     [JsonPropertyName("conditionByRarity")]
     public Dictionary<string, ArmorConditionWeights> ConditionByRarity { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {

@@ -27,6 +27,7 @@
 
 ### Other offers
 - Armour and rigs get realistic plates and condition. Helmets, face shields, masks and visors get condition too.
+- Face shields, visors and night vision on helmets are sometimes listed flipped down.
 - Loose magazines are sometimes loaded: full, half, a single round, or a scam with one good round on top of cheap ones.
 - Full meds sometimes come several to an offer (up to 6). Used meds are always one per offer.
 - Small meds (Ibuprofen, splints) are sometimes nearly finished. Big surgical kits wear down evenly.

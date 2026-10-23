@@ -132,6 +132,7 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 **Armour**
 
 - Armour and rigs come with both plates, one, or none, in every condition from mint to wrecked. Helmets and face shields too.
+- Face shields, visors and night vision on helmets are sometimes listed flipped down (`flippedDownChance`).
 
 ## 4. Market
 
