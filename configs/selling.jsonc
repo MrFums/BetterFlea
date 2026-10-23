@@ -3,7 +3,7 @@
 // true = on. false = off. Delete this file and restart the server to get the default settings back.
 {
   "enabled": true,                   // false = players cannot sell on the Flea Market
-  "foundInRaidOnly": false,          // true = players can only sell items that are found in raid (like live Tarkov)
+  "foundInRaidOnly": false,          // true = players can only sell items that are found in raid
 
   // How fast a player's offer sells depends on its price against the normal price.
   // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: longer, and

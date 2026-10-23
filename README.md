@@ -157,7 +157,7 @@ I would personally recommend setting the markedKeyMultiplier to 1.5 as I feel ma
 I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. purchaseLock is off by default - turn it on and any item bought from a trader cannot be sold on the flea.
 
 - `saleDelay`: how fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced barely sells. Good gun builds still sell now and then.
-- `foundInRaidOnly`: true = only found in raid items can be sold, like live. Off by default. **Turn this on for the most live-like flea.**
+- `foundInRaidOnly`: true = only found in raid items can be sold. Off by default.
 
 Well whats the difference between flipPenalty and purchaseLock?
 
