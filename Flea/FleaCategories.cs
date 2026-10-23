@@ -11,16 +11,15 @@ public sealed record FleaCategory(
     IReadOnlySet<MongoId>? Tpls = null,
     Func<TemplateItem, bool>? Filter = null);
 
-// Every handbook item lands in exactly one category: the first match wins,
-// so specific entries (marked keys, armored rigs, magazines...) sit above their parents.
+// First match wins, so specific entries sit above their parents.
 public static class FleaCategories
 {
     public static readonly MongoId Key = new("543be5e94bdc2df1348b4568");
     public static readonly MongoId Keycard = new("5c164d2286f774194c5e69fa");
     public static readonly MongoId Fuel = new("5d650c3e815116009f6201d2");
 
-    public static readonly IReadOnlySet<MongoId> MarkedKeys = new HashSet<MongoId>
-    {
+    private static readonly HashSet<MongoId> MarkedKeySet =
+    [
         new("5780cf7f2459777de4559322"), // Dorm room 314 marked key
         new("5d80c62a86f7744036212b3f"), // RB-VO marked key
         new("5d80c60f86f77440373c4ece"), // RB-BK marked key
@@ -28,16 +27,20 @@ public static class FleaCategories
         new("64ccc25f95763a1ae376e447"), // Mysterious room marked key
         new("63a3a93f8a56922e82001f5d"), // Abandoned factory marked key
         new("62987dfc402c7f69bf010923")  // Shared bedroom marked key
-    };
+    ];
+
+    public static IReadOnlySet<MongoId> MarkedKeys => MarkedKeySet;
+
+    public static int AddMarkedKeys(IEnumerable<MongoId> keys) => keys.Count(MarkedKeySet.Add);
 
     public static readonly IReadOnlyList<FleaCategory> All = new List<FleaCategory>
     {
         // Keys
-        new("keys.markedKeys", b => b.Keys.MarkedKeys, [], Tpls: MarkedKeys),
+        new("keys.markedKeys", b => b.Keys.MarkedKeys, [], Tpls: MarkedKeySet),
         new("keys.keycards", b => b.Keys.Keycards, [Keycard]),
         new("keys.mechanicalKeys", b => b.Keys.MechanicalKeys, [Key]),
 
-        // Gear: armored rigs are vests with plate/soft armor slots
+        // Gear
         new("gear.armoredRigs", b => b.Gear.ArmoredRigs, [new("5448e5284bdc2dcb718b4567")],
             Filter: item => item.Properties?.Slots?.Any() == true),
         new("gear.chestRigs", b => b.Gear.ChestRigs, [new("5448e5284bdc2dcb718b4567")]),
@@ -86,7 +89,6 @@ public static class FleaCategories
         new("other.maps", b => b.Other.Maps, [new("567849dd4bdc2d150f8b456e")]),
         new("other.posters", b => b.Other.Posters, [new("6759673c76e93d8eb20b2080")]),
         new("other.specialEquipment", b => b.Other.SpecialEquipment, [new("5447e0e74bdc2d3c308b4567")])
-        // No money switch: the game never lets money onto the flea anyway.
     };
 
     public static readonly IReadOnlySet<string> Names = All.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);

@@ -1,0 +1,64 @@
+// BetterFlea - FLEA: what players can buy on the Flea Market
+// Lines that start with // are notes. After you change a setting, restart the server.
+// true = on. false = off. Delete this file and restart the server to get the default settings back.
+{
+  // true = also use BSG's own list of banned items (for example M993 ammo).
+  "enableBsgBlacklist": true,
+
+  // true = remove this whole type of item from the Flea Market.
+  // Each item is in only one of these groups.
+  "bannedCategories": {
+    "weapons": {
+      "guns": false,
+      "throwables": false,
+      "melee": false            // knives, axes, hammers, crowbar and other melee weapons
+    },
+    "ammo": {
+      "rounds": false,
+      "ammoBoxes": false
+    },
+    "weaponParts": {
+      "magazines": false,
+      "sights": false,
+      "suppressors": false,
+      "otherParts": false            // all other weapon parts: barrels, stocks, grips and more
+    },
+    "gear": {
+      "bodyArmor": false,
+      "armoredRigs": false,          // rigs that have armor
+      "chestRigs": false,            // rigs that have no armor
+      "backpacks": false,
+      "armorPlates": false,
+      "headwear": false,
+      "helmetAttachments": false,
+      "faceCovers": false,
+      "eyewear": false,
+      "headphones": false,
+      "armbands": false,
+      "containers": false
+    },
+    "keys": {
+      "mechanicalKeys": false,       // normal keys, not marked keys
+      "markedKeys": false,
+      "keycards": false
+    },
+    "medical": {
+      "medkits": false,
+      "bandagesAndSplints": false,
+      "painkillers": false,
+      "stimulants": false
+    },
+    "other": {
+      "foodAndDrink": false,
+      "barterItems": false,
+      "info": false,
+      "maps": false,
+      "posters": false,
+      "specialEquipment": false
+    }
+  },
+
+  // Item IDs or category IDs. Example: ["5efb0c1bd79ff02a1f5e68d9"]
+  "bannedItems": [],                 // these are never on the Flea Market
+  "allowedItems": []                 // these are always on the Flea Market, even if banned above
+}

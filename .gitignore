@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+dist/
+
+# Editor settings
+.vs/
+.vscode/
+*.user
+
+# Local only: extracted game art, local build settings, and server data written at runtime
+Directory.Build.targets
+Assets/
+data/

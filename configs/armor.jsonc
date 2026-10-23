@@ -1,0 +1,25 @@
+// BetterFlea - ARMOR: the plates body armor and rigs are listed with, and the condition of armor, helmets and plates
+// Lines that start with // are notes. After you change a setting, restart the server.
+// "Chance" values go from 0 (never) to 1 (always). Delete this file and restart the server to get the defaults back.
+//
+// Replaces SPT's own random plate removal. Class 5 and 6 front/back plates are flea-banned, so front/back plates are
+// class 4 or 3; side plates (class 5 or 6) can be sold. Every plate is checked against the slot it goes in. Light
+// carriers lean to heavier plates, heavy ones (Osprey, IOTV, Redut) to light plates, and pricier armor more often has
+// the light class 4s (Monoclete, Elaphros, Titan). When the two plates differ, the better one is usually in the front.
+{
+  "enabled": true,
+  "plates": { "both": 0.6, "frontOnly": 0.12, "backOnly": 0.08, "none": 0.2 }, // which front/back plates it comes with
+  "mixedClassChance": 0.2,    // one class 3 and one class 4 plate
+  "class3Chance": 0.15,       // both class 3 (old or budget kit)
+  "sidePlateChance": 0.3,     // armor that takes side plates has them (with or without front/back plates)
+  "bestKitChance": 0.05,      // class 4 front/back + class 6 sides, all mint: the best (and priciest) there is
+
+  // Condition by rarity: mint, worn (a bit under max), destroyed (15-35% left but a good max, worth repairing),
+  // obliterated (max worn right down too). Plates, soft armor, loose plates, helmets, face shields, armored masks and
+  // visors all use it. Mostly mint or lightly worn; only about 1 in 8 is badly damaged.
+  "conditionByRarity": {
+    "Common":    { "mint": 0.3,  "worn": 0.55, "destroyed": 0.1,  "obliterated": 0.05 },
+    "Rare":      { "mint": 0.4,  "worn": 0.48, "destroyed": 0.08, "obliterated": 0.04 },
+    "Superrare": { "mint": 0.55, "worn": 0.37, "destroyed": 0.05, "obliterated": 0.03 }
+  }
+}

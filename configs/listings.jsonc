@@ -1,0 +1,76 @@
+// BetterFlea - LISTINGS: how many offers there are, how many items are in one, and what currency they're in
+// Only the offers the server makes, not offers from players.
+// Lines that start with // are notes. After you change a setting, restart the server.
+// Delete this file and restart the server to get the default settings back.
+{
+  // How many offers each item has. Normal SPT is 7 to 30 offers per item.
+  "listings": {
+    // true = the bigger amounts below. false = SPT's normal amounts (7 to 30 offers per item).
+    "enabled": true,
+    "multiplier": 3.0,               // 1 = normal. 3 = triple. 0 = no offers (traders only). Highest: 10.
+    "currencyMultiplier": 0.02,      // Dollars, Euros and Roubles on the flea. Live almost never has these. 0 = none. 0.02 = about 1 in 5 Dollars gets 1 offer, Euros almost never.
+    "categoryMultipliers": { "gear.armorPlates": 3.0, "medical.medkits": 3.0, "medical.bandagesAndSplints": 3.0, "medical.painkillers": 3.0, "medical.stimulants": 3.0 }, // extra for a group, on top of everything else (minimums too): plates and meds get 3x
+    "minimumOffers": {               // fewest offers a group gets, whatever multiplier and rarityMultipliers say. "all" = every item
+      "all": 30,
+      "keys.markedKeys": 20,
+      "keys.keycards": 20,
+      "keys.mechanicalKeys": 20,
+      "weapons.guns": 60
+    },
+    "superrareMinimumOffers": {      // superrare items use this minimum instead (a superrare gun is rare on the flea too)
+      "weapons.guns": 30
+    },
+    "rarityMultipliers": {           // more offers for common items, fewer for rare items
+      "Common": 1.5,
+      "Rare": 1.0,
+      "Superrare": 0.6
+    },
+
+    // Saves memory: most offers are only made when a player looks at the item (opens its category or searches for it).
+    // Players see the same flea either way. With this on, the server uses about as much memory as without BetterFlea.
+    //   startShare        = share of each item's offers made at startup. 0.15 = 15%. The rest come when looked at.
+    //   minStartOffers    = every item starts with at least this many offers
+    //   keepPages         = only the last this many lists you opened stay filled. Opening one more trims the oldest
+    //                       (paging through the same list doesn't count). 0 = off
+    //   keepSeconds       = an item nobody has looked at for this long goes back to its start share
+    //   maxExtraOffers    = most offers made on demand at once. Past it, the items looked at longest ago go back to their
+    //                       start share first, so clicking through every category can't run the server out of memory
+    //   maxItemsPerSearch = a search over more items than this (a whole top category like "Weapon parts") shows
+    //                       what's there without filling it all up. Open a smaller category to see everything.
+    "onDemand": {
+      "enabled": true,
+      "startShare": 0.15,
+      "minStartOffers": 3,
+      "keepPages": 4,
+      "keepSeconds": 120,
+      "maxExtraOffers": 15000,
+      "maxItemsPerSearch": 400
+    }
+  },
+
+  // How many items are in one offer. Only for items that do not stack (ammo and money use normal SPT).
+  //   max      = the most items in one offer
+  //   falloff  = from 0 to 1. Lower = more offers with only 1 item.
+  // Used items (an AFAK at 322, a juice at 8/40) are always 1 per offer; full medkits, drinks and fuel only rarely come
+  // several to an offer.
+  "itemsPerOffer": {
+    "enabled": true,
+    "armoredRigsSingle": true,                 // true = armored rigs always have 1 per offer
+    "bulk": { "max": 35, "falloff": 0.8 },     // common small barter items: bulbs, wires, bolts. Above 20 is rare
+    "stock": { "max": 6, "falloff": 0.55 },    // rare small barter items, and common meds, food and weapon parts
+    "few": { "max": 3, "falloff": 0.3 },       // very rare or big items, and all gear: GPU, LEDX, rigs
+    "signalFlares": { "max": 2, "falloff": 0.1 }, // signal flares (stack of 60 in SPT): usually 1 per offer
+    "ammoBoxes": { "max": 3, "falloff": 0.5 },     // ammo boxes: usually 1, sometimes up to 3
+    "grenadeWeights": [1, 4, 3, 1, 0.5, 0.25, 0.1, 0.05], // F1, RGD-5, M67 etc. Chance weight for 1, 2, 3... per offer. Here 2s and 3s are most common
+    "grenadeBulk": { "chance": 0.04, "min": 6, "max": 12 }, // now and then a pile of the grenades people stock up on (F-1, RGD-5, M67, Zarya, VOGs, smokes)
+    "stimBulk": { "chance": 0.03, "min": 3, "max": 6 }      // now and then a handful of the same stim
+  },
+
+  // Which currency an offer's price is shown in. Only the ratios matter.
+  // SPT's default is 78 roubles, 14 dollars, 8 euros. 0 = never.
+  "offerCurrency": {
+    "roubles": 100,
+    "dollars": 2,
+    "euros": 2
+  }
+}

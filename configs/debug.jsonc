@@ -1,0 +1,6 @@
+// BetterFlea - DEBUG
+// After you change a setting, restart the server.
+{
+  // true = write a lot of extra lines in the server log. Use this only to test.
+  "debugLogging": false
+}

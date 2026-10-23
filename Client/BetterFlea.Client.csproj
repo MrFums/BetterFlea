@@ -7,15 +7,15 @@
         <RootNamespace>BetterFlea.Client</RootNamespace>
         <LangVersion>latest</LangVersion>
         <Nullable>disable</Nullable>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
         <!-- Don't put this PC's folder path into the built DLL. -->
         <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
     </PropertyGroup>
 
+    <!-- Build with: dotnet build -p:GameDir="C:\path\to\SPT" (the game folder with EscapeFromTarkov.exe). -->
     <PropertyGroup>
-        <GameDir Condition=" '$(GameDir)' == '' ">E:\Games\SPT4.1</GameDir>
         <Managed>$(GameDir)\EscapeFromTarkov_Data\Managed</Managed>
         <BepInExCore>$(GameDir)\BepInEx\core</BepInExCore>
         <SptPlugins>$(GameDir)\BepInEx\plugins\spt</SptPlugins>
@@ -36,6 +36,10 @@
         <Reference Include="spt-common" HintPath="$(SptPlugins)\spt-common.dll" Private="false" />
         <Reference Include="spt-reflection" HintPath="$(SptPlugins)\spt-reflection.dll" Private="false" />
     </ItemGroup>
+
+    <Target Name="NeedsGameDir" BeforeTargets="ResolveAssemblyReferences" Condition=" '$(GameDir)' == '' ">
+        <Error Text="Set GameDir to your SPT game folder: dotnet build -p:GameDir=&quot;C:\path\to\SPT&quot;" />
+    </Target>
 
     <!-- Copies the plugin into the game. Close the game first, it locks the file while running. -->
     <Target Name="DeployToGame" AfterTargets="AfterBuild">

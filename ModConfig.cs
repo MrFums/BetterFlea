@@ -7,27 +7,82 @@ using BetterFlea.Selling;
 
 namespace BetterFlea;
 
-// config.jsonc, one section per area. Each section's settings live next to that feature's code.
-// Settings missing from the file keep their defaults.
 public record ModConfig
 {
-    /// <summary>What can be bought on the flea.</summary>
     [JsonPropertyName("flea")]
     public FleaConfig Flea { get; set; } = new();
 
-    /// <summary>The offers the server generates for fake sellers.</summary>
     [JsonPropertyName("generatedOffers")]
     public GeneratedOffersConfig GeneratedOffers { get; set; } = new();
 
-    /// <summary>What generated offers cost.</summary>
     [JsonPropertyName("prices")]
     public PricesConfig Prices { get; set; } = new();
 
-    /// <summary>Players listing their own items.</summary>
     [JsonPropertyName("playerSelling")]
     public PlayerSellingConfig PlayerSelling { get; set; } = new();
 
-    /// <summary>Log every price floor, drift and flip penalty decision. For testing.</summary>
+    [JsonPropertyName("debugLogging")]
+    public bool DebugLogging { get; set; } = false;
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Unknown { get; set; }
+}
+
+// Files in configs/ holding more than one section. The rest map straight onto one section.
+
+public record ListingsFile
+{
+    [JsonPropertyName("listings")]
+    public ListingsConfig Listings { get; set; } = new();
+
+    [JsonPropertyName("itemsPerOffer")]
+    public OfferQuantityConfig ItemsPerOffer { get; set; } = new();
+
+    [JsonPropertyName("offerCurrency")]
+    public OfferCurrencyConfig OfferCurrency { get; set; } = new();
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Unknown { get; set; }
+}
+
+public record WeaponsFile
+{
+    [JsonPropertyName("presets")]
+    public PresetOffersConfig Presets { get; set; } = new();
+
+    [JsonPropertyName("playerGuns")]
+    public PlayerGunsConfig PlayerGuns { get; set; } = new();
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Unknown { get; set; }
+}
+
+public record MarketFile
+{
+    [JsonPropertyName("offerExpiry")]
+    public OfferExpiryConfig OfferExpiry { get; set; } = new();
+
+    [JsonPropertyName("simulatedSales")]
+    public SimulatedSalesConfig SimulatedSales { get; set; } = new();
+
+    [JsonPropertyName("soldBeforeYouChance")]
+    public double SoldBeforeYouChance { get; set; } = 0.05;
+
+    [JsonPropertyName("barterOffers")]
+    public BarterOffersConfig BarterOffers { get; set; } = new();
+
+    [JsonPropertyName("sellerRating")]
+    public SellerRatingConfig SellerRating { get; set; } = new();
+
+    [JsonPropertyName("packs")]
+    public PackOffersConfig Packs { get; set; } = new();
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Unknown { get; set; }
+}
+
+public record DebugFile
+{
     [JsonPropertyName("debugLogging")]
     public bool DebugLogging { get; set; } = false;
 

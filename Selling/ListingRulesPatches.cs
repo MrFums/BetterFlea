@@ -55,11 +55,9 @@ internal static class FleaSellingGate
 
     public static bool FoundInRaidOnly => _config?.Mod.PlayerSelling.FoundInRaidOnly == true;
 
-    // The client greys out non-FIR items when the globals flag is on; this catches anything that gets past it.
-    // Attachments and other children count too, so a FIR gun with non-FIR parts is refused.
+    // Children count too, so a FIR gun with non-FIR parts is refused.
     public static bool AllFoundInRaid(List<Item> listed) => listed.All(item => item.Upd?.SpawnedInSession == true);
 
-    // The listed items plus everything attached to or inside them.
     public static List<Item> WithChildren(PmcData pmcData, IEnumerable<MongoId> listedIds)
     {
         var found = new List<Item>();
@@ -79,7 +77,7 @@ internal static class FleaSellingGate
         var pending = new Stack<string>(listedIds.Select(id => id.ToString()));
         while (pending.TryPop(out var id))
         {
-            // Unknown IDs are left for SPT's own validation to reject.
+            // Left for SPT to reject.
             if (!byId.TryGetValue(id, out var item))
             {
                 continue;
@@ -97,8 +95,7 @@ internal static class FleaSellingGate
 
     public const string BoughtFromTraderMessage = "Trader items can't be sold at the Flea Market.";
 
-    // No error code on purpose: the game treats RagfairUnavailable as the flea going down and
-    // throws the player out to the menu. Without one it just shows the message.
+    // No error code on purpose: RagfairUnavailable kicks the player to the menu.
     public static ItemEventRouterResponse Fail(MongoId sessionID, string message)
     {
         var output = _output!.GetOutput(sessionID);

@@ -5,22 +5,24 @@ using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Helpers.Commerce;
 using SPTarkov.Server.Core.Helpers.Items;
-using SPTarkov.Server.Core.Servers;
+using SPTarkov.Server.Core.Helpers.Ragfair;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
-using Item = SPTarkov.Server.Core.Models.Eft.Common.Tables.Item;
 using SPTarkov.Server.Core.Models.Eft.ItemEvent;
 using SPTarkov.Server.Core.Models.Eft.Trade;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using SPTarkov.Server.Core.Servers.Http;
+using SPTarkov.Server.Core.Servers;
 using SPTarkov.Server.Core.Utils;
+using Item = SPTarkov.Server.Core.Models.Eft.Common.Tables.Item;
+using Microsoft.AspNetCore.Http;
 
 namespace BetterFlea.Selling;
 
 [Injectable(TypePriority = OnLoadOrder.Preload)]
 public class PurchaseLockPatchesLoad(
-    ISptLogger<PurchaseLockPatchesLoad> logger,
     ConfigManager configManager,
-    ItemHelper itemHelper,
-    JsonUtil jsonUtil) : IOnLoad
+    ItemHelper itemHelper) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -29,46 +31,33 @@ public class PurchaseLockPatchesLoad(
             configManager.Load();
         }
 
-        PurchaseLock.Bind(configManager, itemHelper, jsonUtil, message => logger.Warning(message));
+        PurchaseLock.Bind(configManager, itemHelper);
         new LockPurchasePatch().Enable();
         return Task.CompletedTask;
     }
 }
 
-// Remembers the ids of items players buy from traders, so those exact items can never be listed.
-// The item itself isn't marked: an unknown field in an item's data would be sent to every game client
-// and through co-op syncing, which isn't worth the risk.
-//
-// Stackable items (ammo, money, ...) and ammo boxes are never locked: a bought stack can be merged into
-// one the player already had, and a box opened into loose rounds, so a lock would never be effective.
-//
-// Saved to data/purchase-locks.json. Locks for items that are no longer in the player's inventory
-// (sold, used up, lost in raid) are dropped whenever that player buys from a trader, and for every
-// player at server start, so the file only holds what players actually still own.
+// Ids of items players bought from traders. The item itself isn't marked, since unknown fields get sent to
+// every client and through co-op sync. Stacks and ammo boxes are never locked (they can be merged or opened).
+// Saved to data/purchase-locks.json and pruned against the inventory.
 internal static class PurchaseLock
 {
     private const string FileName = "purchase-locks.json";
 
-    // Safety net only; pruning against the inventory keeps real counts far below this.
+    // Safety net, pruning keeps it far below this.
     private const int MaxLocksPerPlayer = 5000;
 
     private static readonly object Sync = new();
 
     private static ConfigManager? _config;
     private static ItemHelper? _itemHelper;
-    private static JsonUtil? _json;
-    private static Action<string>? _warn;
-    private static string _path = string.Empty;
 
     private static LockFile _data = new();
 
-    // Purchases are handled one request at a time per thread; carries the inventory as it was
-    // before the purchase into the postfix.
     [ThreadStatic] private static HashSet<string>? _ownedBefore;
 
     public sealed class LockFile
     {
-        /// <summary>Player id -> ids of items they bought from traders.</summary>
         public Dictionary<string, HashSet<string>> Players { get; set; } = new();
     }
 
@@ -76,20 +65,19 @@ internal static class PurchaseLock
 
     public static bool IsOn => Enabled;
 
-    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, JsonUtil jsonUtil, Action<string> warn)
+    private static bool IncludeFleaPurchases => _config?.Mod.PlayerSelling.PurchaseLock.IncludeFleaPurchases == true;
+
+    public static void Bind(ConfigManager configManager, ItemHelper itemHelper)
     {
         _config = configManager;
         _itemHelper = itemHelper;
-        _json = jsonUtil;
-        _warn = warn;
-        _path = Path.Combine(configManager.ModPath, "data", FileName);
-        Load();
+        _data = DataFiles.Read<LockFile>(FileName) ?? new LockFile();
     }
 
     public static void BeforePurchase(PmcData pmcData, ProcessBuyTradeRequestData request)
     {
-        // Straight from a trader (Fence included), or a trader's offer on the flea. Other players' offers aren't locked.
-        var fromTrader = request.Type is "buy_from_trader" or "buy_from_ragfair_trader";
+        var fromTrader = request.Type is "buy_from_trader" or "buy_from_ragfair_trader"
+            || (IncludeFleaPurchases && request.Type == "buy_from_ragfair");
         _ownedBefore = Enabled && fromTrader ? OwnedIds(pmcData) : null;
     }
 
@@ -103,9 +91,7 @@ internal static class PurchaseLock
             return;
         }
 
-        // Whatever is in the inventory now that wasn't before: the bought item and everything attached
-        // to it, so a gun can't be stripped and sold in parts. Read straight from the inventory, so it
-        // doesn't depend on how SPT reports the change back to the game. Stackables are left out.
+        // Whatever's new in the inventory, attachments included, so a gun can't be stripped and sold in parts.
         var added = (pmcData.Inventory?.Items ?? [])
             .Where(item => !before.Contains(item.Id.ToString()) && !CanSlipThrough(item))
             .Select(item => item.Id.ToString())
@@ -155,8 +141,6 @@ internal static class PurchaseLock
 
     private static readonly MongoId AmmoBox = new("543be5cb4bdc2deb348b4568");
 
-    // Stacks can be merged into other stacks, and an ammo box can be opened into loose rounds (which stack),
-    // so locking either would be pointless.
     private static bool CanSlipThrough(Item item)
     {
         if (_itemHelper is null)
@@ -168,8 +152,7 @@ internal static class PurchaseLock
             || _itemHelper.IsOfBaseclass(item.Template, AmmoBox);
     }
 
-    // At server start, once profiles are loaded: drop locks for items players no longer have, and for
-    // stackables (older versions locked those too).
+    // Also drops stackable locks from older versions.
     public static void CleanUp(SaveServer saveServer)
     {
         lock (Sync)
@@ -207,12 +190,11 @@ internal static class PurchaseLock
         }
         catch
         {
-            // Profile deleted or unreadable: keep its locks rather than guess.
+            // Profile unreadable: keep its locks.
             return null;
         }
     }
 
-    // For the client plugin's "bought from trader" tag. Empty while the lock is off.
     public static List<string> LockedIds(MongoId player)
     {
         if (!Enabled)
@@ -226,8 +208,7 @@ internal static class PurchaseLock
         }
     }
 
-    // Drops locks for items the player no longer has (sold, used up, lost in raid).
-    // Only run on a purchase, when the inventory is known to be complete and a new lock is added straight after.
+    // Only on a purchase, when the inventory is known to be complete.
     private static void Prune(HashSet<string> locks, PmcData pmcData)
     {
         var owned = OwnedIds(pmcData);
@@ -254,39 +235,7 @@ internal static class PurchaseLock
         return locks;
     }
 
-    private static void Load()
-    {
-        if (!File.Exists(_path))
-        {
-            return;
-        }
-
-        try
-        {
-            _data = _json!.Deserialize<LockFile>(File.ReadAllText(_path)) ?? new LockFile();
-        }
-        catch (Exception ex)
-        {
-            _warn?.Invoke($"[BetterFlea] Could not read {FileName}, starting with no purchase locks. ({ex.Message})");
-            _data = new LockFile();
-        }
-    }
-
-    // Purchases are rare enough to write straight away; written to a temp file first so a crash can't leave half a file.
-    private static void Save()
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            var temp = _path + ".tmp";
-            File.WriteAllText(temp, _json!.Serialize(_data));
-            File.Move(temp, _path, overwrite: true);
-        }
-        catch (Exception ex)
-        {
-            _warn?.Invoke($"[BetterFlea] Could not save {FileName}. ({ex.Message})");
-        }
-    }
+    private static void Save() => DataFiles.Write(FileName, _data);
 }
 
 public class LockPurchasePatch : AbstractPatch
@@ -308,5 +257,61 @@ public class LockPurchasePatch : AbstractPatch
     public static void Postfix(PmcData pmcData, MongoId sessionId, ItemEventRouterResponse output)
     {
         PurchaseLock.AfterPurchase(pmcData, sessionId, output);
+    }
+}
+
+// GET /betterflea/client-data for the client plugin: flea-banned types and the caller's trader-bought items.
+[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload)]
+public class ClientDataRoute(
+    TemplateTable templates,
+    ItemHelper itemHelper,
+    RagfairServerHelper ragfairServerHelper,
+    JsonUtil jsonUtil) : IHttpListener
+{
+    public const string Path = "/betterflea/client-data";
+
+    // Currency, dogtags and quest items are kept off by the game itself, so they get no icon.
+    private List<string>? _fleaBanned;
+    private readonly object _sync = new();
+
+    public bool CanHandle(HttpContext context)
+    {
+        return context.Request.Path.Equals(Path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public async Task HandleAsync(MongoId sessionId, HttpContext context, CancellationToken cancellationToken)
+    {
+        var body = jsonUtil.Serialize(new ClientData
+        {
+            FleaBanned = FleaBanned(),
+            BoughtFromTrader = PurchaseLock.LockedIds(sessionId),
+            PurchaseLockOn = PurchaseLock.IsOn
+        });
+
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(body ?? "{}", cancellationToken);
+    }
+
+    private List<string> FleaBanned()
+    {
+        lock (_sync)
+        {
+            return _fleaBanned ??= templates.Handbook.Items
+                .Select(entry => itemHelper.GetItem(entry.Id))
+                .Where(item => item.Key
+                    && item.Value?.Properties?.CanSellOnRagfair == true
+                    && item.Value?.Properties?.QuestItem != true
+                    && !ragfairServerHelper.IsItemValidRagfairItem(item))
+                .Select(item => item.Value!.Id.ToString())
+                .ToList();
+        }
+    }
+
+    public sealed class ClientData
+    {
+        public List<string> FleaBanned { get; set; } = new();
+        public List<string> BoughtFromTrader { get; set; } = new();
+
+        public bool PurchaseLockOn { get; set; }
     }
 }

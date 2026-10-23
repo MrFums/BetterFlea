@@ -1,17 +1,24 @@
-# BetterFlea
+# Better Flea
 
 **Makes the flea better (duh). More live-like, much more balanced, and highly configurable.**
 
-BetterFlea makes the Flea Market in SPT better. Yeah that's the best I could come up with :) :
+Better Flea makes the Flea Market in SPT better. Yeah that's the best I could come up with :) :
 
-- Turn off whole groups of items on the Flea Market, with simple true/false toggles.
-- Offers look more real: a normal number of items in each offer, more sellers for common items, and some keys, meds, food, fuel and repair kits that are partly used.
+- Guns are listed the way players actually sell them: stripped, stock, found, budget, modded and meta builds, broken-down guns, and guns looted off scavs and bosses. Priced against what traders sell them for.
+- Your own guns turn up: builds you save, and guns you die with, sold by whoever killed you.
+- Body armour comes with realistic plates, and gear comes in every condition from mint to wrecked.
+- Offers look real: a normal number of items in each offer, partly used keys, meds, food and fuel, and the odd scam to watch out for.
+- A living market: offers last up to 24 hours, other players buy the good deals, sellers have flea ratings, and now and then something is "sold before you".
+- Selling depends on your price: undercut and it sells fast, overprice and it sits there. Flipping is slowed down.
 - Prices change a little over time. An offer is never cheaper than what a trader pays for the item.
-- Options for player selling: a wait before your item sells, a longer wait if you buy items to resell them, and FIR flea.
+- Turn off whole groups of items on the Flea Market, with simple true/false toggles.
+- 3 times the base game's offers, with about the same server memory as SPT without the mod.
+
+Everything can be turned off or tuned in the settings.
 
 ## What you need
 - SPT 4.1.x. Fika compatible.
-- BetterFlea has 2 parts. **The server needs part 1. Every real player needs part 2.**
+- Better Flea has 2 parts. **The server needs part 1. Every real player needs part 2.**
 
 | Part | Folder | Who installs it |
 |---|---|---|
@@ -21,27 +28,40 @@ BetterFlea makes the Flea Market in SPT better. Yeah that's the best I could com
 **Fika headless client: do NOT install the BepInEx plugin on it.** It only needs the server mod on the server.
 
 ## How to install
-1. Download `BetterFlea-1.0.0.zip`.
+1. Download `BetterFlea-2.0.0.zip`.
 2. Open your SPT install folder.
 3. Extract the zip into this folder. The 2 parts go to the correct folders by themselves.
 4. Only the server host needs the server component. Obviously. Every REAL player needs the BepInEx plugin.
+
+## How to update
+Close the game and the server, extract the new zip over the old one, and start the server. Your old settings are carried over.
 
 ## How to uninstall
 Delete these 2 folders:
 - `SPT_Runtime\user\mods\BetterFlea\`
 - `BepInEx\plugins\BetterFlea\`
 
-BetterFlea does not change player profiles. You do not need to clean anything else.
+Better Flea does not change player profiles. You do not need to clean anything else.
 
 ## Settings
-All settings are in `SPT_Runtime\user\mods\BetterFlea\config.jsonc`. Each setting has a note next to it.
+All settings are in `SPT_Runtime\user\mods\BetterFlea\configs\`, one file for each part of the mod. Each setting has a note next to it.
 
-- Open the file with a text editor, Notepad++ or VSCode if you're a normal human.
+| File | What's in it |
+|---|---|
+| `flea.jsonc` | What can be on the Flea Market |
+| `listings.jsonc` | How many offers there are and how many items are in one |
+| `condition.jsonc` | Partly used items and gun wear |
+| `weapons.jsonc` | How guns are built, and players' own guns turning up |
+| `armor.jsonc` | Armour plates and condition |
+| `market.jsonc` | How long offers last, other players buying, seller ratings, packs and barters |
+| `prices.jsonc` | Price floor, price changes, gun prices, marked keys |
+| `selling.jsonc` | Players selling their own items |
+| `debug.jsonc` | Extra logging |
+
+- Open the files with a text editor, Notepad++ or VSCode if you're a normal human.
 - After you change a setting, restart the server.
-- If the server log says "Unknown setting", check the spelling of that setting. 
-- If you are stupid and change random settings in the config and want it back to default, just delete it and restart the server. It will regenerate.
-
-The file has 4 parts. They are explained below.
+- If the server log says "Unknown setting", check the spelling of that setting.
+- If you are stupid and change random settings and want them back to default, just delete that file and restart the server. It will regenerate.
 
 ## 1. Flea: what players can buy
 - `enableBsgBlacklist`: true = also use BSG's own list of banned items (for example M993 ammo or Knight's Mask - shameless plug go install my Knight Mask fix mod).
@@ -57,112 +77,128 @@ The file has 4 parts. They are explained below.
 | `medical` | `medkits`, `bandagesAndSplints`, `painkillers`, `stimulants` |
 | `other` | `foodAndDrink`, `barterItems`, `info`, `maps`, `posters`, `specialEquipment` |
 
-Each item is in only one group. For example, `mechanicalKeys` does not include marked keys, and `chestRigs` does not include armored rigs.
-
 For single items, use item IDs or category IDs:
 - `bannedItems`: these items are never on the Flea Market.
 - `allowedItems`: these items are always on the Flea Market, even if a group is banned.
 
-## 2. Generated offers: the offers the server makes
-These are the offers from the server, not offers from players.
+## 2. Offers
 
-**How many offers (`listings`)**
+**How many offers**
 
-Base SPT feels too empty to me on the Flea, this pumps it up. Set this around 2 or 3 to fix this if you don't like it too. 2 by default.
+Base SPT feels too empty to me on the Flea, this pumps it up. 3 times the offers by default.
 
-- Normal SPT has around 7 to 30 offers for each item.
-- `multiplier`: 1 = normal, 2 = double, 0 = no offers (only traders). The highest is 10.
-- `categoryMultipliers`: a different number for one group, for example `"keys.markedKeys": 3.0`.
-- `rarityMultipliers`: more offers for common items, fewer for rare items.
-- More offers use more server memory, it's not much but don't go stupid with it. I usually like it around the x2 or x3 mark and don't notice a change in resource usage.
+- `multiplier`: 1 = normal, 3 = triple, 0 = no offers (only traders).
+- `categoryMultipliers` and `minimumOffers`: more offers for a group, or a minimum per item. Guns get at least 60.
+- Most offers are only made when someone looks at the item, so the server uses about as much memory as SPT without the mod (`onDemand`).
 
-**Items in one offer (`itemsPerOffer`)**
+**Items in one offer**
 
 Makes offers more like the live flea - for example wires you will see a lot more of one type listed but something like Bulbex won't have 8 in one listing as they are much rarer, players usually don't have that many to flog.
 
-| Profile | Which items | Items in one offer |
-|---|---|---|
-| `bulk` | Common small barter items: bulbs, wires, bolts, tape, cigarettes | 1 to 20. Usually small. 20 is rare. |
-| `stock` | Rare small barter items. Common meds, food and weapon parts. | 1 to 6. Usually 1 or 2. |
-| `few` | Very rare items, big items, and all gear: GPU, LEDX, rigs, helmets | 1 to 3. Usually 1. |
-
-- `max`: the most items in one offer.
-- `falloff`: from 0 to 1. Lower = more offers with only 1 item.
-- `armoredRigsSingle`: true = armored rigs always have 1 per offer.
-- Ammo remains untouched.
-
-**Partly used items (`usedItems`)**
+**Partly used items**
 
 I personally hate seeing marked keys listed with full durability. I then also dislike having a 1/x use key being half the price of a 2/x. In live, players usually try and flog it for a bit more - it's annoying but more realistic :)
 
-- Some offers have items that are partly used, for example a key with 3 uses left or fuel at 10/100.
-- The price is lower when less is left.
-- `usedChance`: the chance that an offer is partly used. 0.6 = 60%.
-- Keys: `usesLeftFalloff` from 0 to 1 (lower = more keys with only 1 use left). `oneUsePricePercent` = the price of a key with 1 use left, in % of a new key.
-- Meds, food, fuel and repair kits: `lowAmountBias` (1 = any amount left, higher = more offers that are almost empty).
+- Keys, meds, food, fuel and repair kits are sometimes partly used. Less left = cheaper.
+- Used items are one per offer. Full ones sometimes come a few at a time.
+- Some fuel cans are empty. Most are cheap, some are priced like a full one, so check before you buy.
 
-## 3. Prices
+## 3. Guns and armour
+
+**Gun builds**
+
+Guns aren't just SPT's factory builds. Each gun offer is one of these:
+
+| Tier | What it is |
+|---|---|
+| `stripped` | The good stuff sold off: scope, suppressor, lights, nice stock. |
+| `stock` | Factory gun, maybe a part or two changed. |
+| `ground` | Picked up off the ground and sold as found. |
+| `found` | Looks like it came out of a raid, some exactly as a scav or boss carries it. |
+| `budget` | A full build from cheap parts. |
+| `modded` | A proper build. Some are the gun's meta build. |
+| `broken` | Main parts taken off. |
+| `gutted` | Nearly everything sold off. |
+
+- Cheap guns are mostly stripped or broken, dear guns mostly modded. Gun wear matches the build.
+- Want an exact build to show up (a streamer's, say)? Save it in the game's Builds screen with a name starting with "Meta".
+- Some guns and magazines have rounds in them. Watch out for the mag with one good round sat on top of junk.
+
+**Players' own guns**
+
+- Builds you save in the Builds screen can turn up on the flea.
+- Die in a raid and your gun might turn up a while later, sold by whoever killed you.
+
+**Armour**
+
+- Armour and rigs come with both plates, one, or none, in every condition from mint to wrecked. Helmets and face shields too.
+
+## 4. Market
+
+- Offers last up to 24 hours, like live. Good deals don't last long, overpriced ones sit there.
+- Other players buy offers, and now and then something you try to buy was "sold before you".
+- Seller ratings go up to 300. Someone selling a stack of one item is usually a flipper with a high rating.
+- Rare barter offers that want items people actually have lying around.
+- Packs: several items you have to buy together. Most are scams, so do the maths. Very rarely someone lists a silly amount.
+
+## 5. Prices
 
 I would personally recommend setting the markedKeyMultiplier to 1.5 as I feel marked keys a bit too cheap in base SPT. I've left this untouched for the default.
 
-- `markedKeyMultiplier`: the Flea Market price of the 7 marked keys. 1 = normal, 1.5 = 50% more. Trader prices do not change.
-- `floor`: an offer is never cheaper than the most a trader pays for the item, plus `marginPercent`. This stops players buying on the Flea Market and selling to a trader for profit.
-- `logTraderProfitLoops`: true = at start, the server log shows items that one trader sells for less than another trader pays. BetterFlea only shows these. It does not change them.
-- `drift`: prices go up and down a little over time, at most `maxDriftPercent`. Only new offers get the new price.
+- `markedKeyMultiplier`: the Flea Market price of marked keys. 1 = normal, 1.5 = 50% more.
+- `floor`: an offer is never cheaper than what a trader pays for the item. No buying on the flea to sell to a trader.
+- `drift`: prices go up and down over time.
+- `sellers`: some sellers ask too much, and now and then someone sells one cheap.
+- `guns`: guns are priced against what traders sell them for, so a stock gun isn't 3 times the trader's price.
 
-## 4. Player selling
+## 6. Player selling
 
-I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. I have left purchaseLock on by default - this makes it so any item bought from a trader cannot be sold on the flea; disable this if you don't like it.
-Well whats the difference between flipPenalty and purchaseLock? 
+I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. purchaseLock is off by default - turn it on and any item bought from a trader cannot be sold on the flea.
+
+- `saleDelay`: how fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced barely sells. Good gun builds still sell now and then.
+- `foundInRaidOnly`: true = only found in raid items can be sold, like live. Off by default. **Turn this on for the most live-like flea.**
+
+Well whats the difference between flipPenalty and purchaseLock?
 
 | | `flipPenalty` | `purchaseLock` |
 |---|---|---|
 | **What happens** | The item **can** be sold. The player waits **longer** for a buyer. | The item can **never** be sold on the Flea Market. |
 | **Which purchases** | Traders, Fence and the Flea Market | Traders and Fence |
-| **When it starts** | After the player buys **many** of one item (more than 2). Fence counts 3 times. | From the **first** item |
-| **How long** | 60 minutes. A server restart forgets it. | **Forever**, while the player has the item. It is saved. |
-| **Ammo and other stacks** | Yes | No |
-| **Needs** | `saleDelay` on | Nothing |
-| **The player sees** | Nothing. The item only sells slower. | The orange icon, a grey item and a warning |
-
-**In short:** `purchaseLock` = "you cannot sell what you bought from a trader". `flipPenalty` = "buying lots of one item to resell is slow". Use both: `flipPenalty` also covers items bought on the Flea Market, and ammo.
-
-- `enabled`: false = players cannot sell on the Flea Market.
-- `foundInRaidOnly`: true = players can only sell items that are found in raid. Parts on a gun must also be found in raid.
-- `saleDelay`: players wait between `minMinutes` and `maxMinutes` before the first buyer comes. `noDelayChance` is the chance of no wait.
-- `flipPenalty`: if a player buys many of one item and then sells it on the Flea Market, they wait longer for a buyer.
-  - `freePurchases`: a player can buy this many with no extra wait.
-  - `maxExtraMinutes`: the longest extra wait.
-  - `fenceMultiplier`: 1 item from Fence counts as this many purchases.
-  - This only works when `saleDelay` is on. When the server restarts, it forgets old purchases.
-- `purchaseLock` (on by default): true = items bought from a trader (also Fence) can never be sold on the Flea Market.
-  - Players can still use these items, or sell them to a trader.
-  - Parts on a bought gun are also locked.
-  - Ammo, ammo boxes and other items that stack are not locked.
-  - The server saves the locks in `data\purchase-locks.json`. It removes locks for items that a player does not have any more.
+| **When it starts** | After the player buys **many** of one item | From the **first** item |
+| **Default** | On | Off |
+| **The player sees** | Nothing. The item only sells slower. | A grey item and a warning |
 
 ## What the BepInEx plugin does
 The server makes all the rules. The BepInEx plugin shows them to the player:
 
-- **Flea Market icon on items.** Red = banned on the Flea Market. Orange = bought from a trader (only when `purchaseLock` is on). Move the mouse over the icon to see why.
-- **The same note in the item tooltip.**
+- **Flea Market icon on items (off by default).** Red = banned on the Flea Market. Orange = bought from a trader (only when `purchaseLock` is on). Hover the icon to see why. Turn them on in the **F12 menu** (BepInEx configuration manager) or in `BepInEx\config\com.fums.betterflea.client.cfg`.
 - **These items are grey** when you add an offer on the Flea Market.
 - **Quick-sell mods** sell these items to a trader. They do not try the Flea Market first.
 
 A player without the plugin also cannot sell these items on the Flea Market. But that player sees a big error message, not the small warning.
 
-The icon comes from the game files on each player's computer.
+## Modded items
+Better Flea works from what an item is, not from lists of names, so items other mods add (guns, attachments, armour, meds, traders) just work. Nothing to set up.
 
 ## Other mods
-- **Mods that show prices or colour banned items** see BetterFlea's bans correctly.
+- **Mods that show prices or colour banned items** see Better Flea's bans correctly.
 - **Quicksell mods** should work with the BepInEx plugin. I have only tested with ShowMeTheMoney so please let me know of any issues for others.
-- **All Quests Checkmarks** will still work. BetterFlea adds its own icon and does not change or mess with it's icon.
-- **Other mods that change the Flea Market** (number of offers, prices, items in one offer) can do the same thing as BetterFlea. The mod that loads last usually wins. Turn off the same feature in one of the 2 mods.
+- **All Quests Checkmarks** will still work. Better Flea adds its own icon and does not change or mess with it's icon.
+- **Other mods that change the Flea Market** (number of offers, prices, items in one offer) can do the same thing as Better Flea. The mod that loads last usually wins. Turn off the same feature in one of the 2 mods.
+
+## Roadmap
+No dates, just ideas I'd like to get to:
+- **Prices that react to buying.** Buy up the cheapest offers of an item and its price goes up for a while.
+- **Wipe progression.** Prices swing early in a wipe and settle down later.
+- **Real competition.** Other sellers undercutting your listings.
+- **Web settings page.** Change the settings in your browser instead of editing the files.
 
 ## AI use
-Claude / Gemini helped with BetterFlea development. The original server aspects of the mod I had for myself on SPT 3.10 and 3.11 but did not release as I made changes directly to the database as I didn't have that included in the mod. 
+Claude / Gemini helped with Better Flea development. The original server aspects of the mod I had for myself on SPT 3.10 and 3.11 but did not release as I made changes directly to the database as I didn't have that included in the mod. 
 
 The base of the server mod was written by hand and then passed over with an LLM to review and fix any of my syntax / logic issues as I am still learning C#.
+
+Claude also helped write the documentation, since the mod does a lot of individual things and keeping track of them all by hand was a nightmare.
 
 The absolutely fantastic and not definitely slop mod icon was also generated by AI. Shocker I know.
 

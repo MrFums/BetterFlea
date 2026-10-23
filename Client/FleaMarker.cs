@@ -9,14 +9,9 @@ using UnityEngine.UI;
 
 namespace BetterFlea.Client;
 
-// A small Flea Market icon on an item: orange for "bought from a trader", red for "banned from the
-// Flea Market". Hovering it explains which.
-//
-// In an item cell it sits where the game puts its found-in-raid checkmark (bottom right, just above
-// the count or durability text), or directly above that checkmark when there is one. It's its own
-// object rather than a change to the game's icon, so mods that restyle the checkmark keep working,
-// and it stays out of any automatic layout so it never moves other icons. Item cells are reused for
-// other items, so every update either shows or hides it.
+// Flea icon on an item: orange = bought from a trader, red = flea banned.
+// Sits where the game draws its found-in-raid checkmark, as a separate object so checkmark mods keep working.
+// Cells get reused for other items, so every update shows or hides it.
 internal static class FleaMarker
 {
     private const string ObjectName = "BetterFleaMarker";
@@ -27,7 +22,6 @@ internal static class FleaMarker
 
     private static Sprite _icon;
 
-    /// <param name="cell">The item cell, or null for the inspect window.</param>
     public static void Update(QuestItemViewPanel panel, ItemView cell, Item item, SimpleTooltip tooltip)
     {
         var host = cell != null ? cell.transform : panel != null ? panel.transform.parent : null;
@@ -42,14 +36,15 @@ internal static class FleaMarker
             CheckmarkSlot.Return(panel);
         }
 
-        var banned = item != null && FleaStatus.IsFleaBanned(item);
-        var bought = !banned && item != null && FleaStatus.IsBoughtFromTrader(item);
+        var banned = item != null && Plugin.ShowFleaBannedIcon.Value && FleaStatus.IsFleaBanned(item);
+        var bought = !banned && item != null && Plugin.ShowTraderIcon.Value && FleaStatus.IsBoughtFromTrader(item);
         var existing = host.Find(ObjectName);
 
         if (!banned && !bought)
         {
             if (existing != null)
             {
+                existing.GetComponent<Marker>()?.Remember(panel, cell, item, tooltip);
                 existing.gameObject.SetActive(false);
             }
 
@@ -68,9 +63,8 @@ internal static class FleaMarker
         }
 
         marker.Image.color = banned ? BannedColour : BoughtColour;
-        marker.Text = banned ? Tags.FleaBannedText : Tags.BoughtFromTraderText;
-        marker.Tooltip = tooltip;
-        marker.Panel = panel;
+        marker.Text = banned ? Tags.FleaBanned : Tags.BoughtFromTrader;
+        marker.Remember(panel, cell, item, tooltip);
         marker.Cell = cell != null ? (RectTransform)cell.transform : null;
         marker.CountText = cell != null && cell.BottomPanel != null ? cell.BottomPanel.ItemValue : null;
         marker.Insured = cell != null && cell.BottomPanel != null && cell.BottomPanel.InsuredIcon != null
@@ -84,17 +78,26 @@ internal static class FleaMarker
         marker.Follow();
     }
 
+    // Redraw every marker after an icon setting changes.
+    public static void RefreshAll()
+    {
+        foreach (var marker in UnityEngine.Object.FindObjectsOfType<Marker>(true))
+        {
+            if (marker.ShownItem != null)
+            {
+                Update(marker.Panel, marker.CellView, marker.ShownItem, marker.Tooltip);
+            }
+        }
+    }
+
     // The inspect window's checkmark box is much bigger than the checkmark drawn in it.
     private const float InspectScale = 0.6f;
 
-    // In the inspect window, an item with no checkmark has its checkmark slot hidden, and a hidden slot
-    // is never laid out, so there's no reliable spot to put the icon. Instead the slot is switched back
-    // on with its own image and hover turned off: the game lays it out exactly where a checkmark would
-    // go, and the icon sits in it. Every time the game (or a checkmark mod) sets the slot up again,
-    // it's handed back first, so their checkmark is never affected.
+    // The inspect window hides the checkmark slot when there's no checkmark, and hidden slots aren't laid out.
+    // So we switch it back on, invisible and with no hover, and put the icon in it. Handed back before the
+    // game (or a checkmark mod) sets it up again.
     private static class CheckmarkSlot
     {
-        // What the slot's image looked like before it was borrowed, by panel.
         private static readonly Dictionary<int, (float Alpha, bool Raycast)> Borrowed = new();
 
         public static bool IsBorrowed(QuestItemViewPanel panel) => panel != null && Borrowed.ContainsKey(panel.GetInstanceID());
@@ -109,8 +112,7 @@ internal static class FleaMarker
 
             Borrowed[panel.GetInstanceID()] = (image.color.a, image.raycastTarget);
 
-            // The image stays switched on, holding the normal checkmark, so the slot takes up exactly
-            // the space a real checkmark does. It's just fully transparent and ignores the mouse.
+            // Kept on with the normal checkmark sprite so it takes up the same space, just transparent.
             image.sprite = panel._foundInRaidSprite != null ? panel._foundInRaidSprite : image.sprite;
             image.color = new Color(image.color.r, image.color.g, image.color.b, 0f);
             image.raycastTarget = false;
@@ -123,9 +125,7 @@ internal static class FleaMarker
             panel.gameObject.SetActive(true);
         }
 
-        // Runs after the game (or a checkmark mod) has set the slot up for the new item, so only what's
-        // still ours is undone. The sprite is left alone: whoever shows a checkmark sets its sprite anyway,
-        // and a colour they've just set is never transparent, so it's kept.
+        // Only undo what's still ours: whoever shows a checkmark sets its sprite and colour anyway.
         public static void Return(QuestItemViewPanel panel)
         {
             var id = panel.GetInstanceID();
@@ -182,7 +182,6 @@ internal static class FleaMarker
         go.transform.SetParent(host, false);
         go.GetComponent<LayoutElement>().ignoreLayout = true;
 
-        // Positioned by its right-middle point.
         var rect = (RectTransform)go.transform;
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(1f, 0.5f);
@@ -227,12 +226,22 @@ internal static class FleaMarker
         public string Text;
         public SimpleTooltip Tooltip;
         public QuestItemViewPanel Panel;
+        public ItemView CellView;
+        public Item ShownItem;
         public RectTransform Cell;
+
+        public void Remember(QuestItemViewPanel panel, ItemView cell, Item item, SimpleTooltip tooltip)
+        {
+            Panel = panel;
+            CellView = cell;
+            ShownItem = item;
+            Tooltip = tooltip;
+        }
         public TextMeshProUGUI CountText;
         public RectTransform Insured;
         public RectTransform RepairBuff;
 
-        // The cell lays itself out during the frame, so keep following it.
+        // The cell lays itself out during the frame.
         private void LateUpdate()
         {
             Follow();
@@ -251,19 +260,17 @@ internal static class FleaMarker
             var width = rect.rect.width;
             var height = rect.rect.height;
 
-            // Start bottom-right of the cell, where the game puts its checkmark, above any count text.
             Cell.GetWorldCorners(Corners);
             var cellBottomRight = parent.InverseTransformPoint(Corners[3]);
             var right = cellBottomRight.x - Padding;
             var bottom = cellBottomRight.y + Padding;
             if (CountText != null && CountText.gameObject.activeInHierarchy && !string.IsNullOrEmpty(CountText.text))
             {
-                // Top of the text itself, not of its box, which can be much taller than the text.
+                // Top of the text, not of its box (the box can be much taller).
                 var textTop = CountText.rectTransform.TransformPoint(new Vector3(0f, CountText.textBounds.max.y, 0f));
                 bottom = Mathf.Max(bottom, parent.InverseTransformPoint(textTop).y + Padding);
             }
 
-            // With a checkmark, always sit straight above it, centred on it.
             var checkmark = Visible(Panel != null && Panel.gameObject.activeInHierarchy && Panel._questIconImage != null ? Panel._questIconImage.rectTransform : null);
             if (checkmark != null)
             {
@@ -274,7 +281,7 @@ internal static class FleaMarker
                 bottom = Mathf.Max(bottom, checkHigh.y + Gap);
             }
 
-            // Step up past the game's own corner icons (checkmark, insured, repair buff) until clear.
+            // Step up past the checkmark, insured and repair buff icons.
             var obstacles = new[] { checkmark, Visible(Insured), Visible(RepairBuff) };
             for (var moved = true; moved;)
             {
@@ -299,7 +306,6 @@ internal static class FleaMarker
                 }
             }
 
-            // Positioned by the marker's right-middle point.
             rect.localPosition = new Vector3(right, bottom + height / 2f, 0f);
         }
 
@@ -308,16 +314,13 @@ internal static class FleaMarker
             return target != null && target.gameObject.activeInHierarchy ? target : null;
         }
 
-        // Measured in game: the inspect window's checkmark is drawn at about 40% of its box, centred.
+        // The inspect checkmark is drawn at about 40% of its box.
         private const float VisibleCheckmarkShare = 0.4f;
 
-        // Measured from the icon image: the hand stops 3 of its 24 pixels above the bottom edge.
+        // The hand stops 3 of its 24 pixels above the bottom edge.
         private const float HandBottomMargin = 0.125f;
 
-        // The inspect window always has its checkmark slot laid out now (borrowed when the item has
-        // no checkmark), so the icon is placed from that slot every time: just right of the checkmark
-        // when there is one, in its spot when there isn't. The bottom of the hand lines up with the
-        // bottom of the checkmark either way.
+        // Right of the checkmark when there is one, in its place when there isn't. Bottoms line up.
         private void FollowInInspectWindow()
         {
             if (Panel == null || Panel._questIconImage == null || !Panel.gameObject.activeInHierarchy)
@@ -339,7 +342,6 @@ internal static class FleaMarker
             var width = rect.rect.width;
             var y = centre.y - visibleHalf.y + height * (0.5f - HandBottomMargin);
 
-            // Positioned by the marker's right-middle point.
             var x = CheckmarkSlot.IsBorrowed(Panel)
                 ? centre.x + width / 2f
                 : centre.x + visibleHalf.x + Gap + width;

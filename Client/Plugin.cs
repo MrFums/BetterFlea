@@ -1,24 +1,30 @@
 using System;
 using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using BetterFlea.Client.Patches;
 using SPT.Reflection.Patching;
 
 namespace BetterFlea.Client;
 
-[BepInPlugin("com.fums.betterflea.client", "BetterFlea Client", "1.0.0")]
+[BepInPlugin("com.fums.betterflea.client", "BetterFlea Client", "2.0.0")]
 [BepInDependency("com.SPT.core", BepInDependency.DependencyFlags.HardDependency)]
 public class Plugin : BaseUnityPlugin
 {
     internal static ManualLogSource Log;
 
+    internal static ConfigEntry<bool> ShowFleaBannedIcon;
+    internal static ConfigEntry<bool> ShowTraderIcon;
+
     private void Awake()
     {
         Log = Logger;
+        ShowFleaBannedIcon = Config.Bind("Icons", "ShowFleaBannedIcon", false, "Red icon on items banned at the Flea Market, with its tooltip text.");
+        ShowTraderIcon = Config.Bind("Icons", "ShowTraderIcon", false, "Orange icon on items bought from a trader, with its tooltip text.");
+        ShowFleaBannedIcon.SettingChanged += (_, __) => FleaMarker.RefreshAll();
+        ShowTraderIcon.SettingChanged += (_, __) => FleaMarker.RefreshAll();
 
-        // Each on its own, so a game update that breaks one patch doesn't take the others down with it.
-        // Created inside the guard too: SPT checks a patch when it's created, not only when it's enabled.
-        Enable(() => new ItemTooltipPatch());
+        // One at a time so a game update breaking one patch doesn't take the rest down.
         Enable(() => new ItemCellMarkerPatch());
         Enable(() => new InspectMarkerPatch());
         Enable(() => new ItemCanSellOnRagfairPatch());

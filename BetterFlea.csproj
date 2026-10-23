@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
@@ -21,9 +21,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="_References\**" />
-        <None Remove="_References\**" />
-        <Content Remove="_References\**" />
         <!-- The game-side plugin is its own project. -->
         <Compile Remove="Client\**" />
         <None Remove="Client\**" />
@@ -31,22 +28,25 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="config.jsonc" CopyToOutputDirectory="PreserveNewest" />
-        <!-- A copy inside the DLL, written back out if a user deletes config.jsonc. -->
-        <EmbeddedResource Include="config.jsonc" LogicalName="BetterFlea.config.jsonc" />
+        <None Update="configs\*.jsonc" CopyToOutputDirectory="PreserveNewest" />
+        <!-- A copy of each settings file inside the DLL, written back out if a user deletes one. -->
+        <EmbeddedResource Include="configs\*.jsonc" LogicalName="BetterFlea.configs.%(Filename)%(Extension)" />
     </ItemGroup>
 
     <PropertyGroup>
-        <ServerDir Condition=" '$(ServerDir)' == '' ">S:\SPT4.1_Docker\SPT_Runtime</ServerDir>
         <ModOutputDir>$(ServerDir)\user\mods\$(AssemblyName)</ModOutputDir>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
     </PropertyGroup>
 
-    <Target Name="DeployToServer" AfterTargets="AfterBuild">
-        <!-- Live server: always update the dll, but never overwrite a config the user has edited. -->
-        <MakeDir Directories="$(ModOutputDir)"/>
+    <!-- Only with -p:ServerDir="C:\path\to\SPT\SPT_Runtime": copies the mod into that server. Without it, it just builds. -->
+    <Target Name="DeployToServer" AfterTargets="AfterBuild" Condition=" '$(ServerDir)' != '' ">
+        <!-- Always update the dll, but never overwrite a settings file the user has edited. -->
+        <ItemGroup>
+            <ConfigFiles Include="configs\*.jsonc" />
+        </ItemGroup>
+        <MakeDir Directories="$(ModOutputDir);$(ModOutputDir)\configs"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModOutputDir)" />
-        <Copy SourceFiles="$(OutputPath)config.jsonc" DestinationFolder="$(ModOutputDir)"
-              Condition="!Exists('$(ModOutputDir)\config.jsonc')" />
+        <Copy SourceFiles="@(ConfigFiles)" DestinationFolder="$(ModOutputDir)\configs"
+              Condition="!Exists('$(ModOutputDir)\configs\%(ConfigFiles.Filename)%(ConfigFiles.Extension)')" />
     </Target>
 </Project>

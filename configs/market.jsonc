@@ -1,0 +1,60 @@
+// BetterFlea - MARKET: how the market behaves over time: how long offers last, other players buying, barters,
+// the sellers' ratings, and offers going to someone else first.
+// Lines that start with // are notes. After you change a setting, restart the server.
+// "Chance" values go from 0 (never) to 1 (always). Delete this file and restart the server to get the defaults back.
+{
+  // How long each offer is listed for, in minutes: a random time in this range per offer (live: up to 24 hours).
+  // Each offer is found partway through its time: good deals mostly just listed (they don't last), overpriced
+  // ones mostly close to expiring (nobody bought them).
+  "offerExpiry": {
+    "minMinutes": 360,
+    "maxMinutes": 1440
+  },
+
+  // Other players buying: every few minutes some offers sell and come off the market. Good deals go fast, offers at
+  // the normal price now and then, overpriced ones hardly ever. A sold offer is replaced by a newly listed one.
+  "simulatedSales": {
+    "enabled": true,
+    "everyMinutes": 5,               // how often buyers come round
+    "normalSellChancePerHour": 0.04, // chance an offer at the normal price sells within an hour
+    "dealSpeedup": 8                 // an offer 20% under normal sells this many times as fast; 20% over, this many times slower
+  },
+
+  // Chance that buying a gun or barter item from another player fails because someone else bought it first: the
+  // game's own "offer is already sold" message shows and the offer is gone. Never on trader offers. 0 = off.
+  "soldBeforeYouChance": 0.05,
+
+  // Now and then a seller wants items instead of money: one or two kinds of barter item people actually carry (common
+  // or rare, no quest items), worth a bit less than the offer's normal price. Offers under 20,000 roubles stay money.
+  "barterOffers": {
+    "chance": 0.005,                 // chance an offer is a barter. 0.005 = 1 in 200
+    "valueMin": 0.85,                // what the asked-for items are worth, as a share of the normal price (random between)
+    "valueMax": 0.97
+  },
+
+  // The flea rating shown next to a generated seller (SPT's own is -2 to 20). Everyday players are min up to
+  // everydayMax, mostly low; regulars are 20 up to max, the high end rarer. Someone selling several of one item is
+  // usually a flipper, so most of them are regulars (not all). Some single-item sellers are new to the flea (-2 up to min).
+  "sellerRating": {
+    "enabled": true,
+    "min": 0.2,
+    "max": 300,
+    "everydayMax": 50,
+    "regularChance": 0.08,           // chance a single-item seller is a regular
+    "flipperChance": 0.65,           // chance someone selling several of one item is a regular. A bit more for bigger stacks (90% at most)
+    "newSellerChance": 0.05
+  },
+
+  // Packs: several of an item you have to buy all together. Most are scams, a little dearer than buying them one by one
+  // so they sit mid-list looking like any other offer; the rest are a fair bundle a bit under the single offers, near the top. Only for the item types SPT allows in packs.
+  "packs": {
+    "enabled": true,
+    "chancePercent": 3,             // whole percent: SPT's roll can't do fractions
+    "min": 2,                       // fewest items in a pack
+    "max": 10,                      // most items in a pack
+    "scamChance": 0.6,              // share of packs priced 2-25% over buying the items one by one
+    "hugeChance": 0.02,             // share of packs that are silly big (60 golden eggs someone buys without reading the count)
+    "hugeMin": 50,
+    "hugeMax": 80
+  }
+}

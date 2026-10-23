@@ -1,0 +1,71 @@
+// BetterFlea - CONDITION: partly used keys, meds, food, fuel, repair kits and guns
+// Some offers have items that are partly used. The price is lower when less is left.
+// (Armor, plates and helmets are in armor.jsonc.)
+// Lines that start with // are notes. After you change a setting, restart the server.
+// Delete this file and restart the server to get the default settings back.
+{
+  // Keys and keycards:
+  //   usedChance          = chance that an offer is partly used. 0.4 = 40%.
+  //   usesLeftFalloff     = from 0 to 1. Lower = more keys with only 1 use left.
+  //   oneUsePricePercent  = price of a key with 1 use left, in % of a new key.
+  "keys": {                        // normal keys, not marked keys
+    "enabled": true,
+    "usedChance": 0.4,
+    "usesLeftFalloff": 0.97,
+    "oneUsePricePercent": 20
+  },
+  "markedKeys": {
+    "enabled": true,
+    "usedChance": 0.45,
+    "usesLeftFalloff": 0.9,
+    "oneUsePricePercent": 20
+  },
+  "keycards": {
+    "enabled": true,
+    "usedChance": 0.4,
+    "usesLeftFalloff": 0.9,
+    "oneUsePricePercent": 20
+  },
+
+  // Meds, food, fuel and repair kits:
+  //   usedChance     = chance that an offer is partly used.
+  //   lowAmountBias  = 1 means any amount left. Higher = more offers that are low. Never less than about 15% left.
+  // As set, about 1 offer in 9 is low (under 40% left) and about 70% are full. Meds with only a few uses (CALOK-B,
+  // splints) are used much less often and nearly always just one use down.
+  "meds": {
+    "enabled": true,
+    "usedChance": 0.3,
+    "lowAmountBias": 1.3
+  },
+  "foodAndDrink": {
+    "enabled": true,
+    "usedChance": 0.35,
+    "lowAmountBias": 1.3
+  },
+  "fuel": {
+    "enabled": true,
+    "usedChance": 0.5,
+    "lowAmountBias": 1.5,
+    "emptyChance": 0.06,           // chance a can is listed empty. Mostly the cheapest fuel offers...
+    "emptyScamChance": 0.3         // ...but this share of empty ones is priced like a full can, for whoever doesn't check
+  },
+  "repairKits": {
+    "enabled": true,
+    "usedChance": 0.55,           // people sell these worn down for a bit of cash
+    "lowAmountBias": 2.0
+  },
+
+  // Guns look used, not repaired. Price follows the durability.
+  "guns": {
+    "enabled": true,
+    "wornChanceByRarity": { "Common": 0.9, "Rare": 0.65, "Superrare": 0.35 }, // share of guns a little below max, by rarity. Common guns are usually worn
+    "maxWear": 40,         // how far below max a worn gun can be. Most are only a few points down
+    "lowMaxChance": 0.25,  // share of guns whose max is lowered (parts that can't be fully repaired)
+    "lowMaxMin": 55,       // the lowered max is picked at random between these
+    "lowMaxMax": 95,
+    // How worn each kind of built gun is next to the above (see the tiers in weapons.jsonc). 1 = as above, 2 = much
+    // more worn, 0.5 = less. Broken-down and stripped guns have had a hard life; modded and meta builds were looked
+    // after. A listed gun is never more than 60 points under its max, or under 10. Ground loot is always 97-100/100.
+    "wearByBuild": { "meta": 0.5, "player": 0.8, "modded": 0.6, "budget": 0.9, "stock": 1.0, "found": 1.1, "looted": 1.3, "stripped": 1.5, "gutted": 1.8, "broken": 2.0 }
+  }
+}

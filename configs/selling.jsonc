@@ -1,0 +1,40 @@
+// BetterFlea - SELLING: players selling their own items on the Flea Market
+// Lines that start with // are notes. After you change a setting, restart the server.
+// true = on. false = off. Delete this file and restart the server to get the default settings back.
+{
+  "enabled": true,                   // false = players cannot sell on the Flea Market
+  "foundInRaidOnly": false,          // true = players can only sell items that are found in raid (like live Tarkov)
+
+  // How fast a player's offer sells depends on its price against the normal price.
+  // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: longer, and
+  // at expensivePercent over the normal price most items never sell. A gun build (a gun with its parts on) still
+  // sells now and then even when dear, because people pay over the odds for a good one.
+  "saleDelay": {
+    "enabled": true,
+    "minMinutes": 2,                 // shortest wait at the normal price
+    "maxMinutes": 8,                 // longest wait at the normal price
+    "noDelayChance": 0.1,            // chance of no wait at all, for offers at or under the normal price. 0.1 = 10%
+    "expensivePercent": 30           // this much over the normal price, only about 1 in 20 buyers is still interested
+  },
+
+  // A player who buys many of one item, then sells it on the Flea Market, waits longer for a buyer.
+  // This only works when saleDelay is on. Recent purchases are saved in data\recent-purchases.json, so a restart doesn't wipe them.
+  "flipPenalty": {
+    "enabled": true,
+    "windowMinutes": 60,             // purchases older than this do not count
+    "freePurchases": 2,              // a player can buy this many of one item with no extra wait
+    "purchasesForMaxPenalty": 10,    // at this many purchases, the extra wait is the longest
+    "maxExtraMinutes": 90,           // the longest extra wait, in minutes
+    "countFleaPurchases": true,      // true = purchases from the Flea Market also count, not only from traders
+    "fenceMultiplier": 3             // 1 item bought from Fence counts as this many
+  },
+
+  // true = items bought from a trader (also Fence) can never be sold on the Flea Market.
+  // Players can still use them, or sell them to a trader.
+  // Parts on a bought gun are also locked.
+  // Ammo, ammo boxes and other items that stack are not locked.
+  "purchaseLock": {
+    "enabled": false,
+    "includeFleaPurchases": false  // true = items bought from other players on the flea are locked too, not only from traders
+  }
+}

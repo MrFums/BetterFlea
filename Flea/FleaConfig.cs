@@ -5,19 +5,15 @@ namespace BetterFlea.Flea;
 
 public record FleaConfig
 {
-    /// <summary>Keep BSG's own flea blacklist on top of ours.</summary>
     [JsonPropertyName("enableBsgBlacklist")]
     public bool EnableBsgBlacklist { get; set; } = true;
 
-    /// <summary>true = that category is removed from the flea.</summary>
     [JsonPropertyName("bannedCategories")]
     public BanFromFleaConfig BannedCategories { get; set; } = new();
 
-    /// <summary>Extra item TPLs or category IDs to remove from the flea.</summary>
     [JsonPropertyName("bannedItems")]
     public List<string> BannedItems { get; set; } = new();
 
-    /// <summary>Item TPLs or category IDs that are always on the flea. Beats every ban.</summary>
     [JsonPropertyName("allowedItems")]
     public List<string> AllowedItems { get; set; } = new();
 
@@ -25,7 +21,6 @@ public record FleaConfig
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }
 
-// Category IDs behind each toggle live in FleaCategories.cs.
 public record BanFromFleaConfig
 {
     [JsonPropertyName("weapons")]

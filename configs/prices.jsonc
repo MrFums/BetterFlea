@@ -1,0 +1,47 @@
+// BetterFlea - PRICES: the prices of the offers the server makes
+// Lines that start with // are notes. After you change a setting, restart the server.
+// "Chance" values go from 0 (never) to 1 (always). "Percent" values are percent: 10 means 10%.
+// Delete this file and restart the server to get the default settings back.
+{
+  // Price of marked keys on the Flea Market (a mod's marked keys too). 1 = normal. 1.5 = 50% more.
+  // Trader prices do not change.
+  "markedKeyMultiplier": 1.0,
+
+  // An offer is never cheaper than the most a trader pays for the item.
+  // This stops players buying on the Flea Market and selling to a trader for profit.
+  "floor": {
+    "enabled": true,
+    "marginPercent": 10,             // the cheapest offer is this % more than the trader price
+    "logTraderProfitLoops": false    // true = at start, write in the server log the items that one trader sells for less than another trader pays
+  },
+
+  // Prices go up and down a little over time. Only new offers get the new price.
+  "drift": {
+    "enabled": true,
+    "maxDriftPercent": 20,           // the most a price can change from normal, up or down
+    "stepPercent": 4,                // the most a price can change in one step
+    "updateMinutes": 45              // about how often a price can change
+  },
+
+  // Not every seller prices by the book. Some ask too much, worn items most of all (priced as if they were in better
+  // shape), so worn offers don't all sit at the bottom of the list. Now and then someone sells one cheap to get rid
+  // of it quickly. Money offers only, never on a build deal.
+  "sellers": {
+    "enabled": true,
+    "overpriceChance": 0.1,          // chance an offer asks too much, whatever its condition
+    "wornOverpriceChance": 0.3,      // extra chance for worn items: all of it at 0% left, half at 50% left
+    "overpriceMinPercent": 10,       // how much too much. A worn item asks up to about half its missing condition more on top
+    "overpriceMaxPercent": 30,
+    "quickSellChance": 0.03,         // chance an offer is a quick sell. Keep it rare: you're the only buyer
+    "quickSellMinPercent": 15,       // how far under the normal price. Never under the price floor above
+    "quickSellMaxPercent": 35
+  },
+
+  // Guns. SPT adds up the flea prices of a gun's parts, which comes out well above what traders sell the same gun for.
+  // With this on, each part is worth at most what a trader sells it for (any loyalty level). Parts no trader sells keep
+  // their flea price. Never under the price floor above.
+  "guns": {
+    "enabled": true,
+    "traderPricePercent": 95        // a part a trader sells is worth this % of the trader's price. 100 = the same as the trader
+  }
+}

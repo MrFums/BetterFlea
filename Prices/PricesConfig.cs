@@ -5,54 +5,84 @@ namespace BetterFlea.Prices;
 
 public record PricesConfig
 {
-    /// <summary>Price multiplier for marked key offers. 1 = vanilla.</summary>
     [JsonPropertyName("markedKeyMultiplier")]
     public double MarkedKeyMultiplier { get; set; } = 1.0;
 
-    /// <summary>Offers never undercut trader buy prices.</summary>
     [JsonPropertyName("floor")]
     public PriceFloorConfig Floor { get; set; } = new();
 
-    /// <summary>Prices slowly wander over time.</summary>
     [JsonPropertyName("drift")]
     public PriceDriftConfig Drift { get; set; } = new();
+
+    [JsonPropertyName("sellers")]
+    public SellerPricingConfig Sellers { get; set; } = new();
+
+    [JsonPropertyName("guns")]
+    public GunPricingConfig Guns { get; set; } = new();
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }
 
-// Keeps generated offers above what the best trader would pay for the same item,
-// so nothing can be bought off the flea and sold straight to a trader for profit.
 public record PriceFloorConfig
 {
     [JsonPropertyName("enabled")]
     public bool Enabled { get; set; } = true;
 
-    /// <summary>How far above the best trader buy price the cheapest offer sits, in %.</summary>
     [JsonPropertyName("marginPercent")]
     public double MarginPercent { get; set; } = 10;
 
-    /// <summary>At startup, warn about items one trader sells for less than another buys them.</summary>
     [JsonPropertyName("logTraderProfitLoops")]
     public bool LogTraderProfitLoops { get; set; } = false;
 }
 
-// Each item's flea price wanders a little over time. Only new offers use the new price,
-// so the market shifts as old offers sell or expire.
+public record GunPricingConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("traderPricePercent")]
+    public double TraderPricePercent { get; set; } = 95;
+}
+
 public record PriceDriftConfig
 {
     [JsonPropertyName("enabled")]
     public bool Enabled { get; set; } = true;
 
-    /// <summary>Furthest an item's price can move from normal, in % either way.</summary>
     [JsonPropertyName("maxDriftPercent")]
-    public double MaxDriftPercent { get; set; } = 10;
+    public double MaxDriftPercent { get; set; } = 20;
 
-    /// <summary>Biggest single move, in %.</summary>
     [JsonPropertyName("stepPercent")]
-    public double StepPercent { get; set; } = 2;
+    public double StepPercent { get; set; } = 4;
 
-    /// <summary>How often an item's price can move.</summary>
     [JsonPropertyName("updateMinutes")]
     public double UpdateMinutes { get; set; } = 45;
+}
+
+public record SellerPricingConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("overpriceChance")]
+    public double OverpriceChance { get; set; } = 0.1;
+
+    [JsonPropertyName("wornOverpriceChance")]
+    public double WornOverpriceChance { get; set; } = 0.3;
+
+    [JsonPropertyName("overpriceMinPercent")]
+    public double OverpriceMinPercent { get; set; } = 10;
+
+    [JsonPropertyName("overpriceMaxPercent")]
+    public double OverpriceMaxPercent { get; set; } = 30;
+
+    [JsonPropertyName("quickSellChance")]
+    public double QuickSellChance { get; set; } = 0.03;
+
+    [JsonPropertyName("quickSellMinPercent")]
+    public double QuickSellMinPercent { get; set; } = 15;
+
+    [JsonPropertyName("quickSellMaxPercent")]
+    public double QuickSellMaxPercent { get; set; } = 35;
 }

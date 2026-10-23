@@ -1,0 +1,82 @@
+// BetterFlea - WEAPONS: how guns are built for the flea, and players' own guns turning up
+// Lines that start with // are notes. After you change a setting, restart the server.
+// "Chance" values go from 0 (never) to 1 (always). For example, 0.6 means 60%.
+// Delete this file and restart the server to get the default settings back.
+{
+  "presets": {
+    "showCustomBuilds": true,   // true = custom builds can be listed too, not only SPT's default builds
+    "customBuildChance": 0.15,  // share of custom builds kept. The rest are dropped, so they stay rare
+    "randomBuildChance": 1.0,   // share of guns listed as their own build (the tiers below). The rest are SPT's factory builds
+
+    // Weapon tiers. Each build is one of them, picked by weight. A build is put together, then stripped.
+    // weight = how often the tier is picked for the cheapest guns, dearWeight = for the priciest (in between it moves
+    // from one to the other). Nobody leaves a dear gun stock or strips it bare, so dear guns are mostly modded.
+    // The barrel is picked first, and the rest of the build is made to suit it. Parts the factory gun has (muzzle
+    // device, stock, grip, sights) are always on, as the factory part or an upgrade. The chances are for the extras:
+    // scope = optics, suppressor = a can (with the muzzle device it mounts on), muzzle = a muzzle device where the
+    // factory gun has none, grip = rails and foregrips, magazine = a mag in the gun (usually its cheap factory one),
+    // plus other parts.
+    // factory = chance each part is the gun's factory part. barrelSwap = chance the barrel is a different one
+    // (this changes the whole build: a 10.3" M4 is a short CQB gun, a 20" one a marksman rifle).
+    // stripMin/stripMax = how many strip steps before listing, in order: scope, suppressor, laser/light (half the
+    // time, with its mount), foregrip, then a good stock and grip swapped for cheap ones.
+    // statFocus = how much the build cares about part quality: ergonomics and recoil for its style (see buildStyles),
+    // parts that are easy to get (trader parts over found-only ones), and the optics players like for that gun (1-6x
+    // LPVOs on 7.62s and marksman rifles, the Specter DR on SMGs; budget sights mostly on lower tiers). 0 = any part
+    // that fits, 4 = sticks to the best.
+    // colourMatch = how strongly parts match the build's colour (tan, black, olive). bestOf = complete builds made
+    // per listing, the best one for its style is kept. goodMagazineChance = chance the mag is a premium high-capacity
+    // one (MAG5-100, AK 45s/60s, RPK and SKS drums, X-5 50s...) instead of the gun's cheap factory mag. The PMAG D-60
+    // and MAG5-60 are flea-banned in this game version, so guns carrying them can't be listed.
+    "stripped": { "weight": 0.3,  "dearWeight": 0.06, "magazine": 0.2,  "scope": 0,    "muzzle": 0.05, "suppressor": 0.02, "stock": 0.3, "grip": 0.3, "other": 0.2, "factory": 0.7,  "barrelSwap": 0.1,  "stripMin": 4, "stripMax": 5, "statFocus": 0,   "colourMatch": 0,    "bestOf": 1, "goodMagazineChance": 0.02 },
+    "stock":    { "weight": 0.35, "dearWeight": 0.15, "magazine": 0.5,  "scope": 0.1,  "muzzle": 0.2,  "suppressor": 0.1,  "stock": 0.9, "grip": 0.8, "other": 0.6, "factory": 0.85, "barrelSwap": 0.05, "stripMin": 0, "stripMax": 1, "statFocus": 0.5, "colourMatch": 0.2,  "bestOf": 1, "goodMagazineChance": 0.03 },
+    "found":    { "weight": 0.3,                      "magazine": 0.6,  "scope": 0.85, "muzzle": 0.45, "suppressor": 0.4,  "stock": 0.8, "grip": 0.75, "other": 0.8, "factory": 0.2, "barrelSwap": 0.4,  "stripMin": 0, "stripMax": 2, "statFocus": 1.5, "colourMatch": 0.6,  "bestOf": 1, "goodMagazineChance": 0.15 },
+    "modded":   { "weight": 0.12, "dearWeight": 0.35, "magazine": 0.85, "scope": 0.9,  "muzzle": 0.6,  "suppressor": 0.8,  "stock": 0.9, "grip": 0.9, "other": 0.8, "factory": 0.1,  "barrelSwap": 0.9,  "stripMin": 0, "stripMax": 0, "statFocus": 4,   "colourMatch": 0.95, "bestOf": 3, "goodMagazineChance": 0.4 },
+    "broken":   { "weight": 0.25,                     "magazine": 0,    "scope": 0,    "muzzle": 0.1,  "suppressor": 0.05, "stock": 0.5, "grip": 0.5, "other": 0.4, "factory": 0.7,  "barrelSwap": 0.15, "stripMin": 1, "stripMax": 4, "statFocus": 0,   "colourMatch": 0,    "bestOf": 1 }, // broken-down gun, main parts taken off
+    "gutted":   { "weight": 0.06,                     "magazine": 0,    "scope": 0,    "muzzle": 0,    "suppressor": 0,    "stock": 0.5, "grip": 0.3, "other": 0.2, "factory": 0.8,  "barrelSwap": 0.1,  "stripMin": 0, "stripMax": 0, "statFocus": 0,   "colourMatch": 0,    "bestOf": 1 }, // parts sold off: just the upper, just the lower, or the bare gun
+    // Budget build: complete, from the cheap end of each slot by handbook price (cheap trader parts first) and a
+    // cheap optic (PK-06, MRS, OKP-7, 553, EXPS3...), the most for the money.
+    "budget":   { "weight": 0.3,  "dearWeight": 0.25, "magazine": 0.7,  "scope": 0.9,  "muzzle": 0.4,  "suppressor": 0.25, "stock": 0.9, "grip": 0.8, "other": 0.7, "factory": 0.15, "barrelSwap": 0.3,  "stripMin": 0, "stripMax": 0, "statFocus": 2.5, "colourMatch": 0.3,  "bestOf": 2, "goodMagazineChance": 0 },
+    // Ground loot: a gun picked up and sold as found. Exactly the factory gun, nothing added, 100/100 (or a point or
+    // three under if it was fired). magazine = chance the factory mag is still in it. Only weight, dearWeight and magazine count.
+    "ground":   { "weight": 0.45, "dearWeight": 0.25, "magazine": 0.85 },
+
+    "loadedMagazineChance": 0.3,  // chance a listed gun has some rounds in its mag (never full, always rounds the gun fires). A mag sold on its own gets half this chance
+    // How often each build style comes up (budget builds have their own). Ergonomics and balanced builds are what most players run.
+    "buildStyles": { "ergo": 0.45, "hybrid": 0.4, "recoil": 0.15 },
+    // Share of modded listings that are the gun's meta build, copied part for part, so the same build shows up again
+    // and again the way copied builds do. Save a build in the game's Builds screen with a name starting "Meta" and
+    // that exact build is used for its gun (good for streamer builds); otherwise the mod works out the best build.
+    "metaBuildChance": 0.3,
+    "lootedBuildChance": 0.2,   // share of found listings that are a gun as a scav, boss or guard carries it (SPT's own bot gear)
+    // Some built guns (and plated armor) are listed below what their parts are worth (a good deal), by a discount
+    // between min and max. Never below what traders pay for the parts plus 10%.
+    "buildDealChance": 0.1,
+    "buildDealMinDiscount": 0.15,
+    "buildDealMaxDiscount": 0.3,
+    "brokenMaxParts": 3,        // most main parts taken off a broken-down gun
+    "brokenPriceBias": 2,       // broken-down guns lean to cheap ones: higher = cheaper guns only, 0 = every gun the same. Gutted guns lean half as hard
+    "maxTacticalDevices": 2,    // most lasers, lights and combo units on one build (on the side rails; almost never on top, in front of the scope)
+    "comboTacticalWeight": 3,   // how much more likely a combo unit (light and laser in one) is for the first tactical device
+    "laserLightChance": 0.35,   // chance a build with only a laser also gets a flashlight
+    "extraTacticalChance": 0.05, // chance a build that already has a light gets a laser too (never a second light)
+    "emptyMountChance": 0.3,    // chance scope rings stay on after the scope was sold off (never on modded builds)
+    "emptyRingsChance": 0.2,    // chance a stock or found rifle with no optic still has scope rings on its top rail (on top of the above)
+    "backupSightChance": 0.25,  // chance a build with a 3x+ main scope also gets one small backup red dot (canted or on top)
+    "tanBuildChance": 0.15,     // chance a build is tan (FDE). Otherwise the first coloured part sets the build's colour
+    "maxAttachmentDepth": 5     // 1 = parts on the gun, 2 = parts on those... an AR needs 5 for a scope on a handguard rail
+  },
+
+  // Players' own guns on the flea. A build saved in the game's Builds screen can turn up listed by someone who copied
+  // it, and a gun you died with can turn up a while after the raid, sold by whoever killed you. Either may have had
+  // its scope or suppressor taken off first. Lost guns are saved in data\lost-guns.json, so they still turn up after a server restart.
+  "playerGuns": {
+    "savedBuildChance": 0.05,        // share of a gun's offers that are one of the players' saved builds of it (if there is one)
+    "lostGunChance": 0.35,           // chance each gun you die with turns up on the flea
+    "lostGunMinMinutes": 5,          // how long after the raid it's listed: a random time between these
+    "lostGunMaxMinutes": 30,
+    "killerAsSeller": true,          // true = listed under the name of whoever killed you
+    "scopeStripChance": 0.3,         // chance the scope (and its mount) was sold off first
+    "suppressorStripChance": 0.25    // chance the suppressor was sold off first
+  }
+}

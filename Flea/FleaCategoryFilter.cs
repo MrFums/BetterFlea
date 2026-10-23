@@ -1,3 +1,4 @@
+using BetterFlea.Offers;
 using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Helpers.Items;
@@ -8,8 +9,7 @@ using SPTarkov.Server.Core.Models.Spt.Tables;
 
 namespace BetterFlea.Flea;
 
-// Only handbook items can reach the flea. Banned items go on the ragfair custom blacklist.
-// ItemConfig.Blacklist is left alone, otherwise bot/PMC loot changes too.
+// Bans go on the ragfair blacklist, not ItemConfig.Blacklist (that would change bot loot too).
 [Injectable(InjectionType.Singleton)]
 public class FleaCategoryFilter(
     ISptLogger<FleaCategoryFilter> logger,
@@ -26,6 +26,10 @@ public class FleaCategoryFilter(
         var banned = ToMongoIdSet(config.BannedItems, "bannedItems");
 
         ragfairConfig.Dynamic.Blacklist.EnableBsgList = config.EnableBsgBlacklist;
+        ApplyOfferCurrency();
+        ApplyOfferExpiry();
+        ApplyPacks();
+        ragfairConfig.Dynamic.ShowDefaultPresetsOnly = !configManager.Mod.GeneratedOffers.Presets.ShowCustomBuilds;
 
         var bannedPerCategory = new Dictionary<string, int>();
         var forced = 0;
@@ -75,8 +79,54 @@ public class FleaCategoryFilter(
             $"(bsgBlacklist={config.EnableBsgBlacklist})" + (blocked > 0 ? $" - {breakdown}" : string.Empty));
     }
 
-    // true = force allowed, false = ban, null = leave as is.
-    // A direct TPL beats a category ID; allowed beats banned.
+    private void ApplyOfferExpiry()
+    {
+        var expiry = configManager.Mod.GeneratedOffers.OfferExpiry;
+        var min = Math.Max(1, expiry.MinMinutes);
+        var max = Math.Max(min, expiry.MaxMinutes);
+        ragfairConfig.Dynamic.EndTimeSeconds = new MinMax<int>(min * 60, max * 60);
+    }
+
+    // SPT's pack offers (several items you have to buy together). Its roll is in whole percents.
+    private void ApplyPacks()
+    {
+        var packs = configManager.Mod.GeneratedOffers.Packs;
+        var pack = ragfairConfig.Dynamic.Pack;
+        pack.ChancePercent = packs.Enabled ? Math.Clamp(packs.ChancePercent, 0, 100) : 0;
+        pack.ItemCountMin = Math.Max(2, packs.Min);
+        pack.ItemCountMax = Math.Max(pack.ItemCountMin, packs.Max);
+
+        // SPT discounts packs (0.75-0.96 of normal). Ours are priced from the normal range instead, then made a
+        // scam or a fair bundle (SellerPricing).
+        if (packs.Enabled)
+        {
+            var ranges = ragfairConfig.Dynamic.PriceRanges;
+            ranges.Pack = ranges.Default;
+        }
+    }
+
+    private void ApplyOfferCurrency()
+    {
+        var weights = configManager.Mod.GeneratedOffers.OfferCurrency;
+        var roubles = Math.Max(0, weights.Roubles);
+        var dollars = Math.Max(0, weights.Dollars);
+        var euros = Math.Max(0, weights.Euros);
+
+        // SPT fails with nothing to pick from.
+        if (roubles + dollars + euros <= 0)
+        {
+            roubles = 100;
+        }
+
+        ragfairConfig.Dynamic.OfferCurrencyChangePercent = new Dictionary<MongoId, double>
+        {
+            [new MongoId("5449016a4bdc2d6f028b456f")] = roubles,
+            [new MongoId("5696686a4bdc2da3298b456a")] = dollars,
+            [new MongoId("569668774bdc2da2298b4568")] = euros
+        };
+    }
+
+    // true = allow, false = ban, null = leave. A tpl beats a category; allowed beats banned.
     private bool? Decide(TemplateItem item, HashSet<MongoId> allowed, HashSet<MongoId> banned, out string reason)
     {
         var tpl = item.Id;
