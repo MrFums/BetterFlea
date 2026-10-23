@@ -56,7 +56,7 @@
 - Faster flea searches and category counts.
 
 ### Modded items
-- Everything works from an item's type, stats and price, so modded guns, attachments, optics, armour, meds and traders are handled automatically.
+- Items are handled by their type, stats and price rather than a list of names, so modded guns, attachments, optics, armour, meds and traders are picked up too.
 - The server log lists the other mods found and what Better Flea worked out from them.
 
 ### Saved through restarts (`data\` folder)

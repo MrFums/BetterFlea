@@ -179,13 +179,16 @@ The server makes all the rules. The BepInEx plugin shows them to the player:
 A player without the plugin also cannot sell these items on the Flea Market. But that player sees a big error message, not the small warning.
 
 ## Modded items
-Better Flea works from what an item is, not from lists of names, so items other mods add (guns, attachments, armour, meds, traders) just work. Nothing to set up.
+Better Flea works from what an item is (its type, stats and price), not from lists of names, so it's built to handle items other mods add: guns, attachments, armour, meds and traders. I can't test every mod though, so if something modded looks wrong on the flea, let me know.
 
 ## Other mods
 - **Mods that show prices or colour banned items** see Better Flea's bans correctly.
 - **Quicksell mods** should work with the BepInEx plugin. I have only tested with ShowMeTheMoney so please let me know of any issues for others.
 - **All Quests Checkmarks** will still work. Better Flea adds its own icon and does not change or mess with it's icon.
 - **Other mods that change the Flea Market** (number of offers, prices, items in one offer) can do the same thing as Better Flea. The mod that loads last usually wins. Turn off the same feature in one of the 2 mods.
+
+## Reporting issues
+Please report issues in my Discord channel on the SPT server, in this mod's comments, or on [GitHub issues](https://github.com/MrFums/BetterFlea/issues).
 
 ## Roadmap
 No dates, just ideas I'd like to get to:
