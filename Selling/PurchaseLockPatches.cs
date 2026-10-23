@@ -266,6 +266,7 @@ public class ClientDataRoute(
     TemplateTable templates,
     ItemHelper itemHelper,
     RagfairServerHelper ragfairServerHelper,
+    ConfigManager configManager,
     JsonUtil jsonUtil) : IHttpListener
 {
     public const string Path = "/betterflea/client-data";
@@ -285,7 +286,8 @@ public class ClientDataRoute(
         {
             FleaBanned = FleaBanned(),
             BoughtFromTrader = PurchaseLock.LockedIds(sessionId),
-            PurchaseLockOn = PurchaseLock.IsOn
+            PurchaseLockOn = PurchaseLock.IsOn,
+            SellingOff = !configManager.Mod.PlayerSelling.Enabled
         });
 
         context.Response.ContentType = "application/json";
@@ -313,5 +315,7 @@ public class ClientDataRoute(
         public List<string> BoughtFromTrader { get; set; } = new();
 
         public bool PurchaseLockOn { get; set; }
+
+        public bool SellingOff { get; set; }
     }
 }

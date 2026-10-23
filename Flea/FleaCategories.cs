@@ -91,7 +91,10 @@ public static class FleaCategories
         new("other.specialEquipment", b => b.Other.SpecialEquipment, [new("5447e0e74bdc2d3c308b4567")])
     };
 
-    public static readonly IReadOnlySet<string> Names = All.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    // Items that fit none of the above.
+    public const string Uncategorised = "uncategorised";
+
+    public static readonly IReadOnlySet<string> Names =All.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     public static FleaCategory? Find(TemplateItem item, ItemHelper itemHelper)
     {

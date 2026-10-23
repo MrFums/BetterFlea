@@ -35,13 +35,26 @@ public class BetterFleaLoad(
         categoryFilter.Apply();
         markedKeyPricing.Apply();
 
-        // Only ever switched on, so another mod wanting FIR-only isn't overridden.
+        ApplyFoundInRaidOnly(configManager, globalTable);
+        return Task.CompletedTask;
+    }
+
+    private static bool _foundInRaidOnlyIsOurs;
+
+    // Only switched off again if it was this mod that switched it on, so another mod wanting FIR-only isn't overridden.
+    public static void ApplyFoundInRaidOnly(ConfigManager configManager, GlobalTable globalTable)
+    {
+        var ragfair = globalTable.Configuration.RagFair;
         if (configManager.Mod.PlayerSelling.FoundInRaidOnly)
         {
-            globalTable.Configuration.RagFair.IsOnlyFoundInRaidAllowed = true;
+            _foundInRaidOnlyIsOurs |= ragfair.IsOnlyFoundInRaidAllowed != true;
+            ragfair.IsOnlyFoundInRaidAllowed = true;
         }
-
-        return Task.CompletedTask;
+        else if (_foundInRaidOnlyIsOurs)
+        {
+            ragfair.IsOnlyFoundInRaidAllowed = false;
+            _foundInRaidOnlyIsOurs = false;
+        }
     }
 }
 

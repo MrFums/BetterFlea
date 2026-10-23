@@ -206,6 +206,19 @@ internal static class PriceGate
         return drift.Current(settings, now, tpl);
     }
 
+    // The items furthest above and below their normal price right now, as (item, factor).
+    public static List<(MongoId Tpl, double Factor)> Movers(int each)
+    {
+        var all = Drifts.Select(entry => (entry.Key, entry.Value.State()[0])).ToList();
+        return all.OrderByDescending(entry => entry.Item2).Take(each)
+            .Concat(all.OrderBy(entry => entry.Item2).Take(each))
+            .ToList();
+    }
+
+    public static int DriftingItems => Drifts.Count;
+
+    public static bool DriftOn => _config?.Mod.Prices.Drift is { Enabled: true, MaxDriftPercent: > 0 };
+
     private static string Name(MongoId tpl) => _itemHelper?.GetItem(tpl).Value?.Name ?? tpl.ToString();
 
     private static string CurrencyName(MongoId currency) =>
@@ -315,6 +328,28 @@ internal static class SellerPricing
     {
         _config = configManager;
         _itemHelper = itemHelper;
+    }
+
+    // The whole market dearer or cheaper. Last, so deals and overpriced offers move with it. Never below the floor.
+    public static void ApplyMultiplier(CreateFleaOfferDetails details)
+    {
+        var multiplier = (_config?.Mod.Prices.PriceMultiplier ?? 1.0)
+            * (details.Items is { Count: > 0 } offerItems ? WipeEconomy.Factor(offerItems[0].Template) : 1.0);
+        if (Math.Abs(multiplier - 1) < 0.001 || _itemHelper is null || details.Creator != OfferCreator.FakePlayer
+            || details.Items is not { Count: > 0 } items || details.BarterScheme is not { Count: > 0 } scheme
+            || scheme.Any(barter => !barter.Count.HasValue || !_itemHelper.IsOfBaseclass(barter.Template, BaseClasses.MONEY)))
+        {
+            return;
+        }
+
+        var units = details.SellInOnePiece ? Math.Max(1, details.Quantity) : 1;
+        var floor = PriceGate.FloorForItems(items, scheme[0].Template) * units;
+        var price = scheme.Sum(barter => barter.Count!.Value);
+        var factor = multiplier < 1 && price > 0 && floor > 0 ? Math.Max(multiplier, floor / price) : multiplier;
+        foreach (var barter in scheme)
+        {
+            barter.Count = Math.Max(1, Math.Round(barter.Count!.Value * factor));
+        }
     }
 
     public static void Apply(CreateFleaOfferDetails details)
@@ -562,10 +597,13 @@ public class MarkedKeyPricing(
     ConfigManager configManager,
     RagfairConfig ragfairConfig)
 {
+    private double _applied = 1.0;
+
+    // Applied again on every settings change: the last multiplier is taken back out first, so they don't stack.
     public void Apply()
     {
         var multiplier = configManager.Mod.Prices.MarkedKeyMultiplier;
-        if (multiplier == 1.0)
+        if (multiplier == _applied)
         {
             return;
         }
@@ -573,8 +611,10 @@ public class MarkedKeyPricing(
         var priceMultipliers = ragfairConfig.Dynamic.ItemPriceMultiplier ??= new();
         foreach (var tpl in FleaCategories.MarkedKeys)
         {
-            priceMultipliers[tpl] = priceMultipliers.GetValueOrDefault(tpl, 1.0) * multiplier;
+            priceMultipliers[tpl] = priceMultipliers.GetValueOrDefault(tpl, 1.0) / _applied * multiplier;
         }
+
+        _applied = multiplier;
 
         DebugLog.Summary(() => $"Marked key flea prices x{multiplier}.");
     }

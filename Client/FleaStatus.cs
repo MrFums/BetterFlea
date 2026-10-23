@@ -8,18 +8,19 @@ using Newtonsoft.Json;
 
 namespace BetterFlea.Client;
 
-// Flea bans and trader-bought items, fetched from the server in the background so hovering never waits.
-// Bans don't change while the server runs, so with the purchase lock off one answer is enough. With it on,
-// ask again after an inventory change or once a minute.
+// Flea bans, trader-bought items and whether players can list at all, fetched from the server in the background so
+// hovering never waits. Asked again after an inventory change or once a minute (the settings page can change them).
 internal static class FleaStatus
 {
     private const string Route = "/betterflea/client-data";
-    private static readonly TimeSpan MaxAge = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan MaxAge = TimeSpan.FromSeconds(30);
 
-    private static Snapshot _current = new Snapshot(new HashSet<string>(), new HashSet<string>(), false);
+    // After a failed check (server restarting, or no BetterFlea on it) wait this much longer before trying again.
+    private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(3);
+
+    private static Snapshot _current = new Snapshot(new HashSet<string>(), new HashSet<string>(), false, false);
     private static DateTime _fetchedAt = DateTime.MinValue;
     private static bool _fetching;
-    private static bool _done;
     private static bool _warned;
 
     private sealed class Snapshot
@@ -27,12 +28,14 @@ internal static class FleaStatus
         public readonly HashSet<string> FleaBanned;
         public readonly HashSet<string> BoughtFromTrader;
         public readonly bool PurchaseLockOn;
+        public readonly bool SellingOff;
 
-        public Snapshot(HashSet<string> fleaBanned, HashSet<string> boughtFromTrader, bool purchaseLockOn)
+        public Snapshot(HashSet<string> fleaBanned, HashSet<string> boughtFromTrader, bool purchaseLockOn, bool sellingOff)
         {
             FleaBanned = fleaBanned;
             BoughtFromTrader = boughtFromTrader;
             PurchaseLockOn = purchaseLockOn;
+            SellingOff = sellingOff;
         }
     }
 
@@ -41,6 +44,16 @@ internal static class FleaStatus
         public List<string> FleaBanned { get; set; }
         public List<string> BoughtFromTrader { get; set; }
         public bool PurchaseLockOn { get; set; }
+        public bool SellingOff { get; set; }
+    }
+
+    public static bool SellingOff
+    {
+        get
+        {
+            RefreshIfOld();
+            return _current.SellingOff;
+        }
     }
 
     public static bool IsFleaBanned(Item item)
@@ -71,7 +84,7 @@ internal static class FleaStatus
 
     private static void RefreshIfOld()
     {
-        if (_done || _fetching || DateTime.UtcNow - _fetchedAt < MaxAge)
+        if (_fetching || DateTime.UtcNow - _fetchedAt < MaxAge)
         {
             return;
         }
@@ -82,29 +95,31 @@ internal static class FleaStatus
 
     private static void Fetch()
     {
+        var next = DateTime.UtcNow;
         try
         {
             var data = JsonConvert.DeserializeObject<ClientData>(RequestHandler.GetJson(Route));
             _current = new Snapshot(
                 new HashSet<string>(data?.FleaBanned ?? new List<string>()),
                 new HashSet<string>(data?.BoughtFromTrader ?? new List<string>()),
-                data?.PurchaseLockOn ?? false);
-            _done = data != null && !data.PurchaseLockOn;
+                data?.PurchaseLockOn ?? false,
+                data?.SellingOff ?? false);
         }
         catch (Exception ex)
         {
-            // Usually means the server mod isn't installed.
+            // The server restarting, or no BetterFlea on it.
             if (!_warned)
             {
                 _warned = true;
                 Plugin.Log.LogWarning($"Could not get flea data from the server ({ex.Message}). Is BetterFlea installed on the server?");
             }
 
-            _done = true;
+            // Keep what we had and try again later, rather than giving up until the game restarts.
+            next += RetryAfterFailure;
         }
         finally
         {
-            _fetchedAt = DateTime.UtcNow;
+            _fetchedAt = next;
             _fetching = false;
         }
     }
@@ -117,6 +132,8 @@ internal static class Tags
     public const string BoughtFromTraderText = "Bought from trader\nCannot be listed on the Flea Market";
 
     public const string FleaBannedWarning = "Flea banned - cannot be listed";
+    public const string SellingOffWarning = "Player listings are turned off";
+    public const string SellingOffNotice = "Player listings are turned off at the Flea Market.";
     public const string BoughtFromTraderWarning = "Bought from trader - cannot be listed";
 
     public const string FleaBanned = "<color=#c84b4b>" + FleaBannedText + "</color>";

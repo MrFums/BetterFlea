@@ -42,6 +42,13 @@ internal static class ListingCountGate
     private static ItemHelper? _itemHelper;
     private static readonly ConcurrentDictionary<MongoId, double> MultiplierCache = new();
 
+    public static void ForgetCaches()
+    {
+        MultiplierCache.Clear();
+        GroupMultiplierCache.Clear();
+        MinimumCache.Clear();
+    }
+
     [ThreadStatic]
     private static MongoId? _currentTpl;
 
@@ -79,9 +86,14 @@ internal static class ListingCountGate
             return count;
         }
 
-        // Money only uses currencyMultiplier.
+        // Money only uses currencyMultiplier, and only with offer counts on.
         if (_itemHelper!.IsOfBaseclass(tpl, BaseClasses.MONEY))
         {
+            if (!_config!.Mod.GeneratedOffers.Listings.Enabled)
+            {
+                return count;
+            }
+
             var currency = MultiplierCache.GetOrAdd(tpl, MultiplierFor);
             return currency == 1.0 ? count : (int)Math.Round(count * currency);
         }

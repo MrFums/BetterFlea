@@ -17,6 +17,10 @@ public record FleaConfig
     [JsonPropertyName("allowedItems")]
     public List<string> AllowedItems { get; set; } = new();
 
+    // Mod name -> "all", or the item types (bannedCategories names like "weapons.guns") to ban from that mod.
+    [JsonPropertyName("bannedModItems")]
+    public Dictionary<string, List<string>> BannedModItems { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }

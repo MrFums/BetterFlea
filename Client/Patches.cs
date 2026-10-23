@@ -22,7 +22,12 @@ internal class RagfairSelectPatch : ModulePatch
     [PatchPostfix]
     public static void Postfix(Item item, ref string error, ref bool __result)
     {
-        if (FleaStatus.IsFleaBanned(item))
+        if (FleaStatus.SellingOff)
+        {
+            error = Tags.SellingOffWarning;
+            __result = false;
+        }
+        else if (FleaStatus.IsFleaBanned(item))
         {
             error = Tags.FleaBannedWarning;
             __result = false;
@@ -47,6 +52,13 @@ internal class AddOfferPatch : ModulePatch
     [PatchPrefix]
     public static bool Prefix(string[] items, Action callback)
     {
+        if (FleaStatus.SellingOff)
+        {
+            NotificationManager.DisplayWarningNotification(Tags.SellingOffNotice);
+            callback?.Invoke();
+            return false;
+        }
+
         if (items == null || !items.Any(FleaStatus.IsBoughtFromTrader))
         {
             return true;
@@ -122,7 +134,7 @@ internal static class CanSellOnRagfair
 
     public static void Apply(Item item, ref bool result)
     {
-        if (result && (FleaStatus.IsFleaBanned(item) || FleaStatus.IsBoughtFromTrader(item)))
+        if (result && (FleaStatus.SellingOff || FleaStatus.IsFleaBanned(item) || FleaStatus.IsBoughtFromTrader(item)))
         {
             result = false;
         }

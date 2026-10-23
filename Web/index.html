@@ -1,0 +1,1984 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetterFlea Settings</title>
+<link rel="icon" href="/betterflea/icon.png">
+<style>
+  :root {
+    --bg: #0b0c10;
+    --panel: #13151b;
+    --panel-2: #191c23;
+    --line: #252932;
+    --text: #e4e7eb;
+    --muted: #8a909b;
+    --faint: #6f7580;
+    --green: #7dc24a;
+    --green-dark: #5e8f37;
+    --green-soft: rgba(125, 194, 74, 0.12);
+    --slate: #4b505a;
+    --warn: #e2ad4f;
+    --bad: #e2705c;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  a { color: var(--green); }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+  header { position: sticky; top: 0; z-index: 5; background: rgba(11, 12, 16, 0.95); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1060px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  .brand img { width: 40px; height: 40px; border-radius: 8px; }
+  .brand h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  .brand h1 span.g { color: var(--green); }
+  .brand .ver { color: var(--muted); font-size: 13px; font-weight: 500; margin-left: 6px; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; text-decoration: none; }
+  .pill.ok { color: var(--green); border-color: var(--green-dark); background: var(--green-soft); }
+  .pill.new { color: var(--bg); background: var(--warn); border-color: var(--warn); font-weight: 600; }
+  .status { font-size: 12.5px; color: var(--muted); }
+  .status.dirty { color: var(--warn); }
+  .status.bad { color: var(--bad); }
+
+  .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover:not(:disabled) { border-color: var(--slate); }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .btn.primary { background: var(--green-dark); border-color: var(--green-dark); color: #fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .menu { position: relative; }
+  .menu-list { position: absolute; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px; min-width: 200px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  .menu.open .menu-list { display: block; }
+  .menu-list button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+  .menu-list button:hover { background: var(--panel-2); }
+  .style-menu .menu-list { left: 0; right: auto; width: 320px; z-index: 6; }
+  .style-menu .menu-list button { display: flex; flex-direction: column; gap: 1px; }
+  .style-menu .n { color: var(--text); }
+  .style-menu .d { color: var(--faint); font-size: 12px; }
+  .style-menu .chosen .n::after { content: " ✓"; color: var(--green); }
+  .menu-list hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+  main { max-width: 1060px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 180px 1fr; gap: 20px; }
+  .intro { grid-column: 1 / -1; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: var(--radius); padding: 12px 14px; display: flex; gap: 14px 22px; align-items: center; flex-wrap: wrap; }
+  .intro p { margin: 0; color: var(--muted); flex: 1 1 340px; }
+  .intro p b { color: var(--text); font-weight: 600; }
+  .pick { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+  select { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  select:focus { outline: none; border-color: var(--green-dark); }
+  .style-about { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; margin-top: -10px; padding: 0 2px; }
+
+  nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 84px; align-self: start; }
+  nav button { text-align: left; background: none; border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  nav button:hover { color: var(--text); background: var(--panel); }
+  nav button.active { color: var(--text); background: var(--panel-2); box-shadow: inset 3px 0 0 var(--green); }
+  nav .marks { display: flex; gap: 5px; align-items: center; }
+  nav .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  nav .dot.unsaved { background: var(--warn); }
+  nav .off { font-size: 10.5px; color: var(--faint); border: 1px solid var(--line); border-radius: 99px; padding: 0 6px; }
+
+  .file-head { display: flex; align-items: flex-start; gap: 12px; margin: 2px 0 12px; }
+  .file-head .t { flex: 1; }
+  .file-head h2 { margin: 0; font-size: 20px; }
+  .file-head p { margin: 3px 0 0; color: var(--muted); }
+  .file-head .master { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; padding-top: 4px; }
+  .file-head .btn { font-size: 13px; padding: 4px 10px; }
+  .notice.restart { grid-column: 1 / -1; margin: 0; font-weight: 600; }
+  .notice { background: rgba(226, 173, 79, 0.07); border: 1px solid rgba(226, 173, 79, 0.3); color: var(--warn); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; }
+
+  .list { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .list.off { opacity: 0.55; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; gap: 14px; align-items: center; padding: 11px 14px; border-top: 1px solid var(--line); min-height: 54px; }
+  .list > .row:first-child, .list > .group:first-child > .row { border-top: 0; }
+  .name { font-weight: 560; }
+  .note { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
+  .tag { font-size: 10.5px; color: var(--warn); border: 1px solid rgba(226, 173, 79, 0.4); border-radius: 99px; padding: 0 7px; margin-left: 8px; vertical-align: 1px; font-weight: 500; }
+  .changed > .lab .name::after { content: ""; display: inline-block; width: 6px; height: 6px; background: var(--green); border-radius: 50%; margin-left: 8px; vertical-align: 2px; }
+
+  .group > .row { cursor: pointer; user-select: none; }
+  .group > .row:hover { background: var(--panel-2); }
+  .chev { color: var(--muted); transition: transform 0.15s; display: inline-block; width: 16px; }
+  .group.open > .row .chev { transform: rotate(90deg); color: var(--green); }
+  .children { display: none; background: rgba(0, 0, 0, 0.2); border-top: 1px solid var(--line); padding-left: 16px; }
+  .group.open > .children { display: block; }
+  .group.disabled > .children { opacity: 0.45; }
+  .children > .row:first-child, .children > .group:first-child > .row { border-top: 0; }
+  .group > .row .note { margin-left: 16px; }
+  .meta { color: var(--faint); font-size: 12px; display: flex; align-items: center; gap: 10px; }
+
+  .reset { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; color: var(--muted); }
+  .reset:hover:not(:disabled) { color: var(--green); border-color: var(--green-dark); }
+  .reset:disabled { visibility: hidden; }
+
+  .control { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .num { width: 72px; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 6px; text-align: center; font-variant-numeric: tabular-nums; }
+  .num:focus, .text:focus { outline: none; border-color: var(--green-dark); }
+  .text { width: 240px; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; }
+  .step { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; font-weight: 700; line-height: 1; padding: 0; }
+  .step:hover { border-color: var(--green-dark); color: var(--green); }
+  .slider { display: flex; align-items: center; gap: 10px; }
+  .pct { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+  .pct .num { width: 58px; }
+  input[type=range] { width: 170px; accent-color: var(--green); }
+  .switch { position: relative; width: 40px; height: 22px; flex: none; display: inline-block; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch span { position: absolute; inset: 0; background: var(--slate); border-radius: 99px; cursor: pointer; transition: background 0.15s; }
+  .switch span::before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.15s; }
+  .switch input:checked + span { background: var(--green-dark); }
+  .switch input:checked + span::before { transform: translateX(18px); }
+  input:disabled, input:disabled + span, .step:disabled, .remove:disabled, .chip button:disabled { cursor: not-allowed; pointer-events: none; }
+
+  .weights { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 420px; }
+  .weights label { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--faint); }
+  .weights .num { width: 52px; }
+
+  .row.wide { grid-template-columns: minmax(0, 1fr) 32px; }
+  .row.wide > .control { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; flex-direction: column; align-items: stretch; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 99px; padding: 3px 4px 3px 10px; font-size: 12.5px; }
+  .chip small { color: var(--faint); }
+  .chip button { border: 0; background: none; color: var(--muted); cursor: pointer; width: 20px; height: 20px; border-radius: 50%; }
+  .chip button:hover { color: var(--bad); background: rgba(226, 112, 92, 0.12); }
+  .chips .none { color: var(--faint); font-size: 12.5px; }
+  .finder { position: relative; margin-top: 8px; max-width: 380px; }
+  .finder .text { width: 100%; }
+  .results { margin-top: 4px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto; }
+  .results button { display: flex; justify-content: space-between; width: 100%; text-align: left; background: none; border: 0; padding: 7px 10px; cursor: pointer; gap: 10px; }
+  .results button:hover { background: var(--panel-2); }
+  .results small { color: var(--faint); }
+  .results .empty { padding: 8px 10px; color: var(--faint); font-size: 12.5px; }
+  .add { display: flex; gap: 8px; padding: 10px 14px 10px 0; border-top: 1px solid var(--line); }
+  .remove { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; }
+  .remove:hover { color: var(--bad); border-color: var(--bad); }
+  .search { position: relative; flex: 0 1 300px; }
+  .search input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .search input:focus { outline: none; border-color: var(--green-dark); }
+  .search-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 4px; max-height: 420px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 8; min-width: 320px; }
+  .search-results button { display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left; background: none; border: 0; padding: 7px 10px; border-radius: 6px; cursor: pointer; }
+  .search-results button:hover { background: var(--panel-2); }
+  .search-results small { color: var(--faint); font-size: 11.5px; }
+  .search-results .empty { padding: 8px 10px; color: var(--faint); font-size: 12.5px; }
+  .row.flash { animation: flash 2s ease-out; }
+  @keyframes flash { 0%, 30% { background: rgba(125, 194, 74, 0.18); box-shadow: inset 3px 0 0 var(--green); } 100% { background: transparent; box-shadow: none; } }
+  @media (max-width: 760px) { .search { flex-basis: 100%; order: 5; } }
+  .econ { display: grid; gap: 12px; margin-top: 12px; }
+  .econ .s.bad { color: var(--bad); }
+  .econ-level { display: flex; align-items: center; gap: 12px; margin: 12px 0 4px; color: var(--muted); font-size: 13px; }
+  .econ-level input { flex: 1; max-width: 360px; }
+  .econ-item { margin: 14px 0 6px; }
+  .econ .gap { margin-top: 12px; }
+  .econ-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .econ-head h3 { margin-bottom: 6px; }
+  .btn.small { font-size: 12px; padding: 3px 10px; }
+  .econ-facts { border-top: 0; margin-top: 4px; padding-top: 0; }
+  .econ .finder { margin-top: 14px; }
+  nav .badge { font-size: 10px; font-weight: 600; color: var(--bg); background: var(--green); border-radius: 99px; padding: 0 6px; }
+  nav .new-tab { position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(125, 194, 74, 0.35); }
+  nav .new-tab::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(125, 194, 74, 0.18) 50%, transparent 70%);
+    transform: translateX(-100%); animation: shimmer 9s ease-in-out 2s infinite; pointer-events: none; }
+  @keyframes shimmer { 0%, 80% { transform: translateX(-100%); } 92%, 100% { transform: translateX(100%); } }
+  @media (prefers-reduced-motion: reduce) { nav .new-tab::after { animation: none; } }
+  .mods { display: grid; gap: 10px; }
+  .mod { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+  .mod-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mod-head .n { color: var(--faint); font-size: 12px; margin-left: 8px; }
+  .types { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .type { border: 1px solid var(--line); background: var(--panel-2); border-radius: 99px; padding: 3px 10px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .type:hover:not(:disabled) { border-color: var(--slate); color: var(--text); }
+  .type.on { background: rgba(226, 112, 92, 0.14); border-color: rgba(226, 112, 92, 0.6); color: var(--text); }
+  .mod.banned .types { opacity: 0.6; }
+  .type:disabled { cursor: default; }
+  .hint { color: var(--faint); font-size: 12.5px; text-align: center; padding: 14px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .tile, .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+  .tile .k, .movers .k { color: var(--muted); font-size: 12.5px; }
+  .tile .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; margin: 2px 0; }
+  .tile .s, .card .s { color: var(--faint); font-size: 12px; }
+  .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+  .chart { position: relative; height: 170px; }
+  .chart svg { display: block; overflow: visible; }
+  .chart text { fill: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .chart .grid { stroke: var(--line); stroke-width: 1; }
+  .chart .line { fill: none; stroke: var(--green); stroke-width: 2; stroke-linejoin: round; }
+  .chart .area { fill: var(--green-soft); }
+  .chart .cross { stroke: var(--slate); stroke-width: 1; }
+  .chart .dot { fill: var(--green); stroke: var(--panel); stroke-width: 2; }
+  .chart .tip { position: absolute; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; pointer-events: none; white-space: nowrap; display: flex; gap: 8px; }
+  .chart .tip span { color: var(--muted); }
+  .chart .tip[hidden] { display: none; }
+  .chart .hint { padding: 60px 0; }
+  .share { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin-bottom: 9px; font-size: 13px; }
+  .share .n { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .share .meter { grid-column: 1 / -1; height: 4px; background: var(--panel-2); border-radius: 2px; overflow: hidden; }
+  .share .meter span { display: block; height: 100%; background: var(--green-dark); border-radius: 2px; }
+  .facts { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; color: var(--muted); font-size: 12.5px; display: grid; gap: 3px; }
+  .movers { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 10px; }
+  .mover { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .mover span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mover .up { color: var(--green); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .mover .down { color: var(--bad); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .notes ul { margin: 0 0 10px; padding-left: 18px; }
+  .notes li { margin-bottom: 6px; color: var(--muted); }
+  .notes li b { color: var(--text); }
+  .notes h4 { margin: 12px 0 6px; font-size: 13px; }
+  .notes p { color: var(--muted); margin: 0 0 8px; }
+  code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 12px; }
+  @media (max-width: 760px) { .cards, .movers { grid-template-columns: 1fr; } }
+
+  footer { max-width: 1060px; margin: 0 auto; padding: 20px 16px 40px; color: var(--muted); font-size: 12.5px; display: flex; gap: 16px; flex-wrap: wrap; }
+
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(480px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+  dialog .head { padding: 16px 18px 4px; }
+  dialog h3 { margin: 0; }
+  dialog .body { padding: 6px 18px 14px; color: var(--muted); }
+  dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
+
+  .loading { grid-column: 1 / -1; color: var(--muted); padding: 40px 0; text-align: center; }
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; }
+    nav { flex-direction: row; overflow-x: auto; position: static; }
+    nav button { white-space: nowrap; }
+    .row { grid-template-columns: minmax(0, 1fr) 32px; }
+    .row > .control, .row > .meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+    input[type=range] { width: 130px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <img src="/betterflea/icon.png" alt="">
+      <h1>Better<span class="g">Flea</span><span class="ver" id="version"></span></h1>
+    </div>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search settings  ( / )" autocomplete="off" aria-label="Search settings">
+      <div class="search-results" id="searchResults" hidden></div>
+    </div>
+    <a class="pill" id="update">Checking for updates…</a>
+    <span class="status" id="status"></span>
+    <button class="btn" id="discard" disabled>Discard</button>
+    <button class="btn primary" id="save" disabled>Save</button>
+    <div class="menu" id="menu">
+      <button class="btn" id="menuButton">More ▾</button>
+      <div class="menu-list">
+        <button id="export">Export settings</button>
+        <button id="import">Import settings…</button>
+        <hr>
+        <button id="resetAll">Reset everything to default</button>
+      </div>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<main id="main"><div class="loading">Loading settings…</div></main>
+
+<footer>
+  <span>Saved settings go into the files in <code>configs\</code>.</span>
+  <a href="https://github.com/MrFums/BetterFlea" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://sp-mod.com/mod/3177/better-flea" target="_blank" rel="noopener">Mod page</a>
+  <a href="https://github.com/MrFums/BetterFlea/issues" target="_blank" rel="noopener">Report an issue</a>
+</footer>
+
+<dialog id="confirmDialog">
+  <div class="head"><h3 id="confirmTitle"></h3></div>
+  <div class="body"><p id="confirmText"></p></div>
+  <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="confirmOk">Continue</button></div>
+</dialog>
+
+<script>
+"use strict";
+
+const API = "/betterflea/api";
+const REPO = "MrFums/BetterFlea";
+
+// ---------- what each tab, group and setting is called and does ----------
+// Keys are "file:path". A * matches any one part of the path.
+
+const ABOUT = {
+  "flea.jsonc": "What's kept off the Flea Market, and what's always allowed on it.",
+  "listings.jsonc": "How many offers there are, and how many items come in one.",
+  "condition.jsonc": "Keys, meds, food, fuel, repair kits and guns that have been used.",
+  "weapons.jsonc": "How guns are built for the flea, and your own guns turning up.",
+  "armor.jsonc": "Which plates armour comes with, and what state it's in.",
+  "market.jsonc": "How long offers last, other buyers, seller ratings, packs and barters.",
+  "prices.jsonc": "What the offers cost.",
+  "selling.jsonc": "Players selling their own items.",
+  "economy.jsonc": "Real flea prices as the starting point, and prices that follow the wipe. Both are off until you turn them on.",
+  "debug.jsonc": "Extra logging for testing."
+};
+
+const LABELS = {
+  "flea.jsonc:enableBsgBlacklist": "BSG's banned items",
+  "flea.jsonc:bannedCategories": "Banned item types",
+  "flea.jsonc:bannedCategories.keys.mechanicalKeys": "Mechanical keys (not marked)",
+  "flea.jsonc:bannedCategories.gear.armoredRigs": "Armoured rigs",
+  "flea.jsonc:bannedCategories.gear.chestRigs": "Chest rigs (no armour)",
+  "flea.jsonc:bannedCategories.weaponParts.otherParts": "Other weapon parts",
+  "flea.jsonc:bannedItems": "Banned items",
+  "flea.jsonc:allowedItems": "Always allowed",
+  "flea.jsonc:bannedModItems": "Mod items",
+  "listings.jsonc:listings": "Offer counts",
+  "listings.jsonc:listings.multiplier": "Offers",
+  "listings.jsonc:listings.currencyMultiplier": "Money for sale",
+  "listings.jsonc:listings.categoryMultipliers": "Extra offers by type",
+  "listings.jsonc:listings.minimumOffers": "Minimum offers",
+  "listings.jsonc:listings.superrareMinimumOffers": "Minimum offers (very rare items)",
+  "listings.jsonc:listings.rarityMultipliers": "Offers by rarity",
+  "listings.jsonc:listings.onDemand": "Memory saver",
+  "listings.jsonc:itemsPerOffer": "Items per offer",
+  "listings.jsonc:itemsPerOffer.armoredRigsSingle": "Armoured rigs one at a time",
+  "listings.jsonc:itemsPerOffer.bulk": "Cheap barter goods",
+  "listings.jsonc:itemsPerOffer.stock": "Everyday items",
+  "listings.jsonc:itemsPerOffer.few": "Rare and big items",
+  "listings.jsonc:itemsPerOffer.grenadeWeights": "Grenades per offer",
+  "listings.jsonc:itemsPerOffer.grenadeBulk": "Grenade piles",
+  "listings.jsonc:itemsPerOffer.stimBulk": "Stim handfuls",
+  "listings.jsonc:itemsPerOffer.fullMedWeights": "Full meds per offer",
+  "listings.jsonc:offerCurrency": "Price currency",
+  "condition.jsonc:guns.wornChanceByRarity": "Worn guns by rarity",
+  "condition.jsonc:guns.wearByBuild": "Wear by build type",
+  "condition.jsonc:*.oneUsePricePercent": "One-use price",
+  "weapons.jsonc:presets": "Gun builds",
+  "weapons.jsonc:presets.showCustomBuilds": "SPT's other presets",
+  "weapons.jsonc:presets.randomBuildChance": "Own builds",
+  "weapons.jsonc:presets.ground": "Ground loot",
+  "weapons.jsonc:playerGuns": "Your own guns",
+  "weapons.jsonc:playerGuns.killerAsSeller": "Sold by your killer",
+  "armor.jsonc:conditionByRarity": "Condition by rarity",
+  "armor.jsonc:class3Chance": "Both plates class 3",
+  "armor.jsonc:bestKitChance": "Best kit",
+  "market.jsonc:offerExpiry": "Offer length",
+  "market.jsonc:simulatedSales": "Other buyers",
+  "market.jsonc:soldBeforeYouChance": "Sold before you",
+  "market.jsonc:sellerRating": "Seller ratings",
+  "market.jsonc:packs.chancePercent": "Packs",
+  "market.jsonc:packs.hugeChance": "Silly packs",
+  "prices.jsonc:priceMultiplier": "All flea prices",
+  "prices.jsonc:markedKeyMultiplier": "Marked key price",
+  "prices.jsonc:floor": "Price floor",
+  "prices.jsonc:floor.logTraderProfitLoops": "Log trader price loops",
+  "prices.jsonc:drift": "Price drift",
+  "prices.jsonc:sellers": "Seller pricing",
+  "prices.jsonc:guns": "Gun prices",
+  "prices.jsonc:guns.traderPricePercent": "Share of trader price",
+  "selling.jsonc:enabled": "Players can sell",
+  "selling.jsonc:foundInRaidOnly": "Found in raid only",
+  "selling.jsonc:saleDelay": "Sale speed",
+  "selling.jsonc:flipPenalty": "Flip penalty",
+  "selling.jsonc:purchaseLock": "Trader item lock",
+  "selling.jsonc:purchaseLock.includeFleaPurchases": "Lock flea purchases too",
+  "economy.jsonc:livePrices": "Live prices (tarkov.dev)",
+  "economy.jsonc:livePrices.gameMode": "Game mode",
+  "economy.jsonc:livePrices.refreshHours": "Refresh every (hours)",
+  "economy.jsonc:livePrices.estimateModdedItems": "Estimate modded items",
+  "economy.jsonc:wipeCycle": "Wipe Cycle",
+  "economy.jsonc:wipeCycle.levelStep": "Level step",
+  "economy.jsonc:wipeCycle.cooldownMinutes": "Cooldown (minutes)",
+  "economy.jsonc:wipeCycle.endLevel": "End of wipe level",
+  "economy.jsonc:wipeCycle.prestige": "Prestiged players",
+  "economy.jsonc:wipeCycle.level": "Test level",
+  "debug.jsonc:debugLogging": "Debug logging"
+};
+
+const DESC = {
+  // Flea
+  "flea.jsonc:enableBsgBlacklist": "Keep the game's own flea bans (M993, the Knight mask and so on) as well as yours.",
+  "flea.jsonc:bannedCategories": "Turn a type of item on to take it off the Flea Market completely.",
+  "flea.jsonc:bannedItems": "Items or whole categories that are never on the Flea Market.",
+  "flea.jsonc:allowedItems": "Items or whole categories that are always on the Flea Market, even if banned above.",
+  "flea.jsonc:bannedModItems": "Keep a server mod's items off the flea: all of them, or only some types. Only mods that add items are listed.",
+
+  // Listings
+  "listings.jsonc:listings": "How many offers each item gets.",
+  "listings.jsonc:listings.multiplier": "Offers per item compared with plain SPT. 1 = the same, 3 = three times as many.",
+  "listings.jsonc:listings.currencyMultiplier": "Roubles, dollars and euros for sale. The live flea hardly has any. 0 = none.",
+  "listings.jsonc:listings.categoryMultipliers": "Give one type of item more (or fewer) offers on top of everything else.",
+  "listings.jsonc:listings.minimumOffers": "The fewest offers an item gets. \"all\" covers every item.",
+  "listings.jsonc:listings.superrareMinimumOffers": "Used instead of the minimum above for very rare items, which are rare on live too.",
+  "listings.jsonc:listings.rarityMultipliers": "Common items get more sellers, very rare ones fewer.",
+  "listings.jsonc:listings.onDemand": "Makes most offers only when someone looks at an item, so more offers doesn't mean more memory.",
+  "listings.jsonc:listings.onDemand.startShare": "Share of each item's offers made when the server starts.",
+  "listings.jsonc:listings.onDemand.minStartOffers": "Every item starts with at least this many offers.",
+  "listings.jsonc:listings.onDemand.keepPages": "How many lists you've opened stay full. Opening another trims the oldest.",
+  "listings.jsonc:listings.onDemand.keepSeconds": "Seconds before an item nobody is looking at goes back to its starting offers.",
+  "listings.jsonc:listings.onDemand.maxExtraOffers": "Safety cap on offers made this way, so clicking everything can't use up the server's memory.",
+  "listings.jsonc:listings.onDemand.maxItemsPerSearch": "A search over more items than this (a whole top category) shows what's there without filling it up.",
+  "listings.jsonc:itemsPerOffer": "How many of an item come in one offer, the way players actually list them.",
+  "listings.jsonc:itemsPerOffer.armoredRigsSingle": "Armoured rigs always come one per offer, like body armour.",
+  "listings.jsonc:itemsPerOffer.bulk": "Bulbs, wires, bolts and the like: sold by the pile.",
+  "listings.jsonc:itemsPerOffer.stock": "Rarer barter goods, common meds, food and parts: a few at a time.",
+  "listings.jsonc:itemsPerOffer.few": "Rare, valuable or big items and all gear: usually one.",
+  "listings.jsonc:itemsPerOffer.signalFlares": "Usually one per offer.",
+  "listings.jsonc:itemsPerOffer.ammoBoxes": "Usually one, sometimes up to three.",
+  "listings.jsonc:itemsPerOffer.*.max": "Most items in one offer.",
+  "listings.jsonc:itemsPerOffer.*.falloff": "How fast bigger amounts get rarer. Lower = more offers of just one.",
+  "listings.jsonc:itemsPerOffer.grenadeWeights": "How likely each amount is. Box 1 is one grenade, box 2 is two and so on. A bigger number makes that amount more likely.",
+  "listings.jsonc:itemsPerOffer.grenadeBulk": "Now and then someone sells a pile of grenades.",
+  "listings.jsonc:itemsPerOffer.stimBulk": "Now and then someone sells a handful of the same stim.",
+  "listings.jsonc:itemsPerOffer.*.chance": "How often it happens.",
+  "listings.jsonc:itemsPerOffer.*.min": "Fewest in one.",
+  "listings.jsonc:itemsPerOffer.fullMedWeights": "How likely each amount of full meds is in one offer. Box 1 is one, box 2 is two and so on. A bigger number makes that amount more likely.",
+  "listings.jsonc:offerCurrency": "How often a price is in roubles, dollars or euros. Only how they compare matters.",
+
+  // Condition
+  "condition.jsonc:keys": "Keys with some of their uses gone.",
+  "condition.jsonc:markedKeys": "Marked keys with some of their uses gone.",
+  "condition.jsonc:keycards": "Keycards with some of their uses gone.",
+  "condition.jsonc:meds": "Medkits, surgical kits and painkillers with some of them used. Used ones are always one per offer.",
+  "condition.jsonc:foodAndDrink": "Food and drink with some of it gone.",
+  "condition.jsonc:fuel": "Fuel cans with some fuel gone, and the odd empty one.",
+  "condition.jsonc:repairKits": "Repair kits that have been used, often worn right down.",
+  "condition.jsonc:*.usedChance": "Chance an offer is partly used.",
+  "condition.jsonc:*.usesLeftFalloff": "Lower = more of them down to their last use.",
+  "condition.jsonc:*.oneUsePricePercent": "Price with one use left, compared with a new one.",
+  "condition.jsonc:*.lowAmountBias": "Higher = more of them nearly empty.",
+  "condition.jsonc:fuel.emptyChance": "Chance a can is listed completely empty.",
+  "condition.jsonc:fuel.emptyScamChance": "Share of empty cans priced like a full one.",
+  "condition.jsonc:guns": "Guns are worn like players use them, and the price follows the durability.",
+  "condition.jsonc:guns.wornChanceByRarity": "Chance a gun is worn, by how rare it is.",
+  "condition.jsonc:guns.maxWear": "Most a worn gun can be below its max durability.",
+  "condition.jsonc:guns.lowMaxChance": "Chance a gun's max durability has been lowered by repairs.",
+  "condition.jsonc:guns.lowMaxMin": "Lowest a lowered max durability goes.",
+  "condition.jsonc:guns.lowMaxMax": "Highest a lowered max durability goes.",
+  "condition.jsonc:guns.wearByBuild": "How worn each kind of build is. 1 = normal, 2 = much more, 0.5 = half as much.",
+
+  // Weapons
+  "weapons.jsonc:presets": "Guns listed the way players sell them, from stripped to fully modded.",
+  "weapons.jsonc:presets.showCustomBuilds": "Also list SPT's other built-in presets, not only the factory build.",
+  "weapons.jsonc:presets.customBuildChance": "How many of those other presets are kept.",
+  "weapons.jsonc:presets.randomBuildChance": "Share of gun offers that get their own build. 0 = SPT's factory builds only.",
+  "weapons.jsonc:presets.stripped": "The good parts sold off: scope, suppressor, lights, nice stock.",
+  "weapons.jsonc:presets.stock": "The factory gun, maybe with a part or two changed.",
+  "weapons.jsonc:presets.found": "Looks like it came out of a raid.",
+  "weapons.jsonc:presets.modded": "A proper build. Some are the gun's meta build.",
+  "weapons.jsonc:presets.broken": "Main parts taken off.",
+  "weapons.jsonc:presets.gutted": "Nearly everything sold off.",
+  "weapons.jsonc:presets.budget": "A full build from cheap parts.",
+  "weapons.jsonc:presets.ground": "Picked up off the ground and sold as it was.",
+  "weapons.jsonc:presets.*.weight": "How often this kind turns up on cheap guns.",
+  "weapons.jsonc:presets.*.dearWeight": "How often it turns up on expensive guns.",
+  "weapons.jsonc:presets.*.magazine": "Chance it has a magazine.",
+  "weapons.jsonc:presets.*.scope": "Chance of a scope.",
+  "weapons.jsonc:presets.*.muzzle": "Chance of a muzzle device.",
+  "weapons.jsonc:presets.*.suppressor": "Chance of a suppressor.",
+  "weapons.jsonc:presets.*.stock": "Chance of stock parts.",
+  "weapons.jsonc:presets.*.grip": "Chance of grips and rails.",
+  "weapons.jsonc:presets.*.other": "Chance of other parts.",
+  "weapons.jsonc:presets.*.factory": "Chance a part is the factory one.",
+  "weapons.jsonc:presets.*.barrelSwap": "Chance the barrel has been swapped.",
+  "weapons.jsonc:presets.*.stripMin": "Fewest things taken off before it's listed.",
+  "weapons.jsonc:presets.*.stripMax": "Most things taken off before it's listed.",
+  "weapons.jsonc:presets.*.statFocus": "How much the parts are picked for their stats. 0 = any part, 4 = the best.",
+  "weapons.jsonc:presets.*.colourMatch": "How much the parts match in colour.",
+  "weapons.jsonc:presets.*.bestOf": "Builds tried; the best one is listed.",
+  "weapons.jsonc:presets.*.goodMagazineChance": "Chance of a big premium magazine.",
+  "weapons.jsonc:presets.loadedMagazineChance": "Chance a gun's magazine still has rounds in it. Mags sold on their own get half this.",
+  "weapons.jsonc:presets.metaBuildChance": "Share of modded guns that are the gun's meta build.",
+  "weapons.jsonc:presets.lootedBuildChance": "Share of found guns that are exactly as a scav or boss carried them.",
+  "weapons.jsonc:presets.buildDealChance": "Share of built guns listed below what their parts are worth.",
+  "weapons.jsonc:presets.buildDealMinDiscount": "Smallest discount on a build deal.",
+  "weapons.jsonc:presets.buildDealMaxDiscount": "Biggest discount on a build deal.",
+  "weapons.jsonc:presets.buildStyles": "How often builds go for ergonomics, a balance of both, or low recoil.",
+  "weapons.jsonc:presets.brokenMaxParts": "Most main parts taken off a broken-down gun.",
+  "weapons.jsonc:presets.brokenPriceBias": "How much broken-down guns lean towards cheap guns.",
+  "weapons.jsonc:presets.maxTacticalDevices": "Most lasers and lights on one gun.",
+  "weapons.jsonc:presets.comboTacticalWeight": "How much likelier a laser/light combo is than a single device.",
+  "weapons.jsonc:presets.laserLightChance": "Chance a gun with a laser also gets a light.",
+  "weapons.jsonc:presets.extraTacticalChance": "Chance a gun with a light also gets a laser.",
+  "weapons.jsonc:presets.emptyMountChance": "Chance the scope rings are left on after the scope was sold.",
+  "weapons.jsonc:presets.emptyRingsChance": "Chance a plain rifle has empty scope rings.",
+  "weapons.jsonc:presets.maxAttachmentDepth": "How deep parts go: a part on a part on a part…",
+  "weapons.jsonc:presets.backupSightChance": "Chance a gun with a big scope also gets a small backup red dot.",
+  "weapons.jsonc:presets.tanBuildChance": "Chance a build is tan.",
+  "weapons.jsonc:playerGuns": "Your saved builds and the guns you lose can turn up on the flea.",
+  "weapons.jsonc:playerGuns.savedBuildChance": "Share of a gun's offers that copy one of your saved builds.",
+  "weapons.jsonc:playerGuns.lostGunChance": "Chance a gun you die with turns up on the flea later.",
+  "weapons.jsonc:playerGuns.lostGunMinMinutes": "Soonest it turns up after the raid, in minutes.",
+  "weapons.jsonc:playerGuns.lostGunMaxMinutes": "Latest it turns up after the raid, in minutes.",
+  "weapons.jsonc:playerGuns.killerAsSeller": "List it under the name of whoever killed you.",
+  "weapons.jsonc:playerGuns.scopeStripChance": "Chance the scope was taken off first.",
+  "weapons.jsonc:playerGuns.suppressorStripChance": "Chance the suppressor was taken off first.",
+
+  // Armour
+  "armor.jsonc:plates": "Which plates armour and rigs come with. Only how they compare matters.",
+  "armor.jsonc:mixedClassChance": "Chance of one class 3 and one class 4 plate.",
+  "armor.jsonc:class3Chance": "Chance both plates are class 3.",
+  "armor.jsonc:sidePlateChance": "Chance armour that takes side plates has them.",
+  "armor.jsonc:bestKitChance": "Chance of class 4 front and back with class 6 sides, all mint.",
+  "armor.jsonc:flippedDownChance": "Chance a face shield, visor or night vision is listed flipped down.",
+  "armor.jsonc:conditionByRarity": "How likely each condition is for armour and plates, by how rare the item is. Only how they compare matters.",
+
+  // Market
+  "market.jsonc:offerExpiry": "How long an offer stays up. Each one is found partway through its time.",
+  "market.jsonc:offerExpiry.minMinutes": "Shortest, in minutes.",
+  "market.jsonc:offerExpiry.maxMinutes": "Longest, in minutes.",
+  "market.jsonc:simulatedSales": "Other players buying: good deals go fast, overpriced ones hardly ever.",
+  "market.jsonc:simulatedSales.everyMinutes": "How often they buy, in minutes.",
+  "market.jsonc:simulatedSales.normalSellChancePerHour": "Chance an offer at the normal price sells within an hour.",
+  "market.jsonc:simulatedSales.dealSpeedup": "How much faster an offer 20% under the normal price sells.",
+  "market.jsonc:soldBeforeYouChance": "Chance a gun or barter item you try to buy was already bought by someone else.",
+  "market.jsonc:barterOffers": "Offers that want items instead of money.",
+  "market.jsonc:barterOffers.chance": "Chance an offer is a barter.",
+  "market.jsonc:barterOffers.valueMin": "Lowest value of the wanted items, compared with the normal price.",
+  "market.jsonc:barterOffers.valueMax": "Highest value of the wanted items, compared with the normal price.",
+  "market.jsonc:sellerRating": "The flea ratings next to sellers. They grow with the players online: mostly low up to level 15, mostly high by level 40.",
+  "market.jsonc:sellerRating.min": "Lowest rating.",
+  "market.jsonc:sellerRating.max": "Highest rating.",
+  "market.jsonc:sellerRating.everydayMax": "Highest rating for an everyday seller.",
+  "market.jsonc:sellerRating.regularChance": "Chance someone selling one item is a regular with a high rating.",
+  "market.jsonc:sellerRating.flipperChance": "Chance someone selling a stack is a flipper with a high rating.",
+  "market.jsonc:sellerRating.newSellerChance": "Chance a seller is brand new to the flea.",
+  "market.jsonc:packs": "Several items you have to buy all together. Most are scams.",
+  "market.jsonc:packs.chancePercent": "Share of offers that are packs.",
+  "market.jsonc:packs.min": "Fewest items in a pack.",
+  "market.jsonc:packs.max": "Most items in a pack.",
+  "market.jsonc:packs.scamChance": "Share of packs priced above buying the items one by one.",
+  "market.jsonc:packs.hugeChance": "Share of packs with a silly amount of items in them.",
+  "market.jsonc:packs.hugeMin": "Fewest items in a silly pack.",
+  "market.jsonc:packs.hugeMax": "Most items in a silly pack.",
+
+  // Prices
+  "prices.jsonc:priceMultiplier": "Every offer from other sellers costs this much compared with normal. 1 = normal, 1.5 = half as much again. Trader prices don't change.",
+  "prices.jsonc:markedKeyMultiplier": "Flea price of marked keys. 1 = normal, 1.5 = half as much again.",
+  "prices.jsonc:floor": "Offers never go below what a trader pays, so nothing can be bought here and sold to a trader for profit.",
+  "prices.jsonc:floor.marginPercent": "How far above the trader's price the cheapest offer is.",
+  "prices.jsonc:floor.logTraderProfitLoops": "At startup, list items one trader sells for less than another buys them. Only listed, never changed.",
+  "prices.jsonc:drift": "Prices slowly wander over time. Only new offers get the new price.",
+  "prices.jsonc:drift.maxDriftPercent": "Furthest a price can wander from normal.",
+  "prices.jsonc:drift.stepPercent": "Biggest single move.",
+  "prices.jsonc:drift.updateMinutes": "About how often a price moves, in minutes.",
+  "prices.jsonc:sellers": "Some sellers ask too much, and now and then someone sells cheap.",
+  "prices.jsonc:sellers.overpriceChance": "Chance an offer asks too much.",
+  "prices.jsonc:sellers.wornOverpriceChance": "Extra chance for worn items.",
+  "prices.jsonc:sellers.overpriceMinPercent": "Smallest overprice.",
+  "prices.jsonc:sellers.overpriceMaxPercent": "Biggest overprice.",
+  "prices.jsonc:sellers.quickSellChance": "Chance an offer is a quick sell, listed cheap.",
+  "prices.jsonc:sellers.quickSellMinPercent": "Smallest quick sell discount.",
+  "prices.jsonc:sellers.quickSellMaxPercent": "Biggest quick sell discount.",
+  "prices.jsonc:guns": "Guns are priced against what traders sell the parts for.",
+  "prices.jsonc:guns.traderPricePercent": "A part a trader sells is worth this much of the trader's price.",
+
+  // Selling
+  "selling.jsonc:enabled": "Let players list their own items on the flea.",
+  "selling.jsonc:foundInRaidOnly": "Only found in raid items can be listed.",
+  "selling.jsonc:saleDelay": "How fast your offers sell depends on your price: cheap in under a minute, normal in a few minutes, overpriced hardly ever.",
+  "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes.",
+  "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes.",
+  "selling.jsonc:saleDelay.noDelayChance": "Chance of no wait at all for offers at or under the normal price.",
+  "selling.jsonc:saleDelay.expensivePercent": "This far over the normal price, most items never sell.",
+  "selling.jsonc:flipPenalty": "Buy lots of one item and list it straight away, and buyers take longer to turn up. Needs Sale speed on.",
+  "selling.jsonc:flipPenalty.windowMinutes": "How long a purchase counts, in minutes.",
+  "selling.jsonc:flipPenalty.freePurchases": "Purchases of one item before it counts.",
+  "selling.jsonc:flipPenalty.purchasesForMaxPenalty": "Purchases for the full penalty.",
+  "selling.jsonc:flipPenalty.maxExtraMinutes": "Longest extra wait, in minutes.",
+  "selling.jsonc:flipPenalty.countFleaPurchases": "Count flea purchases too, not only traders.",
+  "selling.jsonc:flipPenalty.fenceMultiplier": "Each Fence purchase counts as this many.",
+  "selling.jsonc:purchaseLock": "Items bought from traders (Fence too) can never be listed. Ammo and stacks aren't locked.",
+  "selling.jsonc:purchaseLock.includeFleaPurchases": "Also lock items bought from other players on the flea.",
+
+  // Economy
+  "economy.jsonc:livePrices": "Every item starts from its real flea price: the 24 hour average on tarkov.dev. All of Better Flea's pricing goes on top. Prices are saved, so if tarkov.dev is down the last ones are used.",
+  "economy.jsonc:livePrices.gameMode": "Which game's prices to use.",
+  "economy.jsonc:livePrices.estimateModdedItems": "Items the real game doesn't have get a price on the live scale, worked out from similar base-game items. Real-game items that a mod adds back (content backports) are not counted as modded: they get their real price, or keep their own if the real flea doesn't sell them.",
+  "economy.jsonc:livePrices.refreshHours": "Fetch new prices this long after the last fetch. Goes by the clock, so restarts don't matter.",
+  "economy.jsonc:wipeCycle": "Experimental. Prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe. Early on, hideout and quest items are dear and everything is scarce. Late on, the best guns, ammo, armour and stims are dear, and early-wipe items are cheap.",
+  "economy.jsonc:wipeCycle.strength": "Size of the swings. 1 = normal, 0.5 = half, 2 = double.",
+  "economy.jsonc:wipeCycle.levelStep": "Prices move every this many levels.",
+  "economy.jsonc:wipeCycle.cooldownMinutes": "Once the flea's level changes it stays put this long, so swapping profiles can't be used to buy low and sell high.",
+  "economy.jsonc:wipeCycle.endLevel": "About the level where a wipe ends. Lower it for a shorter wipe.",
+  "economy.jsonc:wipeCycle.prestige": "Late wipe: a prestiged player counts as end of wipe. Start over: they count as a fresh wipe from their new level.",
+  "economy.jsonc:wipeCycle.level": "For testing: pretend the players are this level. 0 = the highest level of the players online.",
+
+  // Debug
+  "debug.jsonc:debugLogging": "Write lots of extra lines in the server log. Only for testing."
+};
+
+// Shown only with Advanced settings on.
+const ADVANCED = [
+  "listings.jsonc:listings.rarityMultipliers", "listings.jsonc:listings.superrareMinimumOffers", "listings.jsonc:listings.onDemand",
+  "listings.jsonc:itemsPerOffer.bulk", "listings.jsonc:itemsPerOffer.stock", "listings.jsonc:itemsPerOffer.few",
+  "listings.jsonc:itemsPerOffer.signalFlares", "listings.jsonc:itemsPerOffer.ammoBoxes", "listings.jsonc:itemsPerOffer.grenadeWeights",
+  "listings.jsonc:itemsPerOffer.fullMedWeights", "listings.jsonc:itemsPerOffer.*.min", "listings.jsonc:itemsPerOffer.*.max",
+  "condition.jsonc:*.usesLeftFalloff", "condition.jsonc:*.lowAmountBias", "condition.jsonc:guns.wearByBuild",
+  "condition.jsonc:guns.maxWear", "condition.jsonc:guns.lowMaxMin", "condition.jsonc:guns.lowMaxMax",
+  "weapons.jsonc:presets.showCustomBuilds", "weapons.jsonc:presets.customBuildChance",
+  "weapons.jsonc:presets.stripped", "weapons.jsonc:presets.stock", "weapons.jsonc:presets.found", "weapons.jsonc:presets.modded",
+  "weapons.jsonc:presets.broken", "weapons.jsonc:presets.gutted", "weapons.jsonc:presets.budget", "weapons.jsonc:presets.ground",
+  "weapons.jsonc:presets.buildDealMinDiscount", "weapons.jsonc:presets.buildDealMaxDiscount", "weapons.jsonc:presets.buildStyles",
+  "weapons.jsonc:presets.brokenMaxParts", "weapons.jsonc:presets.brokenPriceBias", "weapons.jsonc:presets.maxTacticalDevices",
+  "weapons.jsonc:presets.comboTacticalWeight", "weapons.jsonc:presets.laserLightChance", "weapons.jsonc:presets.extraTacticalChance",
+  "weapons.jsonc:presets.emptyMountChance", "weapons.jsonc:presets.emptyRingsChance", "weapons.jsonc:presets.maxAttachmentDepth",
+  "weapons.jsonc:presets.backupSightChance",
+  "armor.jsonc:conditionByRarity",
+  "market.jsonc:simulatedSales.everyMinutes", "market.jsonc:simulatedSales.dealSpeedup",
+  "market.jsonc:barterOffers.valueMin", "market.jsonc:barterOffers.valueMax",
+  "market.jsonc:sellerRating.min", "market.jsonc:sellerRating.max", "market.jsonc:sellerRating.everydayMax",
+  "market.jsonc:packs.min", "market.jsonc:packs.max", "market.jsonc:packs.hugeMin", "market.jsonc:packs.hugeMax",
+  "prices.jsonc:floor.logTraderProfitLoops", "prices.jsonc:drift.stepPercent", "prices.jsonc:drift.updateMinutes",
+  "prices.jsonc:sellers.wornOverpriceChance", "prices.jsonc:sellers.overpriceMinPercent", "prices.jsonc:sellers.overpriceMaxPercent",
+  "prices.jsonc:sellers.quickSellMinPercent", "prices.jsonc:sellers.quickSellMaxPercent",
+  "economy.jsonc:wipeCycle.levelStep", "economy.jsonc:wipeCycle.endLevel",
+  "selling.jsonc:saleDelay.noDelayChance", "selling.jsonc:flipPenalty.windowMinutes", "selling.jsonc:flipPenalty.purchasesForMaxPenalty",
+  "selling.jsonc:flipPenalty.fenceMultiplier"
+];
+
+// Never shown: they do nothing where they appear (shared setting types), or have their own switch.
+const HIDDEN = [
+  "condition.jsonc:meds.emptyChance", "condition.jsonc:meds.emptyScamChance", "condition.jsonc:foodAndDrink.emptyChance",
+  "condition.jsonc:foodAndDrink.emptyScamChance", "condition.jsonc:repairKits.emptyChance", "condition.jsonc:repairKits.emptyScamChance",
+  "weapons.jsonc:presets.ground.scope", "weapons.jsonc:presets.ground.muzzle", "weapons.jsonc:presets.ground.suppressor",
+  "weapons.jsonc:presets.ground.stock", "weapons.jsonc:presets.ground.grip", "weapons.jsonc:presets.ground.other",
+  "weapons.jsonc:presets.ground.factory", "weapons.jsonc:presets.ground.barrelSwap", "weapons.jsonc:presets.ground.stripMin",
+  "weapons.jsonc:presets.ground.stripMax", "weapons.jsonc:presets.ground.statFocus", "weapons.jsonc:presets.ground.colourMatch",
+  "weapons.jsonc:presets.ground.bestOf", "weapons.jsonc:presets.ground.goodMagazineChance",
+  "armor.jsonc:enabled"
+];
+
+// Settings that are one of a few choices: value, name.
+const CHOICES = {
+  "economy.jsonc:livePrices.gameMode": [["live", "Live (PvP)"], ["pve", "PvE"], ["season", "Season"]],
+  "economy.jsonc:wipeCycle.prestige": [["add", "Late wipe"], ["reset", "Start over"]]
+};
+
+// Lists of item ids.
+const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems"];
+// Tables you can add entries to.
+const OPEN_TABLES = ["listings.jsonc:listings.categoryMultipliers", "listings.jsonc:listings.minimumOffers", "listings.jsonc:listings.superrareMinimumOffers"];
+
+// ---------- "off" for each tab, and the flea styles ----------
+
+const OFF = {
+  "listings.jsonc": { listings: { enabled: false }, itemsPerOffer: { enabled: false }, offerCurrency: { roubles: 78, dollars: 14, euros: 8 } },
+  "condition.jsonc": { keys: { enabled: false }, markedKeys: { enabled: false }, keycards: { enabled: false }, meds: { enabled: false },
+    foodAndDrink: { enabled: false }, fuel: { enabled: false }, repairKits: { enabled: false }, guns: { enabled: false } },
+  "weapons.jsonc": { presets: { showCustomBuilds: false, randomBuildChance: 0, loadedMagazineChance: 0, buildDealChance: 0 },
+    playerGuns: { savedBuildChance: 0, lostGunChance: 0 } },
+  "armor.jsonc": { enabled: false },
+  "market.jsonc": { offerExpiry: { minMinutes: 6, maxMinutes: 60 }, simulatedSales: { enabled: false }, soldBeforeYouChance: 0,
+    barterOffers: { chance: 0 }, sellerRating: { enabled: false }, packs: { enabled: false } },
+  "prices.jsonc": { priceMultiplier: 1, markedKeyMultiplier: 1, floor: { enabled: false }, drift: { enabled: false }, sellers: { enabled: false }, guns: { enabled: false } },
+  "selling.jsonc": { foundInRaidOnly: false, saleDelay: { enabled: false }, flipPenalty: { enabled: false }, purchaseLock: { enabled: false } }
+};
+
+const BAD_CONDITION ={ mint: 0.1, worn: 0.5, destroyed: 0.25, obliterated: 0.15 };
+
+const STYLES = [
+  { id: "live", name: "Live-like (default)", short: "As close to the live flea as it gets.", about: "Everything as it ships: as close to the live flea as Better Flea gets.", files: {} },
+  { id: "spt", name: "Base SPT", short: "Better Flea's changes off. The plain SPT flea.", about: "Better Flea's flea changes switched off, so the flea works like plain SPT. The memory saver stays on.", files: OFF },
+  { id: "rough", name: "Rough market", short: "Fewer offers, lots of worn and broken gear.", about: "Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast.",
+    files: {
+      "listings.jsonc": { listings: { multiplier: 1.5 } },
+      "condition.jsonc": { keys: { usedChance: 0.8 }, markedKeys: { usedChance: 0.8 }, keycards: { usedChance: 0.7 },
+        meds: { usedChance: 0.7, lowAmountBias: 2.5 }, foodAndDrink: { usedChance: 0.7, lowAmountBias: 2.5 },
+        fuel: { usedChance: 0.8, emptyChance: 0.15 }, repairKits: { usedChance: 0.8 },
+        guns: { wornChanceByRarity: { Common: 1, Rare: 1, Superrare: 0.9 }, lowMaxChance: 0.6 } },
+      "weapons.jsonc": { presets: { stripped: { weight: 0.6 }, broken: { weight: 0.5 }, gutted: { weight: 0.25 }, modded: { weight: 0.05, dearWeight: 0.12 } } },
+      "armor.jsonc": { plates: { both: 0.35, frontOnly: 0.15, backOnly: 0.1, none: 0.4 },
+        conditionByRarity: { Common: BAD_CONDITION, Rare: BAD_CONDITION, Superrare: BAD_CONDITION } },
+      "market.jsonc": { soldBeforeYouChance: 0.2, simulatedSales: { normalSellChancePerHour: 0.1 } },
+      "prices.jsonc": { sellers: { overpriceChance: 0.25 } }
+    } },
+  { id: "overpriced", name: "Overpriced", short: "Everything costs about 50% more.", about: "Everything on the flea costs half as much again, some sellers ask even more, quick sells are gone and guns cost more than at the traders.",
+    files: {
+      "prices.jsonc": { priceMultiplier: 1.5, markedKeyMultiplier: 2, floor: { marginPercent: 40 },
+        sellers: { overpriceChance: 0.35, wornOverpriceChance: 0.5, overpriceMinPercent: 15, overpriceMaxPercent: 50, quickSellChance: 0 },
+        guns: { traderPricePercent: 150 } },
+      "market.jsonc": { packs: { scamChance: 0.9 }, simulatedSales: { normalSellChancePerHour: 0.02 } }
+    } },
+  { id: "sale", name: "Flea sale", short: "Cheaper prices and lots of deals.", about: "An event weekend: everything 15% cheaper, lots of offers, cheap guns, quick sells everywhere and fast turnover.",
+    files: {
+      "listings.jsonc": { listings: { multiplier: 4 } },
+      "prices.jsonc": { priceMultiplier: 0.85, sellers: { overpriceChance: 0.02, quickSellChance: 0.3, quickSellMinPercent: 20, quickSellMaxPercent: 50 }, guns: { traderPricePercent: 80 } },
+      "weapons.jsonc": { presets: { buildDealChance: 0.4, buildDealMaxDiscount: 0.45 } },
+      "market.jsonc": { offerExpiry: { minMinutes: 60, maxMinutes: 360 }, simulatedSales: { normalSellChancePerHour: 0.15 }, packs: { chancePercent: 6, scamChance: 0.2 } }
+    } },
+  { id: "chaos", name: "Chaos", short: "Everything turned right up.", about: "Everything turned up: piles of offers, scams and giant packs, wild prices, loaded mags and sold-before-you everywhere.",
+    files: {
+      "listings.jsonc": { listings: { multiplier: 6 }, itemsPerOffer: { grenadeBulk: { chance: 0.3 }, stimBulk: { chance: 0.3 } } },
+      "market.jsonc": { soldBeforeYouChance: 0.25, barterOffers: { chance: 0.08 }, packs: { chancePercent: 15, hugeChance: 0.25, scamChance: 0.7 } },
+      "prices.jsonc": { sellers: { overpriceChance: 0.35, quickSellChance: 0.15 }, drift: { maxDriftPercent: 45, stepPercent: 12, updateMinutes: 10 } },
+      "weapons.jsonc": { presets: { loadedMagazineChance: 0.8, tanBuildChance: 0.5 } },
+      "armor.jsonc": { flippedDownChance: 0.8, bestKitChance: 0.2 },
+      "condition.jsonc": { fuel: { emptyChance: 0.25, emptyScamChance: 0.7 } }
+    } },
+  { id: "random", name: "Random", short: "Every setting nudged up or down at random.", about: "Every number nudged up or down at random. Pick it again for a different flea.", files: null },
+  { id: "memory", name: "Low memory", short: "Far fewer offers for small servers. Items still fill up when you open them.", about: "For small servers: fewer offers, and less kept around after you look at an item.",
+    files: { "listings.jsonc": { listings: { multiplier: 1,
+      onDemand: { startShare: 0.05, minStartOffers: 2, keepPages: 1, keepSeconds: 60, maxExtraOffers: 3000 } } } } }
+];
+
+// ---------- helpers ----------
+
+const HOME = "home";
+const state = { status: null, notes: null, version: "", files: [], byFile: {}, saved: {}, current: null, open: new Set(), styleNote: "", advanced: false, names: {} };
+const $ = (id) => document.getElementById(id);
+
+function store(key, value) {
+  try { if (value === undefined) return localStorage.getItem(key); localStorage.setItem(key, value); } catch (e) { return null; }
+}
+function clone(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+function stable(v) {
+  if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
+  if (v && typeof v === "object") return "{" + Object.keys(v).sort().map(k => JSON.stringify(k) + ":" + stable(v[k])).join(",") + "}";
+  return JSON.stringify(v);
+}
+function same(a, b) { return stable(a) === stable(b); }
+function isObject(v) { return v !== null && typeof v === "object" && !Array.isArray(v); }
+function getAt(obj, path) { return path.reduce((o, k) => (o == null ? undefined : o[k]), obj); }
+function setAt(obj, path, value) {
+  let o = obj;
+  for (let i = 0; i < path.length - 1; i++) { if (!isObject(o[path[i]])) o[path[i]] = {}; o = o[path[i]]; }
+  o[path[path.length - 1]] = value;
+}
+function merge(base, extra) {
+  const out = clone(base);
+  for (const k of Object.keys(extra || {})) out[k] = isObject(extra[k]) && isObject(out[k]) ? merge(out[k], extra[k]) : clone(extra[k]);
+  return out;
+}
+function matches(obj, patch) {
+  return Object.keys(patch).every(k => isObject(patch[k]) ? isObject(obj && obj[k]) && matches(obj[k], patch[k]) : same(obj && obj[k], patch[k]));
+}
+function pick(obj, patch) {
+  const out = {};
+  for (const k of Object.keys(patch)) out[k] = isObject(patch[k]) ? pick(obj && obj[k] || {}, patch[k]) : clone(obj && obj[k]);
+  return out;
+}
+function sentence(s) { s = (s || "").trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ""; }
+
+// Looks a path up in a table, exact first, then with * standing for any one part.
+function lookup(table, file, path) {
+  const exact = file + ":" + path.join(".");
+  if (exact in table) return table[exact];
+  for (let i = path.length - 1; i >= 0; i--) {
+    const wild = file + ":" + path.map((p, j) => j === i ? "*" : p).join(".");
+    if (wild in table) return table[wild];
+  }
+  return undefined;
+}
+function inList(list, file, path) {
+  const set = Object.fromEntries(list.map(k => [k, true]));
+  return lookup(set, file, path) === true;
+}
+function labelFor(file, path) {
+  const label = lookup(LABELS, file, path);
+  if (label) return label;
+  let key = path[path.length - 1];
+  if (key === "all") return "Every item";
+  // Table entries are named after a banned type, e.g. "gear.armorPlates".
+  if (key.includes(".")) {
+    const named = lookup(LABELS, "flea.jsonc", ["bannedCategories"].concat(key.split(".")));
+    if (named) return named;
+    key = key.split(".").pop();
+  }
+  return sentence(key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/Bsg/g, "BSG").toLowerCase());
+}
+function hidden(file, path) {
+  if (inList(HIDDEN, file, path)) return true;
+  if (!state.advanced) for (let i = 1; i <= path.length; i++) if (inList(ADVANCED, file, path.slice(0, i))) return true;
+  return false;
+}
+function dirtyFiles() { return state.files.filter(f => !same(f.values, state.saved[f.file])); }
+
+function setStatus(text, kind) {
+  const s = $("status");
+  s.textContent = text;
+  s.className = "status" + (kind ? " " + kind : "");
+}
+function refreshBar() {
+  const dirty = dirtyFiles();
+  $("save").disabled = $("discard").disabled = dirty.length === 0;
+  if (dirty.length) setStatus("Unsaved changes: " + dirty.map(f => f.title).join(", "), "dirty");
+  else if ($("status").className.includes("dirty")) setStatus("");
+}
+
+// ---------- loading and saving ----------
+
+async function load() {
+  const res = await fetch(API + "/settings", { cache: "no-store" });
+  if (res.status === 401 || res.status === 403) { location.href = "/login?returnUrl=" + encodeURIComponent("/betterflea"); return; }
+  if (!res.ok) throw new Error("the server said " + res.status);
+  const data = await res.json();
+  state.version = data.version;
+  state.restartNeeded = !!data.restartNeeded;
+  state.files = data.files;
+  state.byFile = Object.fromEntries(data.files.map(f => [f.file, f]));
+  for (const f of data.files) state.saved[f.file] = clone(f.values);
+  state.advanced = store("bf.advanced") === "1";
+  const tab = location.hash ? location.hash.slice(1) + ".jsonc" : store("bf.tab");
+  state.current = state.byFile[tab] ? tab : HOME;
+  $("version").textContent = "v" + data.version;
+  document.title = "BetterFlea v" + data.version + " Settings";
+  render();
+  loadNames();
+  checkForUpdate();
+  loadHome();
+  loadMods();
+  wireSearch();  setInterval(() => { if (state.current === HOME && !document.hidden) loadStatus(); }, 30000);
+}
+
+async function saveAll() {
+  const dirty = dirtyFiles();
+  if (!dirty.length) return;
+  $("save").disabled = true;
+  setStatus("Saving…");
+  let remaking = false;
+  for (const f of dirty) {
+    try {
+      const res = await fetch(API + "/save?file=" + encodeURIComponent(f.file), {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f.values)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "the server said " + res.status);
+      if (data.values) f.values = data.values;
+      state.saved[f.file] = clone(f.values);
+      state.restartNeeded = !!data.restartNeeded;
+      remaking = remaking || !!data.remaking;
+    } catch (e) {
+      setStatus("Couldn't save " + f.title + ": " + e.message, "bad");
+      render();
+      return;
+    }
+  }
+  state.styleNote = "";
+  render();
+  // The preview goes back to the flea's own level, which a test level may just have changed.
+  if (dirty.some(f => f.file === "economy.jsonc")) { if (state.econ) { state.econ.level = 0; state.econ.previewing = false; } setTimeout(loadEconomy, 4000); }
+  setStatus(remaking ? "Saved. The flea is being remade with the new settings, give it a few seconds." : "Saved.");
+  setTimeout(() => { if ($("status").textContent.startsWith("Saved")) setStatus(""); }, 6000);
+}
+
+function discard() {
+  for (const f of state.files) f.values = clone(state.saved[f.file]);
+  state.styleNote = "";
+  render();
+  setStatus("Changes discarded.");
+}
+
+function change(f, path, value) {
+  setAt(f.values, path, value);
+  render();
+}
+
+// Names for the ids in the item lists.
+async function loadNames() {
+  const ids = new Set();
+  for (const key of ITEM_LISTS) {
+    const [file, path] = key.split(":");
+    for (const id of getAt(state.byFile[file].values, path.split(".")) || []) if (!state.names[id]) ids.add(id);
+  }
+  if (!ids.size) return;
+  try {
+    const res = await fetch(API + "/items?ids=" + encodeURIComponent([...ids].join(",")));
+    const data = await res.json();
+    for (const item of data.items || []) state.names[item.id] = item;
+    render();
+  } catch (e) { /* names are only nice to have */ }
+}
+
+// ---------- rendering ----------
+
+function render() {
+  const main = $("main");
+  const scroll = window.scrollY;
+  const focusId = document.activeElement && document.activeElement.id;
+  main.innerHTML = "";
+
+  const intro = document.createElement("div");
+  intro.className = "intro";
+  const p = document.createElement("p");
+  p.innerHTML = "<b>Not sure what to change? Leave it on default.</b> Out of the box the flea is already live-like. "
+    + "Nothing is saved until you press Save, then new offers use the new settings straight away.";
+  // A menu rather than a dropdown so each style can say what it does.
+  const stylePick = make("div", "pick");
+  const current = currentStyle();
+  const styleMenu = make("div", "menu style-menu");
+  const styleButton = make("button", "btn", (current ? current.name : "Custom") + " ▾");
+  styleButton.onclick = (e) => { e.stopPropagation(); styleMenu.classList.toggle("open"); };
+  const styleList = make("div", "menu-list");
+  for (const s of STYLES) {
+    const b = make("button", s === current ? "chosen" : "");
+    b.append(make("span", "n", s.name), make("span", "d", s.short));
+    b.onclick = () => useStyle(s);
+    styleList.appendChild(b);
+  }
+  styleMenu.append(styleButton, styleList);
+  stylePick.append("Flea style", styleMenu);
+  const adv = document.createElement("label");
+  adv.className = "pick";
+  adv.append("Advanced settings", toggleSwitch(state.advanced, (on) => { state.advanced = on; store("bf.advanced", on ? "1" : "0"); render(); }));
+  intro.append(p, stylePick, adv);
+  main.appendChild(intro);
+  if (state.restartNeeded) {
+    const r = notice("Some saved changes only take effect after a server restart. Restart the server when you can.");
+    r.classList.add("restart");
+    main.appendChild(r);
+  }
+  if (state.styleNote) {
+    const n = document.createElement("div");
+    n.className = "style-about";
+    n.textContent = state.styleNote;
+    main.appendChild(n);
+  }
+
+  const nav = document.createElement("nav");
+  const home = document.createElement("button");
+  home.textContent = "Home";
+  if (state.current === HOME) home.className = "active";
+  home.onclick = () => { state.current = HOME; store("bf.tab", HOME); render(); loadStatus(); window.scrollTo(0, 0); };
+  nav.appendChild(home);
+  for (const f of state.files) {
+    const b = document.createElement("button");
+    const t = document.createElement("span");
+    t.textContent = f.title;
+    const marks = document.createElement("span");
+    marks.className = "marks";
+    if (OFF[f.file] && matches(f.values, OFF[f.file])) { const o = document.createElement("span"); o.className = "off"; o.textContent = "off"; marks.appendChild(o); }
+    if (!same(f.values, state.saved[f.file])) { const d = document.createElement("span"); d.className = "dot unsaved"; d.title = "Unsaved changes"; marks.appendChild(d); }
+    else if (!same(f.values, f.defaults)) { const d = document.createElement("span"); d.className = "dot"; d.title = "Changed from default"; marks.appendChild(d); }
+    b.append(t, marks);
+    if (f.file === state.current) b.className = "active";
+    if (f.file === "economy.jsonc") { b.classList.add("new-tab"); const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "New"; marks.prepend(badge); }
+    b.onclick = () => { state.current = f.file; store("bf.tab", f.file); render(); window.scrollTo(0, 0); };
+    nav.appendChild(b);
+  }
+  main.appendChild(nav);
+
+  if (state.current === HOME) {
+    main.appendChild(homeSection());
+    drawCharts();
+    refreshBar();
+    window.scrollTo(0, scroll);
+    return;
+  }
+
+  const f = state.byFile[state.current];
+  const section = document.createElement("section");
+  const head = document.createElement("div");
+  head.className = "file-head";
+  const t = document.createElement("div");
+  t.className = "t";
+  const h = document.createElement("h2");
+  h.textContent = f.title;
+  const about = document.createElement("p");
+  about.textContent = ABOUT[f.file] || "";
+  t.append(h, about);
+  head.appendChild(t);
+  const resetTab = document.createElement("button");
+  resetTab.className = "btn";
+  resetTab.textContent = "Reset to default";
+  resetTab.title = "Put every setting on this tab back to its default";
+  resetTab.disabled = same(f.values, f.defaults);
+  resetTab.onclick = () => { f.values = clone(f.defaults); render(); };
+  head.appendChild(resetTab);
+  const tabOff = OFF[f.file] && matches(f.values, OFF[f.file]);
+  if (OFF[f.file]) {
+    const m = document.createElement("label");
+    m.className = "master";
+    m.append(tabOff ? "Off" : "On", toggleSwitch(!tabOff, (on) => setTab(f, on)));
+    head.appendChild(m);
+  }
+  section.appendChild(head);
+
+  if (f.file === "flea.jsonc") section.appendChild(notice("Changes on this page apply after a server restart."));
+  if (f.file === "economy.jsonc" && getAt(f.values, ["livePrices", "enabled"]) && getAt(f.values, ["wipeCycle", "enabled"]))
+    section.appendChild(notice("Live prices and the Wipe Cycle aren't made to run together. You may run into issues."));
+  if (tabOff) section.appendChild(notice("Better Flea's " + f.title.toLowerCase() + " changes are off: this part of the flea works like plain SPT."));
+
+  const list = document.createElement("div");
+  list.className = "list" + (tabOff ? " off" : "");
+  for (const key of ordered(f, [], f.values)) { const n = node(f, [key]); if (n) list.appendChild(n); }
+  if (!list.children.length) { const e = document.createElement("div"); e.className = "hint"; e.textContent = "Everything here is an advanced setting. Turn on Advanced settings to see it."; list.appendChild(e); }
+  section.appendChild(list);
+  if (f.file === "economy.jsonc") section.appendChild(economyPanel());
+  main.appendChild(section);
+  // Anything inside a switched-off section (or tab) can't be changed until it's switched back on.
+  const locked = tabOff ? list.querySelectorAll("input, button, select") : list.querySelectorAll(".group.disabled > .children input, .group.disabled > .children button, .group.disabled > .children select");
+  for (const el of locked) el.disabled = true;
+  refreshBar();
+  window.scrollTo(0, scroll);
+  if (focusId && $(focusId)) $(focusId).focus();
+}
+
+function notice(text) { const n = document.createElement("div"); n.className = "notice"; n.textContent = text; return n; }
+
+function currentStyle() {
+  return STYLES.find(s => s.files && state.files.filter(styled).every(f => same(f.values, merge(f.defaults, s.files[f.file] || {}))));
+}
+
+function ordered(f, path, obj) {
+  const prefix = path.length ? path.join(".") + "." : "";
+  const rank = (k) => { const i = f.order.indexOf(prefix + k); return i < 0 ? 1e9 : i; };
+  return Object.keys(obj).sort((a, b) => rank(a) - rank(b));
+}
+
+// The restart tag goes on the setting itself, not on everything inside it. The Bans tab says it once at the top.
+function needsRestart(f, path) {
+  return f.file !== "flea.jsonc" && f.restart.includes(path.join("."));
+}
+
+// Every setting and section is tagged with where it lives, so the search can find it on the page.
+function node(f, path) {
+  const el = buildNode(f, path);
+  if (el) el.dataset.key = f.file + ":" + path.join(".");
+  return el;
+}
+
+function buildNode(f, path) {
+  if (hidden(f.file, path)) return null;
+  const value = getAt(f.values, path);
+  const def = getAt(f.defaults, path);
+  if (inList(ITEM_LISTS, f.file, path)) return itemList(f, path, value || [], def);
+  if (f.file === "flea.jsonc" && path.join(".") === "bannedModItems") return modBans(f, path, value || {}, def);
+  if (isObject(value)) return group(f, path, value, def);
+
+  const row = document.createElement("div");
+  row.className = "row" + (def !== undefined && !same(value, def) ? " changed" : "");
+  row.appendChild(label(f, path, true));
+  const control = document.createElement("div");
+  control.className = "control";
+  control.appendChild(input(f, path, value, def));
+  row.appendChild(control);
+  row.appendChild(resetButton(f, path, value, def));
+  return row;
+}
+
+function label(f, path, withNote, restartPath) {
+  const div = document.createElement("div");
+  div.className = "lab";
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = labelFor(f.file, path);
+  if (needsRestart(f, restartPath || path)) {
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = "restart";
+    tag.title = "Applies after a server restart";
+    name.appendChild(tag);
+  }
+  div.appendChild(name);
+  const text = withNote ? lookup(DESC, f.file, path) : "";
+  if (text) {
+    const n = document.createElement("div");
+    n.className = "note";
+    n.textContent = text;
+    div.appendChild(n);
+  }
+  return div;
+}
+
+function resetButton(f, path, value, def) {
+  const b = document.createElement("button");
+  b.className = "reset";
+  b.textContent = "↺";
+  b.title = def === undefined ? "" : "Back to default" + (isObject(def) || Array.isArray(def) ? "" : " (" + JSON.stringify(def) + ")");
+  b.disabled = def === undefined || same(value, def);
+  b.onclick = (e) => { e.stopPropagation(); change(f, path, clone(def)); };
+  return b;
+}
+
+function group(f, path, value, def) {
+  const id = f.file + ":" + path.join(".");
+  const hasSwitch = typeof value.enabled === "boolean";
+  const wrap = document.createElement("div");
+  wrap.className = "group" + (state.open.has(id) ? " open" : "") + (hasSwitch && !value.enabled ? " disabled" : "");
+
+  const row = document.createElement("div");
+  row.className = "row" + (def !== undefined && !same(value, def) ? " changed" : "");
+  const lab = label(f, path, true, hasSwitch ? path.concat("enabled") : path);
+  const chev = document.createElement("span");
+  chev.className = "chev";
+  chev.textContent = "›";
+  lab.querySelector(".name").prepend(chev);
+  row.appendChild(lab);
+
+  const shown = Object.keys(value).filter(k => !(hasSwitch && k === "enabled") && !hidden(f.file, path.concat(k)));
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const count = document.createElement("span");
+  count.textContent = shown.length + (shown.length === 1 ? " setting" : " settings");
+  meta.appendChild(count);
+  if (hasSwitch) meta.appendChild(toggleSwitch(value.enabled, (on) => change(f, path.concat("enabled"), on)));
+  row.appendChild(meta);
+  row.appendChild(resetButton(f, path, value, def));
+  row.onclick = (e) => {
+    if (e.target.closest(".switch") || e.target.closest(".reset")) return;
+    wrap.classList.toggle("open");
+    wrap.classList.contains("open") ? state.open.add(id) : state.open.delete(id);
+  };
+  wrap.appendChild(row);
+
+  const children = document.createElement("div");
+  children.className = "children";
+  const openTable = inList(OPEN_TABLES, f.file, path);
+  for (const key of ordered(f, path, value)) {
+    if (hasSwitch && key === "enabled") continue;
+    const child = node(f, path.concat(key));
+    if (!child) continue;
+    if (openTable) addRemove(child, f, path, key);
+    children.appendChild(child);
+  }
+  if (openTable) children.appendChild(addRow(f, path, value));
+  wrap.appendChild(children);
+  return wrap;
+}
+
+function setTab(f, on) {
+  const off = OFF[f.file];
+  const key = "bf.before." + f.file;
+  if (!on) {
+    store(key, JSON.stringify(pick(f.values, off)));
+    f.values = merge(f.values, off);
+  } else {
+    let before = null;
+    try { before = JSON.parse(store(key) || "null"); } catch (e) { before = null; }
+    f.values = merge(f.values, before && !matches(before, off) ? before : pick(f.defaults, off));
+  }
+  render();
+}
+
+function addRemove(row, f, path, key) {
+  const b = document.createElement("button");
+  b.className = "remove";
+  b.textContent = "×";
+  b.title = "Remove";
+  b.onclick = () => { const table = clone(getAt(f.values, path)); delete table[key]; change(f, path, table); };
+  row.querySelector(".control").appendChild(b);
+}
+
+function categoryNames() {
+  const flea = state.byFile["flea.jsonc"];
+  const names = ["all"];
+  const cats = flea && flea.values.bannedCategories;
+  if (isObject(cats)) for (const g of Object.keys(cats)) for (const s of Object.keys(cats[g])) names.push(g + "." + s);
+  return names;
+}
+
+function addRow(f, path, table) {
+  const div = document.createElement("div");
+  div.className = "add";
+  const listId = "names-" + path.join("-");
+  const name = document.createElement("input");
+  name.className = "text";
+  name.placeholder = "Type, e.g. keys.markedKeys";
+  name.setAttribute("list", listId);
+  const list = document.createElement("datalist");
+  list.id = listId;
+  for (const n of categoryNames()) { if (!(n in table)) { const o = document.createElement("option"); o.value = n; list.appendChild(o); } }
+  const b = document.createElement("button");
+  b.className = "btn";
+  b.textContent = "Add";
+  b.onclick = () => {
+    const key = name.value.trim();
+    if (!key || key in table) return;
+    const first = Object.values(table)[0];
+    const copy = clone(table);
+    copy[key] = typeof first === "number" ? first : 1;
+    state.open.add(f.file + ":" + path.join("."));
+    change(f, path, copy);
+  };
+  div.append(name, list, b);
+  return div;
+}
+
+// Banned and allowed items: chips with names, and a search to add more.
+function itemList(f, path, value, def) {
+  const row = document.createElement("div");
+  row.className = "row wide" + (def !== undefined && !same(value, def) ? " changed" : "");
+  row.appendChild(label(f, path, true));
+  row.appendChild(resetButton(f, path, value, def));
+  const control = document.createElement("div");
+  control.className = "control";
+
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  if (!value.length) { const none = document.createElement("span"); none.className = "none"; none.textContent = "None yet."; chips.appendChild(none); }
+  for (const id of value) {
+    const known = state.names[id];
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.title = id;
+    chip.append(known ? known.name : id);
+    if (known && known.category) { const s = document.createElement("small"); s.textContent = "category"; chip.appendChild(s); }
+    const x = document.createElement("button");
+    x.textContent = "×";
+    x.title = "Remove";
+    x.onclick = () => change(f, path, value.filter(v => v !== id));
+    chip.appendChild(x);
+    chips.appendChild(chip);
+  }
+
+  const finder = document.createElement("div");
+  finder.className = "finder";
+  const search = document.createElement("input");
+  search.className = "text";
+  search.id = "find-" + path.join("-");
+  search.placeholder = "Search for an item or category to add, or paste an ID";
+  const results = document.createElement("div");
+  results.className = "results";
+  results.hidden = true;
+  let timer = null;
+  const add = (item) => {
+    state.names[item.id] = item;
+    if (!value.includes(item.id)) change(f, path, value.concat(item.id));
+  };
+  search.oninput = () => {
+    clearTimeout(timer);
+    const q = search.value.trim();
+    if (q.length < 2) { results.hidden = true; return; }
+    timer = setTimeout(async () => {
+      try {
+        const res = await fetch(API + "/items?q=" + encodeURIComponent(q));
+        const data = await res.json();
+        results.innerHTML = "";
+        const items = data.items || [];
+        if (!items.length) {
+          const e = document.createElement("div");
+          e.className = "empty";
+          e.textContent = /^[0-9a-f]{24}$/i.test(q) ? "Press Enter to add this ID." : "Nothing found.";
+          results.appendChild(e);
+        }
+        for (const item of items) {
+          const b = document.createElement("button");
+          b.innerHTML = "<span></span><small></small>";
+          b.firstChild.textContent = item.name;
+          b.lastChild.textContent = item.category ? "category" : "";
+          b.onmousedown = (e) => { e.preventDefault(); add(item); };
+          results.appendChild(b);
+        }
+        results.hidden = false;
+      } catch (e) { results.hidden = true; }
+    }, 200);
+  };
+  search.onkeydown = (e) => {
+    const q = search.value.trim();
+    if (e.key === "Enter" && /^[0-9a-f]{24}$/i.test(q)) add({ id: q.toLowerCase(), name: q, category: false });
+    if (e.key === "Escape") results.hidden = true;
+  };
+  search.onblur = () => setTimeout(() => { results.hidden = true; }, 150);
+  finder.append(search, results);
+  control.append(chips, finder);
+  row.appendChild(control);
+  return row;
+}
+
+// ---------- home ----------
+
+async function loadHome() {
+  try { state.notes = await (await fetch(API + "/notes")).json(); } catch (e) { state.notes = null; }
+  await loadStatus();
+}
+
+async function loadStatus() {
+  try {
+    const res = await fetch(API + "/status", { cache: "no-store" });
+    if (!res.ok) throw new Error();
+    state.status = await res.json();
+  } catch (e) { /* keeps the last one */ }
+  // Not while someone is reading a graph.
+  if (state.current === HOME && !document.querySelector(".chart:hover")) render();
+}
+
+function make(tag, className, text) {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+const count = (n) => Number(n || 0).toLocaleString();
+function duration(seconds) {
+  const d = Math.floor(seconds / 86400), h = Math.floor(seconds / 3600) % 24, m = Math.floor(seconds / 60) % 60;
+  return d ? d + "d " + h + "h" : h ? h + "h " + m + "m" : m + "m";
+}
+
+function homeSection() {
+  const s = state.status;
+  const section = make("section", "home");
+  const head = make("div", "file-head");
+  const t = make("div", "t");
+  t.append(make("h2", "", "Home"), make("p", "", "How the flea is doing right now. Updates every 30 seconds."));
+  head.appendChild(t);
+  section.appendChild(head);
+  if (!s) { section.appendChild(make("div", "hint", "Loading…")); return section; }
+
+  const tiles = make("div", "tiles");
+  const tile = (label, value, sub) => {
+    const d = make("div", "tile");
+    d.append(make("div", "k", label), make("div", "v", value), make("div", "s", sub));
+    tiles.appendChild(d);
+  };
+  tile("Offers on the flea", count(s.offers.total), "listed right now");
+  tile("Bought by other buyers", count(s.sold), s.dealsSold ? count(s.dealsSold) + " of them good deals" : "since the server started");
+  tile("Server memory", count(s.memoryMb) + " MB", "whole server, not only the flea");
+  tile("Server up for", duration(s.uptimeSeconds), "since the last restart");
+  section.appendChild(tiles);
+
+  const charts = make("div", "cards");
+  for (const [title, id] of [["Offers on the flea", "chart-offers"], ["Server memory", "chart-memory"]]) {
+    const card = make("div", "card");
+    card.append(make("h3", "", title), make("div", "chart"));
+    card.lastChild.id = id;
+    charts.appendChild(card);
+  }
+  section.appendChild(charts);
+
+  const cards = make("div", "cards");
+  const sellers = make("div", "card");
+  sellers.appendChild(make("h3", "", "Who's selling"));
+  const total = Math.max(1, s.offers.total);
+  for (const [label, n] of [["Other players", s.offers.sellers], ["Traders", s.offers.traders], ["Real players", s.offers.players],
+    ["Barter offers", s.offers.barters], ["Packs", s.offers.packs]]) {
+    const row = make("div", "share");
+    const bar = make("div", "meter");
+    const fill = make("span");
+    fill.style.width = Math.max(n ? 1 : 0, n / total * 100) + "%";
+    bar.appendChild(fill);
+    row.append(make("span", "", label), make("span", "n", count(n)), bar);
+    sellers.appendChild(row);
+  }
+  const facts = make("div", "facts");
+  if (s.memorySaver) facts.appendChild(make("div", "", "Memory saver: " + count(s.offers.sellers) + " of " + count(s.memorySaver.full)
+    + " offers made. The rest are made when someone opens the item."));
+  facts.append(make("div", "", "Sold before you: " + count(s.soldBeforeYou)),
+    make("div", "", "Prices lifted to the trader floor: " + count(s.raisedToFloor)));
+  sellers.appendChild(facts);
+  cards.appendChild(sellers);
+
+  const drift = make("div", "card");
+  drift.appendChild(make("h3", "", "Price drift"));
+  if (!s.driftOn || !s.movers.length) drift.appendChild(make("div", "hint", s.driftOn ? "Nothing has been priced yet." : "Price drift is off (Prices tab)."));
+  else {
+    drift.appendChild(make("div", "s", count(s.driftingItems) + " items drifting. Furthest from their normal price:"));
+    const cols = make("div", "movers");
+    for (const [label, list] of [["Up", s.movers.filter(m => m.percent > 0)], ["Down", s.movers.filter(m => m.percent < 0)]]) {
+      const col = make("div");
+      col.appendChild(make("div", "k", label));
+      for (const m of list) {
+        const row = make("div", "mover");
+        row.append(make("span", "", m.name), make("span", m.percent > 0 ? "up" : "down", (m.percent > 0 ? "▲ +" : "▼ ") + m.percent + "%"));
+        col.appendChild(row);
+      }
+      cols.appendChild(col);
+    }
+    drift.appendChild(cols);
+  }
+  cards.appendChild(drift);
+  section.appendChild(cards);
+
+  if (state.notes && state.notes.notes) {
+    const notes = make("div", "card notes");
+    notes.appendChild(make("h3", "", "What's new in v" + state.notes.version));
+    const body = make("div");
+    body.innerHTML = markdown(state.notes.notes);
+    const all = make("a", "", "Full changelog");
+    all.href = "https://github.com/" + REPO + "/blob/main/CHANGELOG.md";
+    all.target = "_blank";
+    all.rel = "noopener";
+    notes.append(body, all);
+    section.appendChild(notes);
+  }
+  return section;
+}
+
+function markdown(text) {
+  const inline = (line) => line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<code>$1</code>");
+  let html = "", list = false;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("- ")) { if (!list) { html += "<ul>"; list = true; } html += "<li>" + inline(line.slice(2)) + "</li>"; continue; }
+    if (list) { html += "</ul>"; list = false; }
+    if (/^#{3,4} /.test(line)) html += "<h4>" + inline(line.replace(/^#+ /, "")) + "</h4>";
+    else if (line.trim()) html += "<p>" + inline(line) + "</p>";
+  }
+  return html + (list ? "</ul>" : "");
+}
+
+function drawCharts() {
+  const history = (state.status && state.status.history) || [];
+  const offers = $("chart-offers"), memory = $("chart-memory");
+  if (offers) lineChart(offers, history.map(h => ({ t: h[0], v: h[1] })), v => count(Math.round(v)) + " offers");
+  if (memory) lineChart(memory, history.map(h => ({ t: h[0], v: h[2] })), v => count(Math.round(v)) + " MB");
+}
+
+const clock = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+// One line, one axis, with a readout under the pointer.
+function lineChart(box, points, format, xLabel = clock) {
+  box.innerHTML = "";
+  if (points.length < 2) { box.appendChild(make("div", "hint", "Fills in as the server runs, one point a minute.")); return; }
+  const W = box.clientWidth || 420, H = 170, L = 52, R = 12, T = 10, B = 24;
+  const t0 = points[0].t, t1 = points[points.length - 1].t;
+  let lo = Math.min(...points.map(p => p.v)), hi = Math.max(...points.map(p => p.v));
+  const pad = Math.max((hi - lo) * 0.15, hi * 0.02, 1);
+  lo = Math.max(0, lo - pad); hi += pad;
+  const x = (t) => L + (t - t0) / Math.max(1, t1 - t0) * (W - L - R);
+  const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  let svg = `<svg width="${W}" height="${H}" role="img">`;
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * i / 3, yy = y(v);
+    svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy + 4}" text-anchor="end">${count(Math.round(v))}</text>`;
+  }
+  for (const [t, anchor] of [[t0, "start"], [(t0 + t1) / 2, "middle"], [t1, "end"]]) svg += `<text x="${x(t)}" y="${H - 6}" text-anchor="${anchor}">${xLabel(t)}</text>`;
+  const line = points.map((p, i) => (i ? "L" : "M") + x(p.t).toFixed(1) + "," + y(p.v).toFixed(1)).join("");
+  svg += `<path class="area" d="${line}L${x(t1)},${H - B}L${x(t0)},${H - B}Z"/><path class="line" d="${line}"/>`;
+  svg += `<line class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="dot" r="4" visibility="hidden"/></svg>`;
+  box.innerHTML = svg;
+  const tip = make("div", "tip");
+  tip.hidden = true;
+  box.appendChild(tip);
+  const cross = box.querySelector(".cross"), dot = box.querySelector(".dot");
+  box.onmousemove = (e) => {
+    const px = e.clientX - box.getBoundingClientRect().left;
+    let best = points[0];
+    for (const p of points) if (Math.abs(x(p.t) - px) < Math.abs(x(best.t) - px)) best = p;
+    const bx = x(best.t), by = y(best.v);
+    cross.setAttribute("x1", bx); cross.setAttribute("x2", bx); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", bx); dot.setAttribute("cy", by); dot.setAttribute("visibility", "visible");
+    tip.hidden = false;
+    tip.innerHTML = "<b></b><span></span>";
+    tip.firstChild.textContent = format(best.v);
+    tip.lastChild.textContent = xLabel(best.t);
+    tip.style.left = Math.min(Math.max(0, bx - tip.offsetWidth / 2), W - tip.offsetWidth) + "px";
+    tip.style.top = Math.max(0, by - tip.offsetHeight - 10) + "px";
+  };
+  box.onmouseleave = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; };
+}
+
+// ---------- search ----------
+
+// Every setting and section on every tab: where it is, what it's called and what it does.
+function settingsIndex() {
+  const out = [];
+  for (const f of state.files) {
+    const walk = (path, value) => {
+      for (const key of Object.keys(value)) {
+        const p = path.concat(key);
+        const v = value[key];
+        // A section's own on/off switch sits on the section's row, so the section stands for it.
+        if (inList(HIDDEN, f.file, p) || (key === "enabled" && path.length && typeof v === "boolean")) continue;
+        const special = inList(ITEM_LISTS, f.file, p) || (f.file === "flea.jsonc" && p.join(".") === "bannedModItems");
+        out.push({ f, path: p, label: labelFor(f.file, p), desc: lookup(DESC, f.file, p) || "" });
+        if (isObject(v) && !special && !inList(OPEN_TABLES, f.file, p)) walk(p, v);
+      }
+    };
+    walk([], f.values);
+  }
+  return out;
+}
+
+function searchSettings(query) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const scored = [];
+  for (const entry of settingsIndex()) {
+    const name = entry.label.toLowerCase(), all = (name + " " + entry.desc + " " + entry.path.join(" ") + " " + entry.f.title).toLowerCase();
+    if (!words.every(w => all.includes(w))) continue;
+    // Name matches first, then shallower settings.
+    const score = words.filter(w => name.includes(w)).length * 10 - entry.path.length;
+    scored.push([score, entry]);
+  }
+  return scored.sort((a, b) => b[0] - a[0]).slice(0, 12).map(s => s[1]);
+}
+
+function crumbs(entry) {
+  return [entry.f.title].concat(entry.path.slice(0, -1).map((_, i) => labelFor(entry.f.file, entry.path.slice(0, i + 1)))).join(" › ");
+}
+
+// Opens the tab, the sections around the setting and Advanced if needed, then shows it.
+function goToSetting(entry) {
+  const { f, path } = entry;
+  state.current = f.file;
+  store("bf.tab", f.file);
+  for (let i = 1; i <= path.length; i++) state.open.add(f.file + ":" + path.slice(0, i).join("."));
+  // Shows advanced settings for this visit only, so the switch isn't left on.
+  if (!state.advanced && path.some((_, i) => inList(ADVANCED, f.file, path.slice(0, i + 1)))) state.advanced = true;
+  render();
+  const el = document.querySelector(`[data-key="${CSS.escape(f.file + ":" + path.join("."))}"]`);
+  if (!el) return;
+  el.scrollIntoView({ block: "center" });
+  const row = el.classList.contains("row") ? el : el.querySelector(".row");
+  if (row) { row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash"); }
+}
+
+function wireSearch() {
+  const box = $("search"), results = $("searchResults");
+  let picks = [];
+  const show = () => {
+    picks = searchSettings(box.value);
+    results.innerHTML = "";
+    if (!box.value.trim()) { results.hidden = true; return; }
+    if (!picks.length) results.appendChild(make("div", "empty", "No setting matches that."));
+    for (const entry of picks) {
+      const b = make("button");
+      b.append(make("span", "n", entry.label), make("small", "", crumbs(entry)));
+      b.onmousedown = (e) => { e.preventDefault(); pick(entry); };
+      results.appendChild(b);
+    }
+    results.hidden = false;
+  };
+  const pick = (entry) => { results.hidden = true; box.value = ""; box.blur(); goToSetting(entry); };
+  box.oninput = show;
+  box.onfocus = () => { if (box.value) show(); };
+  box.onblur = () => setTimeout(() => { results.hidden = true; }, 150);
+  box.onkeydown = (e) => {
+    if (e.key === "Enter" && picks[0]) pick(picks[0]);
+    if (e.key === "Escape") { box.value = ""; results.hidden = true; box.blur(); }
+  };
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "/" && !/input|textarea|select/i.test(document.activeElement?.tagName || "")) { e.preventDefault(); box.focus(); }
+  });
+}
+
+// ---------- economy ----------
+
+async function loadEconomy() {
+  const e = state.econ || (state.econ = { level: 0, item: null });
+  const query = "?level=" + (e.level || "") + (e.item ? "&id=" + e.item.id : "");
+  try { e.data = await (await fetch(API + "/economy" + query, { cache: "no-store" })).json(); } catch (err) { e.data = null; }
+  if (!e.level && e.data) e.level = e.data.previewLevel;
+  if (state.current === "economy.jsonc") render();
+}
+
+function ago(seconds) {
+  const s = Math.max(0, Date.now() / 1000 - seconds);
+  return s < 3600 ? Math.round(s / 60) + " min ago" : s < 172800 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " days ago";
+}
+
+const MODE_NAMES = { regular: "Live", pve: "PvE", "pvp-season": "Season" };
+
+const k = (v) => v >= 1000 ? Math.round(v / 1000).toLocaleString() + "k" : Math.round(v).toLocaleString();
+
+function moverColumns(groups) {
+  const cols = make("div", "movers");
+  for (const [label, rows] of groups) {
+    const col = make("div");
+    col.appendChild(make("div", "k", label));
+    for (const [name, value, up] of rows) {
+      const row = make("div", "mover");
+      row.append(make("span", "", name), make("span", up ? "up" : "down", value));
+      col.appendChild(row);
+    }
+    if (!rows.length) col.appendChild(make("div", "s", "Nothing."));
+    cols.appendChild(col);
+  }
+  return cols;
+}
+
+// Live prices, the Wipe Cycle at any level, and one item's prices.
+function economyPanel() {
+  const e = state.econ || {};
+  const d = e.data;
+  const wrap = make("div", "econ");
+  if (!d) { wrap.appendChild(make("div", "hint", "Loading…")); if (!e.loading) { e.loading = true; loadEconomy(); } return wrap; }
+
+  // Live prices: where they come from, and how far they are from SPT's own.
+  const live = make("div", "card");
+  live.appendChild(make("h3", "", "Live prices"));
+  const l = d.live;
+  live.appendChild(make("div", "s", l.prices
+    ? count(l.prices) + " prices from " + l.modes.map(m => MODE_NAMES[m] || m).join(" + ") + ", fetched " + ago(l.fetched) + (l.on ? "." : ". Not in use while live prices are off.")
+    : "No prices fetched yet. Turn live prices on and press Save."));
+  if (l.on && l.estimated) live.appendChild(make("div", "s", count(l.estimated) + " modded items are estimated from similar base-game items, so their prices may be a little off. Real-game items from content backport mods are not estimated."));
+  if (l.error) live.appendChild(make("div", "s bad", "Last fetch failed: " + l.error + ". Using the saved prices."));
+  if (l.differences && l.differences.length) {
+    live.appendChild(make("div", "s gap", "Biggest differences from SPT's own prices:"));
+    const half = l.differences.length / 2;
+    const row = (x) => [x.name, k(x.spt) + " → " + k(x.live), x.live > x.spt];
+    live.appendChild(moverColumns([["Dearer live", l.differences.slice(0, half).map(row)], ["Cheaper live", l.differences.slice(half).map(row)]]));
+  }
+  wrap.appendChild(live);
+
+  // The Wipe Cycle: what the flea is doing right now, or (on request) what it would do at another level.
+  const wipe = make("div", "card");
+  const on = getAt(state.byFile["economy.jsonc"].values, ["wipeCycle", "enabled"]);
+  const previewing = e.previewing || !d.level;
+  const head = make("div", "econ-head");
+  head.appendChild(make("h3", "", previewing ? "Wipe Cycle preview" : "Wipe Cycle right now"));
+  if (d.level) {
+    const toggle = make("button", "btn small", previewing ? "Back to now" : "Preview another level");
+    toggle.onclick = () => { e.previewing = !previewing; e.level = previewing ? 0 : d.level; loadEconomy(); };
+    head.appendChild(toggle);
+  }
+  wipe.appendChild(head);
+  const status = d.level
+    ? "The flea is at level " + d.level + (d.target && d.target !== d.level ? ", heading for " + d.target + " (can change " + (d.nextChangeAt * 1000 > Date.now() ? "in " + Math.ceil((d.nextChangeAt - Date.now() / 1000) / 60) + " min" : "now") + ")" : "") + "."
+    : "Nobody has played yet, so the flea has no level.";
+  wipe.appendChild(make("div", "s", status + (on ? "" : " The Wipe Cycle is off, so none of this is in use.") + (previewing ? " This is only a preview: it doesn't change any prices." : "")));
+  if (previewing) {
+    const pick = make("div", "econ-level");
+    const range = document.createElement("input");
+    range.type = "range"; range.min = 1; range.max = 70; range.value = e.level || d.previewLevel || 1;
+    const shown = make("b", "", "Level " + range.value);
+    range.oninput = () => { shown.textContent = "Level " + range.value; };
+    range.onchange = () => { e.level = +range.value; loadEconomy(); };
+    pick.append("Preview at", range, shown);
+    wipe.appendChild(pick);
+  }
+  const market = Math.round((d.market - 1) * 100);
+  wipe.appendChild(make("div", "s", (previewing ? "At level " + d.previewLevel : "Right now") + ", the whole market is " + (market > 0 ? "+" : "") + market + "%. Compared with that:"));
+  const half = d.movers.length / 2;
+  const pct = (m) => { const p = Math.round((m.factor - 1) * 100); return [m.name, (p > 0 ? "▲ +" : "▼ ") + p + "%", p > 0]; };
+  wipe.appendChild(moverColumns([
+    ["Dearer", d.movers.slice(0, half).filter(m => m.factor > 1.005).slice(0, 10).map(pct)],
+    ["Cheaper", d.movers.slice(half).filter(m => m.factor < 0.995).slice(0, 10).map(pct)]]));
+  wrap.appendChild(wipe);
+
+  // One item: its prices now, from SPT and live, and through a wipe.
+  const look = make("div", "card");
+  look.appendChild(make("h3", "", "Item lookup"));
+  const finder = make("div", "finder");
+  const search = document.createElement("input");
+  search.className = "text";
+  search.id = "econ-find";
+  search.placeholder = "Search for an item…";
+  const results = make("div", "results");
+  results.hidden = true;
+  let timer = null;
+  search.oninput = () => {
+    clearTimeout(timer);
+    const q = search.value.trim();
+    if (q.length < 2) { results.hidden = true; return; }
+    timer = setTimeout(async () => {
+      const data = await (await fetch(API + "/items?q=" + encodeURIComponent(q))).json();
+      results.innerHTML = "";
+      for (const item of (data.items || []).filter(i => !i.category)) {
+        const b = make("button");
+        b.append(make("span", "", item.name));
+        b.onmousedown = (ev) => { ev.preventDefault(); e.item = item; loadEconomy(); };
+        results.appendChild(b);
+      }
+      results.hidden = !results.children.length;
+    }, 200);
+  };
+  search.onblur = () => setTimeout(() => { results.hidden = true; }, 150);
+  finder.append(search, results);
+  look.appendChild(finder);
+
+  if (e.item && d.curve) {
+    look.appendChild(make("div", "k econ-item", e.item.name));
+    const liveText = d.livePrice ? count(d.livePrice) + " ₽"
+      : d.baseGame ? "the real flea doesn't sell it, so it keeps its own price"
+      : "not in the real game (modded), " + (getAt(state.byFile["economy.jsonc"].values, ["livePrices", "estimateModdedItems"]) ? "estimated from similar items" : "keeps SPT's price");
+    const facts = make("div", "facts econ-facts");
+    facts.append(make("div", "", "Base price now: " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + (d.sptPrice ? count(d.sptPrice) + " ₽" : "none")),
+      make("div", "", "Live price: " + liveText));
+    look.appendChild(facts);
+    look.appendChild(make("div", "s", "Through a wipe (with the Wipe Cycle on):"));
+    const chart = make("div", "chart");
+    look.appendChild(chart);
+    const points = d.curve.map((v, i) => ({ t: i + 1, v: v * 100 }));
+    setTimeout(() => lineChart(chart, points, v => Math.round(v) + "% of normal", t => "Level " + Math.round(t)), 0);
+  }
+  wrap.appendChild(look);
+  return wrap;
+}
+// ---------- mod items ----------
+
+async function loadMods() {
+  try { state.mods = (await (await fetch(API + "/mods")).json()).mods || []; } catch (e) { state.mods = []; }
+  if (state.current === "flea.jsonc") render();
+}
+
+const typeLabel = (name) => name === "uncategorised" ? "Other" : labelFor("flea.jsonc", ["bannedCategories"].concat(name.split(".")));
+
+// One card per mod: a switch for everything it adds, and a toggle per type of item.
+function modBans(f, path, value, def) {
+  const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
+  row.append(label(f, path, true), resetButton(f, path, value, def));
+  const control = make("div", "control mods");
+  if (!state.mods) control.appendChild(make("span", "none", "Looking for mods…"));
+  else if (!state.mods.length) control.appendChild(make("span", "none", "No server mods that add items are installed."));
+  for (const mod of state.mods || []) {
+    const bans = value[mod.name] || [];
+    const all = bans.some(ban => ban.toLowerCase() === "all");
+    const set = (list) => {
+      const copy = clone(value);
+      if (list.length) copy[mod.name] = list; else delete copy[mod.name];
+      change(f, path, copy);
+    };
+    const card = make("div", "mod" + (all ? " banned" : ""));
+    const head = make("div", "mod-head");
+    const name = make("div");
+    name.append(make("b", "", mod.name), make("span", "n", count(mod.items) + " items"));
+    const banAll = make("label", "pick");
+    banAll.append("Ban all", toggleSwitch(all, (on) => set(on ? ["all"] : [])));
+    head.append(name, banAll);
+    const types = make("div", "types");
+    for (const type of mod.types) {
+      const on = all || bans.includes(type.name);
+      const b = make("button", "type" + (on ? " on" : ""), (on ? "✕ " : "") + typeLabel(type.name) + " · " + count(type.items));
+      b.disabled = all;
+      b.title = all ? "Everything from this mod is banned" : on ? "Banned from the flea. Click to allow." : "Click to ban these from the flea.";
+      b.onclick = () => set(on ? bans.filter(ban => ban !== type.name) : bans.concat(type.name));
+      types.appendChild(b);
+    }
+    card.append(head, types);
+    control.appendChild(card);
+  }
+  row.appendChild(control);
+  return row;
+}
+
+// ---------- inputs ----------
+
+function input(f, path, value, def) {
+  const key = path[path.length - 1];
+  const parent = path.length > 1 ? path[path.length - 2] : "";
+  if (typeof value === "boolean") return toggleSwitch(value, (on) => change(f, path, on));
+  if (typeof value === "number") {
+    const sample = typeof def === "number" ? def : value;
+    if (/percent/i.test(key)) return slider(f, path, value, Math.max(100, value, sample * 2), 1);
+    if ((/(chance|share)$/i.test(key) || /chance/i.test(parent)) && sample >= 0 && sample <= 1 && value <= 1) return slider(f, path, value, 1, 100);
+    return stepper(f, path, value, stepFor(key, parent, sample, value));
+  }
+  if (Array.isArray(value)) return weights(f, path, value);
+  const choices = lookup(CHOICES, f.file, path);
+  if (choices) return choice(f, path, value, choices);
+  return text(f, path, value);
+}
+
+function stepFor(key, parent, sample, value) {
+  if (/multiplier/i.test(key) || /multipliers$/i.test(parent)) return 0.25;
+  if (Number.isInteger(sample) && Number.isInteger(value)) {
+    const size = Math.max(Math.abs(sample), Math.abs(value));
+    return size >= 10000 ? 1000 : size >= 1000 ? 100 : size >= 100 ? 10 : 1;
+  }
+  return Math.abs(sample) >= 1 ? 0.1 : 0.05;
+}
+
+function toggleSwitch(on, onChange) {
+  const wrap = document.createElement("label");
+  wrap.className = "switch";
+  wrap.onclick = (e) => e.stopPropagation();
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = on;
+  box.onchange = () => onChange(box.checked);
+  wrap.append(box, document.createElement("span"));
+  return wrap;
+}
+
+function round(v, step) {
+  const places = (String(step).split(".")[1] || "").length;
+  return Number(Math.max(0, v).toFixed(places));
+}
+
+function stepper(f, path, value, step) {
+  const wrap = document.createElement("div");
+  wrap.className = "control";
+  const el = document.createElement("input");
+  el.type = "number";
+  el.className = "num";
+  el.step = "any";
+  el.value = value;
+  el.onchange = () => { const v = parseFloat(el.value); if (!isNaN(v)) change(f, path, Math.max(0, v)); };
+  const minus = document.createElement("button");
+  minus.className = "step";
+  minus.textContent = "−";
+  minus.title = "−" + step;
+  minus.onclick = () => change(f, path, round(getAt(f.values, path) - step, step));
+  const plus = document.createElement("button");
+  plus.className = "step";
+  plus.textContent = "+";
+  plus.title = "+" + step;
+  plus.onclick = () => change(f, path, round(getAt(f.values, path) + step, step));
+  wrap.append(minus, el, plus);
+  return wrap;
+}
+
+// Shown as a percent either way: scale is 100 for 0-1 chances, 1 for settings already in percent.
+function slider(f, path, value, max, scale) {
+  const wrap = document.createElement("div");
+  wrap.className = "slider";
+  const shown = (v) => Math.round(v * scale * 10) / 10;
+  const range = document.createElement("input");
+  range.type = "range";
+  range.min = 0; range.max = max; range.step = scale === 100 ? 0.01 : 1; range.value = value;
+  const box = document.createElement("label");
+  box.className = "pct";
+  const el = document.createElement("input");
+  el.type = "number";
+  el.className = "num";
+  el.step = "any";
+  el.value = shown(value);
+  el.onchange = () => {
+    const v = parseFloat(el.value);
+    if (isNaN(v)) return;
+    const real = Math.max(0, v) / scale;
+    change(f, path, scale === 100 ? Math.min(1, Number(real.toFixed(4))) : real);
+  };
+  range.oninput = () => { el.value = shown(parseFloat(range.value)); };
+  range.onchange = () => change(f, path, parseFloat(range.value));
+  box.append(el, "%");
+  wrap.append(range, box);
+  return wrap;
+}
+
+// Chance weights for 1, 2, 3... items in one offer, each box labelled with its amount.
+function weights(f, path, value) {
+  const wrap = document.createElement("div");
+  wrap.className = "weights";
+  value.forEach((v, i) => {
+    const lab = document.createElement("label");
+    const el = document.createElement("input");
+    el.type = "number";
+    el.className = "num";
+    el.step = "any";
+    el.value = v;
+    el.onchange = () => {
+      const copy = clone(getAt(f.values, path));
+      const n = parseFloat(el.value);
+      if (!isNaN(n)) { copy[i] = Math.max(0, n); change(f, path, copy); }
+    };
+    lab.append(el, (i + 1) + (i === 0 ? " item" : " items"));
+    wrap.appendChild(lab);
+  });
+  return wrap;
+}
+
+function choice(f, path, value, choices) {
+  const sel = document.createElement("select");
+  for (const [v, name] of choices) { const o = document.createElement("option"); o.value = v; o.textContent = name; sel.appendChild(o); }
+  sel.value = String(value).toLowerCase();
+  sel.onchange = () => change(f, path, sel.value);
+  return sel;
+}
+
+function text(f, path, value) {
+  const el = document.createElement("input");
+  el.className = "text";
+  el.value = value == null ? "" : value;
+  el.onchange = () => change(f, path, el.value);
+  return el;
+}
+
+// ---------- styles ----------
+
+const RANDOM_SKIP = /priceMultiplier$|^(flea\.jsonc|debug\.jsonc|listings\.jsonc:listings\.onDemand|listings\.jsonc:offerCurrency)|maxAttachmentDepth|strip(Min|Max)$|bestOf$|(Min|Max)Minutes$|^market\.jsonc:sellerRating\.(min|max)$/;
+
+function randomise(file, path, def) {
+  if (isObject(def)) { const out = {}; for (const k of Object.keys(def)) out[k] = randomise(file, path.concat(k), def[k]); return out; }
+  if (typeof def !== "number" || def === 0 || RANDOM_SKIP.test(file + ":" + path.join("."))) return clone(def);
+  const key = path[path.length - 1];
+  let v = def * (0.4 + Math.random() * 1.4);
+  if (/(chance|share)$/i.test(key) && def <= 1) v = Math.min(1, v);
+  if (/multiplier/i.test(key)) v = Math.min(8, Math.round(v * 4) / 4);
+  return Number.isInteger(def) ? Math.max(1, Math.round(v)) : Math.round(v * 100) / 100;
+}
+
+// Styles leave the Bans tab and Debug alone; Reset everything doesn't.
+const STYLE_KEEPS = ["flea.jsonc", "economy.jsonc", "debug.jsonc"];
+const styled = (f) => !STYLE_KEEPS.includes(f.file);
+
+function useStyle(style, everything) {
+  for (const f of state.files.filter(f => everything || styled(f))) {
+    f.values = style.files ? merge(f.defaults, style.files[f.file] || {}) : randomise(f.file, [], f.defaults);
+  }
+  state.styleNote = style.name + ": " + style.about + " Press Save to use it.";
+  render();
+}
+
+// ---------- updates ----------
+
+function newer(a, b) {
+  const pa = a.replace(/^v/, "").split(".").map(Number), pb = b.replace(/^v/, "").split(".").map(Number);
+  for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0); }
+  return false;
+}
+
+async function checkForUpdate() {
+  const pill = $("update");
+  try {
+    const res = await fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
+    if (!res.ok) throw new Error();
+    const release = await res.json();
+    if (newer(release.tag_name, state.version)) {
+      pill.className = "pill new";
+      pill.textContent = "Update available: " + release.tag_name;
+      pill.href = release.html_url;
+      pill.target = "_blank";
+      pill.rel = "noopener";
+    } else {
+      pill.className = "pill ok";
+      pill.textContent = "Up to date";
+    }
+  } catch (e) {
+    pill.className = "pill";
+    pill.textContent = "Couldn't check for updates";
+  }
+}
+
+// ---------- export, import ----------
+
+function exportSettings() {
+  const data = { mod: "BetterFlea", version: state.version, exported: new Date().toISOString(), settings: {} };
+  for (const f of state.files) data.settings[f.file] = state.saved[f.file];
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "betterflea-settings-v" + state.version + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function confirmBox(title, text) {
+  return new Promise((resolve) => {
+    $("confirmTitle").textContent = title;
+    $("confirmText").textContent = text;
+    const d = $("confirmDialog");
+    let answered = false;
+    $("confirmOk").onclick = () => { answered = true; d.close(); resolve(true); };
+    d.onclose = () => { if (!answered) resolve(false); };
+    d.showModal();
+  });
+}
+
+async function importSettings(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data || !isObject(data.settings)) throw new Error("this isn't a BetterFlea settings export");
+    for (const f of state.files) f.values = merge(f.defaults, data.settings[f.file] || {});
+    state.styleNote = "Imported " + file.name + ". Press Save to use it.";
+    render();
+    loadNames();
+  } catch (e) {
+    setStatus("Couldn't import: " + e.message, "bad");
+  }
+}
+
+// ---------- wiring ----------
+
+$("save").onclick = saveAll;
+$("discard").onclick = discard;
+$("export").onclick = exportSettings;
+$("menuButton").onclick = (e) => { e.stopPropagation(); $("menu").classList.toggle("open"); };
+document.addEventListener("click", () => { for (const m of document.querySelectorAll(".menu.open")) m.classList.remove("open"); });
+$("import").onclick = () => $("importFile").click();
+$("importFile").onchange = (e) => { if (e.target.files[0]) importSettings(e.target.files[0]); e.target.value = ""; };
+$("resetAll").onclick = async () => {
+  if (await confirmBox("Reset everything", "Put every setting back to its default? Nothing is saved until you press Save.")) useStyle(STYLES[0], true);
+};
+for (const b of document.querySelectorAll("[data-close]")) b.onclick = () => b.closest("dialog").close();
+document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); saveAll(); } });
+window.addEventListener("beforeunload", (e) => { if (dirtyFiles().length) { e.preventDefault(); e.returnValue = ""; } });
+
+load().catch((e) => {
+  const main = $("main");
+  main.innerHTML = "";
+  const d = document.createElement("div");
+  d.className = "loading";
+  d.textContent = "Couldn't load the settings: " + e.message;
+  main.appendChild(d);
+});
+</script>
+</body>
+</html>

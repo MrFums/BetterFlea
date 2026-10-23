@@ -26,10 +26,7 @@ public class FleaCategoryFilter(
         var banned = ToMongoIdSet(config.BannedItems, "bannedItems");
 
         ragfairConfig.Dynamic.Blacklist.EnableBsgList = config.EnableBsgBlacklist;
-        ApplyOfferCurrency();
-        ApplyOfferExpiry();
-        ApplyPacks();
-        ragfairConfig.Dynamic.ShowDefaultPresetsOnly = !configManager.Mod.GeneratedOffers.Presets.ShowCustomBuilds;
+        ApplyLive();
 
         var bannedPerCategory = new Dictionary<string, int>();
         var forced = 0;
@@ -79,6 +76,15 @@ public class FleaCategoryFilter(
             $"(bsgBlacklist={config.EnableBsgBlacklist})" + (blocked > 0 ? $" - {breakdown}" : string.Empty));
     }
 
+    // The parts that can change while the server runs. Bans are only applied at startup.
+    public void ApplyLive()
+    {
+        ApplyOfferCurrency();
+        ApplyOfferExpiry();
+        ApplyPacks();
+        ragfairConfig.Dynamic.ShowDefaultPresetsOnly = !configManager.Mod.GeneratedOffers.Presets.ShowCustomBuilds;
+    }
+
     private void ApplyOfferExpiry()
     {
         var expiry = configManager.Mod.GeneratedOffers.OfferExpiry;
@@ -87,22 +93,30 @@ public class FleaCategoryFilter(
         ragfairConfig.Dynamic.EndTimeSeconds = new MinMax<int>(min * 60, max * 60);
     }
 
-    // SPT's pack offers (several items you have to buy together). Its roll is in whole percents.
+    // SPT's own pack settings, put back when ours are switched off.
+    private (double Chance, int Min, int Max, MinMax<double> Prices)? _sptPacks;
+
+    // SPT's pack offers (several items you have to buy together).
     private void ApplyPacks()
     {
         var packs = configManager.Mod.GeneratedOffers.Packs;
         var pack = ragfairConfig.Dynamic.Pack;
-        pack.ChancePercent = packs.Enabled ? Math.Clamp(packs.ChancePercent, 0, 100) : 0;
+        var ranges = ragfairConfig.Dynamic.PriceRanges;
+        _sptPacks ??= (pack.ChancePercent, pack.ItemCountMin, pack.ItemCountMax, ranges.Pack);
+
+        if (!packs.Enabled)
+        {
+            (pack.ChancePercent, pack.ItemCountMin, pack.ItemCountMax, ranges.Pack) = _sptPacks.Value;
+            return;
+        }
+
+        pack.ChancePercent = Math.Clamp(packs.ChancePercent, 0, 100);
         pack.ItemCountMin = Math.Max(2, packs.Min);
         pack.ItemCountMax = Math.Max(pack.ItemCountMin, packs.Max);
 
         // SPT discounts packs (0.75-0.96 of normal). Ours are priced from the normal range instead, then made a
         // scam or a fair bundle (SellerPricing).
-        if (packs.Enabled)
-        {
-            var ranges = ragfairConfig.Dynamic.PriceRanges;
-            ranges.Pack = ranges.Default;
-        }
+        ranges.Pack = ranges.Default;
     }
 
     private void ApplyOfferCurrency()
@@ -138,6 +152,13 @@ public class FleaCategoryFilter(
         if (banned.Count > 0 && itemHelper.IsOfBaseclasses(tpl, banned)) return false;
 
         var category = FleaCategories.Find(item, itemHelper);
+        if (ModItems.ModOf(tpl) is { } mod && configManager.Mod.Flea.BannedModItems.TryGetValue(mod, out var modBans)
+            && modBans.Any(ban => ban.Equals("all", StringComparison.OrdinalIgnoreCase)
+                || ban.Equals(category?.Name ?? FleaCategories.Uncategorised, StringComparison.OrdinalIgnoreCase)))
+        {
+            reason = "mod " + mod;
+            return false;
+        }
         if (category is not null && category.IsBanned(configManager.Mod.Flea.BannedCategories))
         {
             reason = category.Name;

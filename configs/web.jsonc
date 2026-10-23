@@ -1,0 +1,8 @@
+// BetterFlea - WEB: the settings page
+// Open https://<your server address>:6969/betterflea in a browser to change the other settings from there.
+// It uses SPT's own web login: on the server PC it opens straight away, anywhere else you log in with an SPT admin
+// account (SPT_Data/configs/http.json, webAuthenticationConfig).
+// Lines that start with // are notes. After you change a setting here, restart the server.
+{
+  "enabled": true                  // false = no settings page
+}

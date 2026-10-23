@@ -80,12 +80,39 @@ internal static class OnDemandOffers
 
     private static Timer? _trimTimer;
 
+    public static void SettingsChanged()
+    {
+        FullCounts.Clear();
+        if (_trimTimer is not null)
+        {
+            var every = TimeSpan.FromSeconds(Math.Clamp(Settings.KeepSeconds / 4, 5, 60));
+            _trimTimer.Change(every, every);
+        }
+    }
+
     private static readonly object TrimLock = new();
 
     // Never trimmed (lost guns).
     private static readonly ConcurrentDictionary<MongoId, byte> Kept = new();
 
     public static void Keep(MongoId offerId) => Kept[offerId] = 0;
+
+    public static bool IsKept(MongoId offerId) => Kept.ContainsKey(offerId);
+
+    // For the status page: offers every item would have in full, and items with their full list made right now.
+    public static (int Full, int Items, int Open) Stats() => (FullCounts.Values.Sum(), FullCounts.Count, LastLooked.Keys.Count(IsLookedAt));
+
+    // Before the whole flea is made again: forget everything about the old offers.
+    public static void Forget()
+    {
+        lock (TrimLock)
+        {
+            FullCounts.Clear();
+            Assorts.Clear();
+            LastLooked.Clear();
+            RecentPages.Clear();
+        }
+    }
 
     private static List<RagfairOffer> Trimmable(MongoId tpl) =>
         _offers!.GetOffersOfType(tpl)?.Where(offer => offer.IsFakePlayerOffer() && !Kept.ContainsKey(offer.Id)).ToList() ?? [];
@@ -382,6 +409,9 @@ internal static class OnDemandOffers
             }
         }
 
+        // Building offers leaves a lot of short-lived garbage, and SPT's garbage collector lets it pile up for a
+        // while. A quick young-generation collection after each fill keeps the peak down.
+        GC.Collect(1, GCCollectionMode.Forced, blocking: false);
         TidyMemorySoon();
 
         if (Interlocked.Increment(ref _logged) <= 40)
@@ -397,7 +427,7 @@ internal static class OnDemandOffers
     private static int _tidyQueued;
 
     // Compact once things go quiet after a fill, at most once per TidyDelay.
-    private static void TidyMemorySoon()
+    public static void TidyMemorySoon()
     {
         if (Interlocked.Exchange(ref _tidyQueued, 1) == 1)
         {
@@ -412,7 +442,7 @@ internal static class OnDemandOffers
         });
     }
 
-    private static readonly TimeSpan TidyDelay = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan TidyDelay = TimeSpan.FromSeconds(10);
 
     private static bool IsMoneyOnly(RagfairOffer offer)
     {

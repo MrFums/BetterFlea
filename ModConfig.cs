@@ -21,8 +21,14 @@ public record ModConfig
     [JsonPropertyName("playerSelling")]
     public PlayerSellingConfig PlayerSelling { get; set; } = new();
 
+    [JsonPropertyName("economy")]
+    public EconomyFile Economy { get; set; } = new();
+
     [JsonPropertyName("debugLogging")]
     public bool DebugLogging { get; set; } = false;
+
+    [JsonPropertyName("web")]
+    public WebConfig Web { get; set; } = new();
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
@@ -85,6 +91,16 @@ public record DebugFile
 {
     [JsonPropertyName("debugLogging")]
     public bool DebugLogging { get; set; } = false;
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Unknown { get; set; }
+}
+
+// configs/web.jsonc: the settings page at /betterflea.
+public record WebConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }

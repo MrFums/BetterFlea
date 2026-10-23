@@ -54,6 +54,11 @@ internal static class OfferLifecycle
     private static RagfairOfferService? _offers;
     private static RagfairOfferHolder? _holder;
     private static Timer? _buyers;
+    private static int _sold, _dealsSold;
+
+    // Offers other buyers have bought since the server started, for the status page.
+    public static int Sold => _sold;
+    public static int DealsSold => _dealsSold;
 
     private const double DealRange = 0.2;
 
@@ -64,13 +69,13 @@ internal static class OfferLifecycle
         _prices = prices;
         _offers = offers;
         _holder = holder;
-        var sales = configManager.Mod.GeneratedOffers.SimulatedSales;
-        if (sales.Enabled)
-        {
-            var every = TimeSpan.FromMinutes(Math.Max(1, sales.EveryMinutes));
-            _buyers ??= new Timer(_ => BuyersComeRound(), null, every, every);
-        }
+        var every = BuyerInterval();
+        _buyers ??= new Timer(_ => BuyersComeRound(), null, every, every);
     }
+
+    private static TimeSpan BuyerInterval() => TimeSpan.FromMinutes(Math.Max(1, _config!.Mod.GeneratedOffers.SimulatedSales.EveryMinutes));
+
+    public static void SettingsChanged() => _buyers?.Change(BuyerInterval(), BuyerInterval());
 
     // Under 1 = good deal, over 1 = overpriced, against the normal price for its condition.
     public static double DealRatio(RagfairOffer offer)
@@ -82,6 +87,9 @@ internal static class OfferLifecycle
 
         var normal = BetterFlea.Prices.GunPricing.Applies(items) ? BetterFlea.Prices.GunPricing.Value(items) : items.Sum(item => _prices!.GetFleaPriceForItem(item.Template));
         var quality = items.Min(item => UsedListingsGate.IgnoresCondition(item.Template) ? 1.0 : Math.Clamp(_itemHelper!.GetItemQualityModifier(item), 0.01, 1));
+
+        // Where the wipe has moved an item's price, that price is normal for buyers too.
+        normal *= BetterFlea.Prices.WipeEconomy.Factor(items[0].Template);
         return normal <= 0 ? 1 : price / (normal * quality);
     }
 
@@ -114,8 +122,14 @@ internal static class OfferLifecycle
             return;
         }
 
+        // Sellers' ratings grow with the wipe: up to level 15 most are new to the flea, by level 50 few are. Goes by
+        // the highest level of the players online (15 when nobody is).
+        var wipeLevel = BetterFlea.Prices.WipeEconomy.Level > 0 ? BetterFlea.Prices.WipeEconomy.Level : 15;
+        var t = Math.Clamp((wipeLevel - 15) / 35.0, 0, 1);
+        var grown = t * t * (3 - 2 * t);
+
         var quantity = Math.Max(1, offer.Quantity);
-        if (quantity == 1 && Random.Shared.NextDouble() < settings.NewSellerChance)
+        if (quantity == 1 && Random.Shared.NextDouble() < settings.NewSellerChance * (1 - 0.85 * grown))
         {
             user.Rating = Math.Round(-2 + Random.Shared.NextDouble() * (Math.Max(settings.Min, -2) + 2), 2);
             return;
@@ -123,10 +137,13 @@ internal static class OfferLifecycle
 
         // Someone with several of one item is usually a flipper with a long flea history. Not always.
         var regularChance = quantity == 1 ? settings.RegularChance : Math.Min(0.9, settings.FlipperChance + 0.03 * (quantity - 2));
+        regularChance += (0.5 - regularChance) * 0.6 * grown;
         var regular = Random.Shared.NextDouble() < regularChance;
+        var everydayMax = Math.Max(settings.Min, Math.Min(settings.EverydayMax * (1 + grown), settings.Max));
+        var everydayMin = settings.Min + (Math.Min(5, everydayMax) - settings.Min) * grown;
         var (low, high, bias) = regular
-            ? (Math.Min(20, settings.Max), settings.Max, 1.5)
-            : (settings.Min, Math.Max(settings.Min, Math.Min(settings.EverydayMax, settings.Max)), 1.3);
+            ? (Math.Min(20, settings.Max), settings.Max, 1.5 - 0.4 * grown)
+            : (everydayMin, everydayMax, 1.3 - 0.5 * grown);
         low = Math.Max(0.01, low);
         high = Math.Max(low, high);
         var share = Math.Pow(Random.Shared.NextDouble(), bias);
@@ -138,6 +155,11 @@ internal static class OfferLifecycle
         try
         {
             var settings = _config!.Mod.GeneratedOffers.SimulatedSales;
+            if (!settings.Enabled)
+            {
+                return;
+            }
+
             var hours = Math.Max(1, settings.EveryMinutes) / 60.0;
             var onDemand = OnDemandOffers.Enabled;
             int sold = 0, deals = 0;
@@ -169,6 +191,8 @@ internal static class OfferLifecycle
                 deals += lean < -0.25 ? 1 : 0;
             }
 
+            Interlocked.Add(ref _sold, sold);
+            Interlocked.Add(ref _dealsSold, deals);
             if (sold > 0)
             {
                 DebugLog.Summary(() => $"Buyers: {sold} offer(s) sold in the last {settings.EveryMinutes:0.#} min ({deals} of them good deals).");
@@ -215,8 +239,7 @@ public class BarterOffersLoad(
             configManager.Load();
         }
 
-        var settings = configManager.Mod.GeneratedOffers.BarterOffers;
-        BarterOffers.Bind(itemHelper, ragfairServerHelper, ragfairPriceService, templateTable, settings, ragfairConfig);
+        BarterOffers.Bind(configManager, itemHelper, ragfairServerHelper, ragfairPriceService, templateTable, ragfairConfig);
 
         // SPT's barter chance is a whole percent, so under 1% never fires. We roll it ourselves in
         // MaybeInsteadOfMoney, and replace SPT's barter pick in case its own switch is on.
@@ -232,23 +255,25 @@ internal static class BarterOffers
     private static RagfairServerHelper? _ragfair;
     private static RagfairPriceService? _prices;
     private static TemplateTable? _templates;
-    private static BarterOffersConfig? _settings;
+    private static ConfigManager? _config;
     private static int _logged;
 
     private static readonly MongoId BarterItemBase = new("5448eb774bdc2d0a728b4567");
 
     private static RagfairConfig? _ragfairConfig;
 
-    public static void Bind(ItemHelper itemHelper, RagfairServerHelper ragfair, RagfairPriceService prices, TemplateTable templates, BarterOffersConfig settings,
+    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, RagfairServerHelper ragfair, RagfairPriceService prices, TemplateTable templates,
         RagfairConfig ragfairConfig)
     {
+        _config = configManager;
         _ragfairConfig = ragfairConfig;
         _itemHelper = itemHelper;
         _ragfair = ragfair;
         _prices = prices;
         _templates = templates;
-        _settings = settings;
     }
+
+    private static BarterOffersConfig Settings => _config!.Mod.GeneratedOffers.BarterOffers;
 
     // Every barter item has CanRequireOnRagfair off, so that flag is ignored (SPT ignores it too).
     // Cheapest first.
@@ -272,8 +297,8 @@ internal static class BarterOffers
             return null;
         }
 
-        var low = Math.Clamp(_settings!.ValueMin, 0.1, 3);
-        var target = price * (low + Random.Shared.NextDouble() * Math.Max(0, _settings.ValueMax - low));
+        var low = Math.Clamp(Settings.ValueMin, 0.1, 3);
+        var target = price * (low + Random.Shared.NextDouble() * Math.Max(0, Settings.ValueMax - low));
         var kinds = Random.Shared.NextDouble() < 0.65 ? 1 : 2;
         var root = offerItems.FirstOrDefault()?.Template;
         var scheme = new List<BarterScheme>();
@@ -315,7 +340,7 @@ internal static class BarterOffers
     {
         if (details.Creator != OfferCreator.FakePlayer || details.SellInOnePiece || details.Items is not { Count: > 0 } items
             || details.BarterScheme is not { Count: 1 } current || !_itemHelper!.IsOfBaseclass(current[0].Template, BaseClasses.MONEY)
-            || _settings!.Chance <= 0 || Random.Shared.NextDouble() >= _settings.Chance
+            || Settings.Chance <= 0 || Random.Shared.NextDouble() >= Settings.Chance
             || SchemeFor(items, _ragfairConfig!.Dynamic.Barter) is not { } scheme)
         {
             return false;
@@ -378,6 +403,8 @@ internal static class SoldBeforeYou
     private static LocaleService? _locales;
     private static ItemHelper? _itemHelper;
     private static int _sniped;
+
+    public static int Sniped => _sniped;
 
     private static readonly MongoId GunBase = new("5422acb9af1c889c16000029");
 

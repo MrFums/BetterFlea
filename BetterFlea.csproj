@@ -18,6 +18,8 @@
         <PackageReference Include="SPTarkov.DI" Version="4.1.0" />
         <PackageReference Include="SPTarkov.Reflection" Version="4.1.0" />
         <PackageReference Include="SPTarkov.Server.Core" Version="4.1.0" />
+        <!-- Only for the settings page link in the launcher's Mod Pages. -->
+        <PackageReference Include="SPTarkov.Server.Web" Version="4.1.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -25,17 +27,25 @@
         <Compile Remove="Client\**" />
         <None Remove="Client\**" />
         <Content Remove="Client\**" />
+        <!-- Local notes, not part of the mod. -->
+        <Compile Remove="_References\**" />
+        <None Remove="_References\**" />
+        <Content Remove="_References\**" />
     </ItemGroup>
 
     <ItemGroup>
         <None Update="configs\*.jsonc" CopyToOutputDirectory="PreserveNewest" />
         <!-- A copy of each settings file inside the DLL, written back out if a user deletes one. -->
         <EmbeddedResource Include="configs\*.jsonc" LogicalName="BetterFlea.configs.%(Filename)%(Extension)" />
+        <!-- The settings page at /betterflea. -->
+        <EmbeddedResource Include="Web\index.html;Web\icon.png;CHANGELOG.md" LogicalName="BetterFlea.web.%(Filename)%(Extension)" />
+        <!-- How real flea prices moved through a wipe, per item (Wipe Cycle). -->
+        <EmbeddedResource Include="Prices\wipe-curves.json" LogicalName="BetterFlea.data.wipe-curves.json" />
     </ItemGroup>
 
     <PropertyGroup>
         <ModOutputDir>$(ServerDir)\user\mods\$(AssemblyName)</ModOutputDir>
-        <Version>2.0.0</Version>
+        <Version>2.1.0</Version>
     </PropertyGroup>
 
     <!-- Only with -p:ServerDir="C:\path\to\SPT\SPT_Runtime": copies the mod into that server. Without it, it just builds. -->

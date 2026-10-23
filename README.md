@@ -28,7 +28,7 @@ Everything can be turned off or tuned in the settings.
 **Fika headless client: do NOT install the BepInEx plugin on it.** It only needs the server mod on the server.
 
 ## How to install
-1. Download `BetterFlea-2.0.0.zip`.
+1. Download `BetterFlea-2.1.0.zip`.
 2. Open your SPT install folder.
 3. Extract the zip into this folder. The 2 parts go to the correct folders by themselves.
 4. Only the server host needs the server component. Obviously. Every REAL player needs the BepInEx plugin.
@@ -56,9 +56,13 @@ All settings are in `SPT_Runtime\user\mods\BetterFlea\configs\`, one file for ea
 | `market.jsonc` | How long offers last, other players buying, seller ratings, packs and barters |
 | `prices.jsonc` | Price floor, price changes, gun prices, marked keys |
 | `selling.jsonc` | Players selling their own items |
+| `economy.jsonc` | Live prices from tarkov.dev and the Wipe Cycle (both off by default) |
 | `debug.jsonc` | Extra logging |
+| `web.jsonc` | The settings page |
 
-- Open the files with a text editor, Notepad++ or VSCode if you're a normal human.
+**Settings page:** open `https://<your server address>:6969/betterflea` in a browser (on the server PC itself: `https://127.0.0.1:6969/betterflea`). Every setting is there with a short note, a reset-to-default button, and sliders where they make sense. Whole sections can be switched off, and a **Flea style** picker sets everything at once: Live-like (the default), Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos or Random. Press Save and the changes go into the files and apply straight away, no restart, apart from the Bans tab. You can also export your settings to a file and import them again. It uses SPT's own web login: it opens straight away on the server PC, and anywhere else you log in with an SPT admin account.
+
+- Or open the files with a text editor, Notepad++ or VSCode if you're a normal human.
 - After you change a setting, restart the server.
 - If the server log says "Unknown setting", check the spelling of that setting.
 - If you are stupid and change random settings and want them back to default, just delete that file and restart the server. It will regenerate.
@@ -80,6 +84,7 @@ All settings are in `SPT_Runtime\user\mods\BetterFlea\configs\`, one file for ea
 For single items, use item IDs or category IDs:
 - `bannedItems`: these items are never on the Flea Market.
 - `allowedItems`: these items are always on the Flea Market, even if a group is banned.
+- `bannedModItems`: ban the items another server mod adds, all of them or only some types. Easiest from the settings page, which lists the mods that add items.
 
 ## 2. Offers
 
@@ -146,6 +151,7 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 
 I would personally recommend setting the markedKeyMultiplier to 1.5 as I feel marked keys a bit too cheap in base SPT. I've left this untouched for the default.
 
+- `priceMultiplier`: the price of every offer from other sellers. 1 = normal, 1.5 = 50% more. Trader prices don't change.
 - `markedKeyMultiplier`: the Flea Market price of marked keys. 1 = normal, 1.5 = 50% more.
 - `floor`: an offer is never cheaper than what a trader pays for the item. No buying on the flea to sell to a trader.
 - `drift`: prices go up and down over time.
@@ -168,6 +174,11 @@ Well whats the difference between flipPenalty and purchaseLock?
 | **When it starts** | After the player buys **many** of one item | From the **first** item |
 | **Default** | On | Off |
 | **The player sees** | Nothing. The item only sells slower. | A grey item and a warning |
+
+## 7. Economy (off by default)
+
+- `livePrices`: every item starts from its real flea price, the 24 hour average on tarkov.dev, and Better Flea's pricing goes on top. Pick Live, PvE or Season. Prices are saved, so if tarkov.dev is down the last ones are used.
+- `wipeCycle` (experimental): prices follow how far into the wipe the players online are. Early on everything is scarce, and hideout and early quest items are dear. Late on the best guns, ammo, armour and stims are dear, and early-wipe items are cheap. After the flea's level changes it stays put for 30 minutes, so swapping profiles can't be used to flip items. The settings page can preview any level.
 
 ## What the BepInEx plugin does
 The server makes all the rules. The BepInEx plugin shows them to the player:
@@ -193,9 +204,7 @@ Please report issues in my Discord channel on the SPT server, in this mod's comm
 ## Roadmap
 No dates, just ideas I'd like to get to:
 - **Prices that react to buying.** Buy up the cheapest offers of an item and its price goes up for a while.
-- **Wipe progression.** Prices swing early in a wipe and settle down later.
 - **Real competition.** Other sellers undercutting your listings.
-- **Web settings page.** Change the settings in your browser instead of editing the files.
 
 ## AI use
 Claude / Gemini helped with Better Flea development. The original server aspects of the mod I had for myself on SPT 3.10 and 3.11 but did not release as I made changes directly to the database as I didn't have that included in the mod. 

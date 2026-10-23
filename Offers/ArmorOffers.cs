@@ -25,10 +25,8 @@ public class ArmorOffersLoad(
         ArmorOffers.Bind(configManager, itemHelper, ragfairServerHelper);
 
         // SPT pulls a plate out of 40% of armor offers. We fit plates ourselves instead.
-        if (configManager.Mod.GeneratedOffers.Armor.Enabled)
-        {
-            ragfairConfig.Dynamic.Armor.RemoveRemovablePlateChance = 0;
-        }
+        ArmorOffers.SptPlateRemovalChance = ragfairConfig.Dynamic.Armor.RemoveRemovablePlateChance;
+        ArmorOffers.ApplyPlateRemoval(ragfairConfig);
 
         return Task.CompletedTask;
     }
@@ -58,6 +56,11 @@ internal static class ArmorOffers
     }
 
     private static ArmorOffersConfig Settings => _config!.Mod.GeneratedOffers.Armor;
+
+    public static int SptPlateRemovalChance { get; set; }
+
+    public static void ApplyPlateRemoval(RagfairConfig ragfairConfig) =>
+        ragfairConfig.Dynamic.Armor.RemoveRemovablePlateChance = Settings.Enabled ? 0 : SptPlateRemovalChance;
 
     private static bool IsPlate(MongoId tpl) => _itemHelper!.IsOfBaseclass(tpl, PlateBase) && !_itemHelper.IsOfBaseclass(tpl, SoftInsertBase);
 

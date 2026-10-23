@@ -19,7 +19,7 @@ public class ConfigManager(
     private const string ConfigFolder = "configs";
 
     private static readonly string[] ConfigFiles =
-        ["flea.jsonc", "listings.jsonc", "condition.jsonc", "weapons.jsonc", "armor.jsonc", "market.jsonc", "prices.jsonc", "selling.jsonc", "debug.jsonc"];
+        ["flea.jsonc", "listings.jsonc", "condition.jsonc", "weapons.jsonc", "armor.jsonc", "market.jsonc", "prices.jsonc", "selling.jsonc", "economy.jsonc", "debug.jsonc", "web.jsonc"];
 
     // Single settings file from older versions, ported once (see PortOldConfig).
     private const string OldConfigFile = "config.jsonc";
@@ -50,7 +50,9 @@ public class ConfigManager(
         var market = LoadOrDefault<MarketFile>(InFolder("market.jsonc"));
         var prices = LoadOrDefault<Prices.PricesConfig>(InFolder("prices.jsonc"));
         var selling = LoadOrDefault<Selling.PlayerSellingConfig>(InFolder("selling.jsonc"));
+        var economy = LoadOrDefault<Prices.EconomyFile>(InFolder("economy.jsonc"));
         var debug = LoadOrDefault<DebugFile>(InFolder("debug.jsonc"));
+        var web = LoadOrDefault<WebConfig>(InFolder("web.jsonc"));
 
         WarnUnknown(flea.Unknown, InFolder("flea.jsonc"), "");
         WarnUnknown(listings.Unknown, InFolder("listings.jsonc"), "");
@@ -61,7 +63,9 @@ public class ConfigManager(
         WarnUnknown(market.Unknown, InFolder("market.jsonc"), "");
         WarnUnknown(prices.Unknown, InFolder("prices.jsonc"), "");
         WarnUnknown(selling.Unknown, InFolder("selling.jsonc"), "");
+        WarnUnknown(economy.Unknown, InFolder("economy.jsonc"), "");
         WarnUnknown(debug.Unknown, InFolder("debug.jsonc"), "");
+        WarnUnknown(web.Unknown, InFolder("web.jsonc"), "");
 
         return new ModConfig
         {
@@ -84,8 +88,119 @@ public class ConfigManager(
             },
             Prices = prices,
             PlayerSelling = selling,
-            DebugLogging = debug.DebugLogging
+            Economy = economy,
+            DebugLogging = debug.DebugLogging,
+            Web = web
         };
+    }
+
+    // Raised after the settings are reloaded, so anything copied into SPT at startup can follow.
+    public event Action? Changed;
+
+    // A settings file was saved from the settings page.
+    public event Action<string>? Saved;
+
+    private readonly object _saveLock = new();
+
+    // The files the web page edits, in page order. web.jsonc isn't one of them: the page can't change its own password.
+    public static readonly string[] PageFiles =
+        ["flea.jsonc", "listings.jsonc", "condition.jsonc", "weapons.jsonc", "armor.jsonc", "market.jsonc", "prices.jsonc", "selling.jsonc", "economy.jsonc", "debug.jsonc"];
+
+    private static Type FileType(string file) => file switch
+    {
+        "flea.jsonc" => typeof(FleaConfig),
+        "listings.jsonc" => typeof(ListingsFile),
+        "condition.jsonc" => typeof(Offers.UsedListingsConfig),
+        "weapons.jsonc" => typeof(WeaponsFile),
+        "armor.jsonc" => typeof(Offers.ArmorOffersConfig),
+        "market.jsonc" => typeof(MarketFile),
+        "prices.jsonc" => typeof(Prices.PricesConfig),
+        "selling.jsonc" => typeof(Selling.PlayerSellingConfig),
+        "economy.jsonc" => typeof(Prices.EconomyFile),
+        "debug.jsonc" => typeof(DebugFile),
+        _ => throw new ArgumentException($"Not a settings file: {file}")
+    };
+
+    private static readonly JsonSerializerOptions Lenient = new() { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+
+    public string FileText(string file) => File.ReadAllText(Path.Combine(ModPath, ConfigFolder, file));
+
+    // The file's settings as the server reads them: defaults filled in, unknown names left out.
+    public JsonNode? FileValues(string file)
+    {
+        var type = FileType(file);
+        object? values;
+        try
+        {
+            values = JsonSerializer.Deserialize(FileText(file), type, Lenient);
+        }
+        catch (Exception)
+        {
+            values = null;
+        }
+
+        return JsonSerializer.SerializeToNode(DropUnknown(values ?? Activator.CreateInstance(type)!), type, JsonPortOptions);
+    }
+
+    public static JsonNode? FileDefaults(string file)
+    {
+        var type = FileType(file);
+        return JsonSerializer.SerializeToNode(Activator.CreateInstance(type), type, JsonPortOptions);
+    }
+
+    // Writes new values into the file (its notes stay as they are) and reloads. Null when it worked, otherwise why not.
+    public string? Save(string file, JsonNode values)
+    {
+        var type = FileType(file);
+        try
+        {
+            JsonSerializer.Deserialize(values.ToJsonString(), type, Lenient);
+        }
+        catch (Exception ex)
+        {
+            return $"Not a valid value: {ex.Message}";
+        }
+
+        lock (_saveLock)
+        {
+            var path = Path.Combine(ModPath, ConfigFolder, file);
+            var text = File.ReadAllText(path);
+            var updated = JsoncPort.Apply(text, values, FileDefaults(file));
+            if (updated != text)
+            {
+                File.WriteAllText(path, updated);
+            }
+
+            Reload();
+        }
+
+        Saved?.Invoke(file);
+        return null;
+    }
+
+    public void Reload()
+    {
+        Mod = LoadSplit();
+        Validate();
+        Changed?.Invoke();
+    }
+
+    private static object DropUnknown(object settings)
+    {
+        foreach (var property in settings.GetType().GetProperties())
+        {
+            if (property.Name == "Unknown" && property.CanWrite)
+            {
+                property.SetValue(settings, null);
+            }
+            else if (property.PropertyType.Namespace?.StartsWith("BetterFlea", StringComparison.Ordinal) == true
+                && property.GetIndexParameters().Length == 0 && property.GetValue(settings) is { } child)
+            {
+                DropUnknown(child);
+            }
+        }
+
+        return settings;
     }
 
     private static string InFolder(string file) => Path.Combine(ConfigFolder, file);
@@ -178,6 +293,14 @@ public class ConfigManager(
             Mod.Prices.MarkedKeyMultiplier = 1.0;
         }
 
+        if (Mod.Prices.PriceMultiplier <= 0)
+        {
+            logger.Warning("[BetterFlea] priceMultiplier (configs/prices.jsonc) must be > 0, resetting to 1.0");
+            Mod.Prices.PriceMultiplier = 1.0;
+        }
+
+        Mod.Prices.PriceMultiplier = Math.Min(Mod.Prices.PriceMultiplier, 10);
+
         var listings = Mod.GeneratedOffers.Listings;
         listings.Multiplier = ClampListingMultiplier(listings.Multiplier, "multiplier");
         listings.CategoryMultipliers = new Dictionary<string, double>(listings.CategoryMultipliers, StringComparer.OrdinalIgnoreCase);
@@ -245,7 +368,7 @@ public class ConfigManager(
         Mod.GeneratedOffers.Presets.LoadedMagazineChance = Math.Clamp(Mod.GeneratedOffers.Presets.LoadedMagazineChance, 0.0, 1.0);
 
         var expiry = Mod.GeneratedOffers.OfferExpiry;
-        expiry.MinMinutes = Math.Clamp(expiry.MinMinutes, 10, 10080);
+        expiry.MinMinutes = Math.Clamp(expiry.MinMinutes, 5, 10080);
         expiry.MaxMinutes = Math.Clamp(expiry.MaxMinutes, expiry.MinMinutes, 10080);
 
         var rating = Mod.GeneratedOffers.SellerRating;
@@ -298,11 +421,20 @@ public class ConfigManager(
         drift.StepPercent = Math.Clamp(drift.StepPercent, 0.0, drift.MaxDriftPercent);
         drift.UpdateMinutes = Math.Max(1.0, drift.UpdateMinutes);
 
+        var wipe = Mod.Economy.WipeCycle;
+        wipe.Strength = Math.Clamp(wipe.Strength, 0.0, 3.0);
+        wipe.LevelStep = Math.Clamp(wipe.LevelStep, 1, 20);
+        wipe.CooldownMinutes = Math.Max(0.0, wipe.CooldownMinutes);
+        wipe.EndLevel = Math.Clamp(wipe.EndLevel, 10, 100);
+        wipe.Level = Math.Clamp(wipe.Level, 0, 100);
+        Mod.Economy.LivePrices.RefreshHours = Math.Clamp(Mod.Economy.LivePrices.RefreshHours, 0.5, 168.0);
+
         var flip = Mod.PlayerSelling.FlipPenalty;
         flip.WindowMinutes = Math.Max(1.0, flip.WindowMinutes);
         flip.FreePurchases = Math.Max(0.0, flip.FreePurchases);
         flip.MaxExtraMinutes = Math.Max(0.0, flip.MaxExtraMinutes);
-        flip.FenceMultiplier = Math.Max(0.0, flip.FenceMultiplier);        if (flip.PurchasesForMaxPenalty <= flip.FreePurchases)
+        flip.FenceMultiplier = Math.Max(0.0, flip.FenceMultiplier);
+        if (flip.PurchasesForMaxPenalty <= flip.FreePurchases)
         {
             logger.Warning("[BetterFlea] flipPenalty.purchasesForMaxPenalty (configs/selling.jsonc) must be above freePurchases, using freePurchases + 1.");
             flip.PurchasesForMaxPenalty = flip.FreePurchases + 1;
@@ -377,6 +509,14 @@ public class ConfigManager(
 // replaced whole; settings the file doesn't have are added only when they aren't at their default.
 internal static class JsoncPort
 {
+    // A value on one line in the files' own style: { "a": 1, "b": 2 } and [1, 2], not {"a":1,"b":2}.
+    private static string Inline(JsonNode? node) => node switch
+    {
+        null => "null",
+        JsonObject obj => obj.Count == 0 ? "{}" : "{ " + string.Join(", ", obj.Select(entry => $"{JsonSerializer.Serialize(entry.Key)}: {Inline(entry.Value)}")) + " }",
+        JsonArray array => "[" + string.Join(", ", array.Select(Inline)) + "]",
+        _ => node.ToJsonString()
+    };
     private static readonly JsonDocumentOptions Lenient = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
     public static string Apply(string text, JsonNode? values, JsonNode? defaults)
@@ -401,6 +541,7 @@ internal static class JsoncPort
     {
         var seen = new HashSet<string>();
         string? indent = null;
+        var lastEnd = -1;
         var i = open + 1;
         while (true)
         {
@@ -423,6 +564,7 @@ internal static class JsoncPort
             var start = Skip(text, i);
             var end = ValueEnd(text, start);
             i = end;
+            lastEnd = end;
             seen.Add(key);
             if (!values.TryGetPropertyValue(key, out var wanted))
             {
@@ -437,17 +579,47 @@ internal static class JsoncPort
             }
             else if (!Same(current, wanted))
             {
-                edits.Add((start, end, wanted?.ToJsonString() ?? "null"));
+                edits.Add((start, end, Inline(wanted)));
             }
         }
 
+        // Settings the file doesn't have yet (it's from an older version) go at the end of their section.
+        var close = i;
         var added = values.Where(entry => !seen.Contains(entry.Key) && !Same(entry.Value, defaults?[entry.Key]))
-            .Select(entry => $"\n{indent ?? IndentAt(text, open) + "  "}\"{entry.Key}\": {entry.Value?.ToJsonString() ?? "null"},")
+            .Select(entry => $"\n{indent ?? IndentAt(text, open) + "  "}\"{entry.Key}\": {Inline(entry.Value)}")
             .ToList();
-        if (added.Count > 0)
+        if (added.Count == 0)
         {
-            edits.Add((open + 1, open + 1, string.Concat(added)));
+            return;
         }
+
+        if (lastEnd < 0)
+        {
+            edits.Add((open + 1, open + 1, string.Join(",", added)));
+            return;
+        }
+
+        // After the last setting's line, so a note at the end of that line stays with it.
+        var lineEnd = text.IndexOf('\n', lastEnd);
+        var at = lineEnd >= 0 && lineEnd < close ? lineEnd : lastEnd;
+        if (at > lastEnd && text[at - 1] == '\r')
+        {
+            at--;
+        }
+
+        var comma = Skip(text, lastEnd) < close && text[Skip(text, lastEnd)] == ',' ? "" : ",";
+        if (at == lastEnd)
+        {
+            edits.Add((at, at, comma + string.Join(",", added)));
+            return;
+        }
+
+        if (comma.Length > 0)
+        {
+            edits.Add((lastEnd, lastEnd, comma));
+        }
+
+        edits.Add((at, at, string.Join(",", added)));
     }
 
     private static bool Same(JsonNode? a, JsonNode? b) => (a, b) switch
@@ -541,27 +713,38 @@ internal static class JsoncPort
 // startup so the startup offers don't flood the log.
 internal static class DebugLog
 {
+    private static ConfigManager? _config;
     private static Action<string>? _summary;
     private static Action<string>? _write;
 
+    private static bool On => _config?.Mod.DebugLogging == true;
+
     public static void BindSummaries(ConfigManager configManager, Action<string> write)
     {
-        _summary = configManager.Mod.DebugLogging ? write : null;
+        _config = configManager;
+        _summary = write;
     }
 
     public static void Bind(ConfigManager configManager, Action<string> write)
     {
-        _write = configManager.Mod.DebugLogging ? write : null;
+        _config = configManager;
+        _write = write;
     }
 
     public static void Summary(Func<string> message)
     {
-        _summary?.Invoke("[BetterFlea] " + message());
+        if (On)
+        {
+            _summary?.Invoke("[BetterFlea] " + message());
+        }
     }
 
     public static void Write(Func<string> message)
     {
-        _write?.Invoke("[BetterFlea] " + message());
+        if (On)
+        {
+            _write?.Invoke("[BetterFlea] " + message());
+        }
     }
 }
 

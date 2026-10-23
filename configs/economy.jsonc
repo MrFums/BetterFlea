@@ -1,0 +1,27 @@
+// BetterFlea - ECONOMY: real flea prices, and prices that follow the wipe
+// Lines that start with // are notes. Both are off by default.
+// Delete this file and restart the server to get the default settings back.
+{
+  // Uses the real flea's 24 hour average price (from tarkov.dev) as every item's base price. The rest of
+  // BetterFlea's pricing goes on top. The prices are saved, so if tarkov.dev is down the last ones are used.
+  "livePrices": {
+    "enabled": false,
+    "gameMode": "live",              // "live" (PvP), "pve" or "season"
+    "refreshHours": 24,              // fetch new prices this long after the last fetch (by the clock, restarts don't matter)
+    "estimateModdedItems": true      // modded items get a price on the same scale, from similar base-game items.
+                                     // Real-game items added by mods (content backports) aren't counted as modded.
+  },
+
+  // EXPERIMENTAL. Prices follow how far into the wipe the players online are, shaped by how real flea prices
+  // moved through a wipe. Early on everything is scarce and hideout and quest items are dear; late on the best
+  // guns, ammo, armour and stims are dear and early-wipe items are cheap.
+  "wipeCycle": {
+    "enabled": false,
+    "strength": 1.0,                 // size of the swings. 0.5 = half, 2 = double
+    "levelStep": 3,                  // prices move every this many levels
+    "cooldownMinutes": 30,           // after the flea's level changes, it stays put this long
+    "endLevel": 60,                  // about the level where a wipe "ends"
+    "prestige": "add",               // a prestiged player: "add" = counts as late wipe, "reset" = a fresh wipe
+    "level": 0                       // for testing: pretend the players are this level. 0 = highest level online
+  }
+}

@@ -60,5 +60,10 @@
 
   // Item IDs or category IDs. Example: ["5efb0c1bd79ff02a1f5e68d9"]
   "bannedItems": [],                 // these are never on the Flea Market
-  "allowedItems": []                 // these are always on the Flea Market, even if banned above
+  "allowedItems": [],                // these are always on the Flea Market, even if banned above
+
+  // Items added by other server mods, by mod name. ["all"] bans everything the mod adds, or list the types
+  // to ban from it, named as above. Example: { "Some Mod": ["weapons.guns", "gear.backpacks"] }
+  // Easiest to set on the settings page, which lists the mods that add items.
+  "bannedModItems": {}
 }

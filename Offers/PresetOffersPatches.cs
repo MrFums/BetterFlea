@@ -1765,6 +1765,8 @@ public class OfferPricingPatch : AbstractPatch
             {
                 BetterFlea.Prices.SellerPricing.Apply(details);
             }
+
+            BetterFlea.Prices.SellerPricing.ApplyMultiplier(details);
         }
 
         OfferQuantityGate.MatchCondition(details);

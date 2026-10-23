@@ -3,6 +3,9 @@
 // "Chance" values go from 0 (never) to 1 (always). "Percent" values are percent: 10 means 10%.
 // Delete this file and restart the server to get the default settings back.
 {
+  // Price of every offer from other sellers. 1 = normal. 1.5 = 50% more. Trader prices do not change.
+  "priceMultiplier": 1.0,
+
   // Price of marked keys on the Flea Market (a mod's marked keys too). 1 = normal. 1.5 = 50% more.
   // Trader prices do not change.
   "markedKeyMultiplier": 1.0,
