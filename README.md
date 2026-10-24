@@ -29,7 +29,7 @@ Everything can be turned off or tuned in the settings.
 **Fika headless client: do NOT install the BepInEx plugin on it.** It only needs the server mod on the server.
 
 ## How to install
-1. Download `BetterFlea-2.1.0.zip`.
+1. Download `BetterFlea-2.1.1.zip`.
 2. Open your SPT install folder.
 3. Extract the zip into this folder. The 2 parts go to the correct folders by themselves.
 4. Only the server host needs the server component. Obviously. Every REAL player needs the BepInEx plugin.

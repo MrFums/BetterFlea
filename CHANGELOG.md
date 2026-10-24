@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.1
+
+**Fixes**
+- SVM (Server Value Modifier) failed to start with Better Flea installed. Better Flea no longer hooks into other mods' start-up at all. To list the mods that add items on the Bans tab, it now reads each mod's files instead.
+
 ## 2.1.0
 
 **New**

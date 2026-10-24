@@ -7,7 +7,7 @@
         <RootNamespace>BetterFlea.Client</RootNamespace>
         <LangVersion>latest</LangVersion>
         <Nullable>disable</Nullable>
-        <Version>2.1.0</Version>
+        <Version>2.1.1</Version>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
         <!-- Don't put this PC's folder path into the built DLL. -->
