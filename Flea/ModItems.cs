@@ -1,7 +1,4 @@
-using System.Collections.Concurrent;
-using System.Reflection;
 using SPTarkov.DI.Annotations;
-using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Spt.Mod;
@@ -9,119 +6,148 @@ using SPTarkov.Server.Core.Models.Spt.Tables;
 
 namespace BetterFlea.Flea;
 
-// Which server mod added which items, so they can be banned from the flea by mod. Each mod's load steps are
-// watched, and new items that appear while one runs belong to that mod. Runs before any other mod loads.
+// Which server mod added which items, so they can be banned from the flea by mod. The item list is noted before
+// any other mod loads; a new item belongs to the mod whose files carry its id. Nothing in other mods is touched.
 [Injectable(TypePriority = OnLoadOrder.Watermark + 1)]
 public class ModItemsLoad(IReadOnlyList<SptMod> mods, TemplateTable templates) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
-        ModItems.Watch(mods, templates);
+        ModItems.Start(mods, templates);
         return Task.CompletedTask;
     }
 }
 
 internal static class ModItems
 {
+    private const int IdLength = 24;
+    private const long MaxFileBytes = 64L * 1024 * 1024;
+    private static readonly HashSet<string> Scanned = new(StringComparer.OrdinalIgnoreCase) { ".json", ".jsonc", ".json5", ".dll" };
+
     private static TemplateTable? _templates;
-    private static readonly Dictionary<Assembly, string> ModByAssembly = new();
-    private static readonly ConcurrentDictionary<MongoId, string> ModByItem = new();
+    private static HashSet<MongoId> _baseItems = [];
+    private static Lazy<Dictionary<string, string>> _modById = new(() => new Dictionary<string, string>());
 
-    public static string? ModOf(MongoId tpl) => ModByItem.GetValueOrDefault(tpl);
+    public static string? ModOf(MongoId tpl) =>
+        _baseItems.Contains(tpl) ? null : _modById.Value.GetValueOrDefault(tpl.ToString().ToLowerInvariant());
 
-    public static IReadOnlyDictionary<MongoId, string> All => ModByItem;
+    public static IReadOnlyDictionary<MongoId, string> All
+    {
+        get
+        {
+            var all = new Dictionary<MongoId, string>();
+            foreach (var tpl in _templates?.Items.Keys ?? Enumerable.Empty<MongoId>())
+            {
+                if (ModOf(tpl) is { } mod)
+                {
+                    all[tpl] = mod;
+                }
+            }
 
-    public static void Watch(IReadOnlyList<SptMod> mods, TemplateTable templates)
+            return all;
+        }
+    }
+
+    public static void Start(IReadOnlyList<SptMod> mods, TemplateTable templates)
     {
         _templates = templates;
+        _baseItems = templates.Items.Keys.ToHashSet();
         var self = typeof(ModItems).Assembly;
-        var patched = new HashSet<MethodBase>();
+        var others = mods.Where(mod => !mod.Assemblies.Contains(self)).ToList();
+        _modById = new Lazy<Dictionary<string, string>>(() => Index(others), LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    // Every item-like id in each mod's folder. An id found in several mods goes to the one that mentions it most.
+    private static Dictionary<string, string> Index(List<SptMod> mods)
+    {
+        var counts = new Dictionary<string, Dictionary<string, int>>();
         foreach (var mod in mods)
         {
-            foreach (var assembly in mod.Assemblies.Where(assembly => assembly != self))
+            var name = mod.ModMetadata.Name ?? Path.GetFileName(mod.Directory);
+            foreach (var file in Files(mod.Directory))
             {
-                ModByAssembly[assembly] = mod.ModMetadata.Name;
-                foreach (var type in LoadSteps(assembly))
+                try
                 {
-                    // A shared base class can carry the method for several mods: patched once, credited by instance.
-                    var method = type.GetInterfaceMap(typeof(IOnLoad)).TargetMethods.FirstOrDefault();
-                    if (method is null || method.IsAbstract || !patched.Add(method))
+                    foreach (var id in Ids(File.ReadAllBytes(file)))
                     {
-                        continue;
-                    }
+                        if (!counts.TryGetValue(id, out var byMod))
+                        {
+                            counts[id] = byMod = new Dictionary<string, int>();
+                        }
 
-                    try
-                    {
-                        new LoadStepPatch(method).Enable();
+                        byMod[name] = byMod.GetValueOrDefault(name) + 1;
                     }
-                    catch (Exception ex)
-                    {
-                        DebugLog.Write(() => $"Mod items: can't watch {type.FullName}: {ex.Message}");
-                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLog.Write(() => $"Mod items: can't read {file}: {ex.Message}");
                 }
             }
         }
+
+        var baseIds = _baseItems.Select(tpl => tpl.ToString().ToLowerInvariant()).ToHashSet();
+        return counts.Where(entry => !baseIds.Contains(entry.Key))
+            .ToDictionary(entry => entry.Key, entry => entry.Value.MaxBy(byMod => byMod.Value).Key);
     }
 
-    private static IEnumerable<Type> LoadSteps(Assembly assembly)
+    private static IEnumerable<string> Files(string directory)
     {
-        Type?[] types;
+        if (!Directory.Exists(directory))
+        {
+            return [];
+        }
+
         try
         {
-            types = assembly.GetTypes();
+            return Directory.EnumerateFiles(directory, "*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true })
+                .Where(file => Scanned.Contains(Path.GetExtension(file)) && new FileInfo(file).Length <= MaxFileBytes)
+                .ToList();
         }
-        catch (ReflectionTypeLoadException ex)
+        catch (Exception ex)
         {
-            types = ex.Types;
+            DebugLog.Write(() => $"Mod items: can't list {directory}: {ex.Message}");
+            return [];
         }
-
-        return types.OfType<Type>().Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IOnLoad).IsAssignableFrom(type));
     }
 
-    public static HashSet<MongoId> Snapshot() => _templates?.Items.Keys.ToHashSet() ?? [];
-
-    public static void Credit(HashSet<MongoId> before, Type step)
+    // 24 hex characters in a row, as plain text (json) or as UTF-16 (strings inside a dll).
+    private static IEnumerable<string> Ids(byte[] bytes)
     {
-        if (_templates is null || !ModByAssembly.TryGetValue(step.Assembly, out var mod))
-        {
-            return;
-        }
+        foreach (var id in Runs(bytes, 0, 1)) yield return id;
+        foreach (var id in Runs(bytes, 0, 2)) yield return id;
+        foreach (var id in Runs(bytes, 1, 2)) yield return id;
+    }
 
-        foreach (var tpl in _templates.Items.Keys)
+    private static IEnumerable<string> Runs(byte[] bytes, int start, int stride)
+    {
+        var run = new char[IdLength];
+        var length = 0;
+        for (var i = start; i <= bytes.Length - stride; i += stride)
         {
-            if (!before.Contains(tpl))
+            var c = (char)bytes[i];
+            var isHex = (stride == 1 || bytes[i + 1] == 0) && char.IsAsciiHexDigit(c);
+            if (isHex)
             {
-                ModByItem.TryAdd(tpl, mod);
+                if (length < IdLength)
+                {
+                    run[length] = char.ToLowerInvariant(c);
+                }
+
+                length++;
+                continue;
             }
-        }
-    }
-}
 
-public class LoadStepPatch(MethodBase target) : AbstractPatch
-{
-    protected override MethodBase GetTargetMethod() => target;
+            if (length == IdLength)
+            {
+                yield return new string(run);
+            }
 
-    [PatchPrefix]
-    public static void Prefix(out HashSet<MongoId> __state)
-    {
-        __state = ModItems.Snapshot();
-    }
-
-    [PatchPostfix]
-    public static void Postfix(object __instance, HashSet<MongoId> __state, ref Task __result)
-    {
-        var step = __instance.GetType();
-        if (__result.IsCompleted)
-        {
-            ModItems.Credit(__state, step);
-            return;
+            length = 0;
         }
 
-        var before = __state;
-        __result = __result.ContinueWith(task =>
+        if (length == IdLength)
         {
-            ModItems.Credit(before, step);
-            return task;
-        }, TaskScheduler.Default).Unwrap();
+            yield return new string(run);
+        }
     }
 }
