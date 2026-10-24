@@ -2,6 +2,11 @@
 
 ## 2.1.1
 
+**New**
+- **Admin login for the settings page:** the first person to open the page makes an admin account, and changing settings needs that login. It replaces SPT's web login and works the same on the server PC and from any other PC. You stay logged in for 7 days, even through server restarts.
+- Everyone else gets a read-only page: the flea's stats and charts, the biggest price movers, and whether Live prices and Wipe Cycle are on or off.
+- Forgot the password? Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` and restart the server, then make a new account. Your settings are kept.
+
 **Fixes**
 - SVM (Server Value Modifier) failed to start with Better Flea installed.
 

@@ -45,7 +45,7 @@ Delete these 2 folders:
 Better Flea does not change player profiles. You do not need to clean anything else.
 
 ## Settings
-Everything is changed on the settings page: open `https://127.0.0.1:6969/betterflea` on the server PC, or click it under **Mod Pages** in the SPT launcher. From another PC use the server's address and log in with an SPT admin account.
+Everything is changed on the settings page: open `https://127.0.0.1:6969/betterflea` on the server PC, or click it under **Mod Pages** in the SPT launcher. From another PC use the server's address. The first visit asks you to make an admin account, and changing settings needs that login. Everyone else sees the flea's stats.
 
 Every setting is explained right there, and most changes apply as soon as you press Save. Please don't edit the files in the `configs` folder by hand.
 

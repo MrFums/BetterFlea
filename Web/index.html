@@ -238,6 +238,18 @@
   dialog h3 { margin: 0; }
   dialog .body { padding: 6px 18px 14px; color: var(--muted); }
   dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
+  body.guest main { grid-template-columns: minmax(0, 1fr); }
+  body.guest main > .notice { margin: 0; }
+  .card.economy { margin-bottom: 12px; }
+  body.guest .search, body.guest #status, body.guest #discard, body.guest #save, body.guest #menu { display: none; }
+  #loginDialog label { display: block; margin: 10px 0 4px; color: var(--text); font-size: 13px; }
+  #loginDialog input { width: 100%; box-sizing: border-box; padding: 8px 10px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+  #loginError { color: var(--bad); min-height: 1.2em; margin-top: 10px; }
+  .econ-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .econ-row:first-of-type { border-top: 0; }
+  .onoff { font-weight: 700; font-size: 12px; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.04em; }
+  .onoff.on { color: var(--bg); background: var(--green); }
+  .onoff.off { color: var(--muted); background: var(--line); }
 
   .loading { grid-column: 1 / -1; color: var(--muted); padding: 40px 0; text-align: center; }
   @media (max-width: 760px) {
@@ -274,6 +286,7 @@
         <button id="resetAll">Reset everything to default</button>
       </div>
     </div>
+    <button class="btn" id="account" hidden></button>
     <input type="file" id="importFile" accept=".json,application/json" hidden>
   </div>
 </header>
@@ -286,6 +299,20 @@
   <a href="https://sp-mod.com/mod/3177/better-flea" target="_blank" rel="noopener">Mod page</a>
   <a href="https://github.com/MrFums/BetterFlea/issues" target="_blank" rel="noopener">Report an issue</a>
 </footer>
+
+<dialog id="loginDialog">
+  <form id="loginForm">
+    <div class="head"><h3 id="loginTitle">Admin login</h3></div>
+    <div class="body">
+      <p id="loginText"></p>
+      <label for="loginUser">Username</label><input id="loginUser" autocomplete="username" required>
+      <label for="loginPass">Password</label><input id="loginPass" type="password" required>
+      <div id="loginError"></div>
+      <p class="note">Forgot the password? Delete <code>SPT_Runtime/user/mods/BetterFlea/data/admin.json</code> and restart the server, then make a new account. Your server's settings are kept.</p>
+    </div>
+    <div class="foot"><button type="button" class="btn" id="loginCancel">Cancel</button><button class="btn primary" id="loginOk">Log in</button></div>
+  </form>
+</dialog>
 
 <dialog id="confirmDialog">
   <div class="head"><h3 id="confirmTitle"></h3></div>
@@ -802,8 +829,15 @@ function refreshBar() {
 // ---------- loading and saving ----------
 
 async function load() {
+  const auth = await (await fetch(API + "/auth", { cache: "no-store" })).json();
+  if (!auth.account) { askLogin(true); return; }
+  if (!auth.admin) { startGuest(); return; }
+  const account = $("account");
+  account.hidden = false;
+  account.textContent = "Log out " + auth.user;
+  account.onclick = async () => { await fetch(API + "/logout", { method: "POST" }); location.reload(); };
   const res = await fetch(API + "/settings", { cache: "no-store" });
-  if (res.status === 401 || res.status === 403) { location.href = "/login?returnUrl=" + encodeURIComponent("/betterflea"); return; }
+  if (res.status === 401) { startGuest(); return; }
   if (!res.ok) throw new Error("the server said " + res.status);
   const data = await res.json();
   state.version = data.version;
@@ -822,6 +856,102 @@ async function load() {
   loadHome();
   loadMods();
   wireSearch();  setInterval(() => { if (state.current === HOME && !document.hidden) loadStatus(); }, 30000);
+}
+
+// ---------- admin login, and the page everyone else sees ----------
+
+function askLogin(setup) {
+  const dialog = $("loginDialog");
+  $("loginTitle").textContent = setup ? "Create the admin account" : "Admin login";
+  $("loginText").textContent = setup
+    ? "There's no admin account yet. Make one now: it's needed to change Better Flea's settings. Everyone else can still see the flea's stats."
+    : "Log in to change Better Flea's settings.";
+  $("loginOk").textContent = setup ? "Create account" : "Log in";
+  $("loginPass").autocomplete = setup ? "new-password" : "current-password";
+  $("loginCancel").hidden = setup;
+  $("loginCancel").onclick = () => dialog.close();
+  $("loginError").textContent = "";
+  dialog.oncancel = (e) => { if (setup) e.preventDefault(); };
+  $("loginForm").onsubmit = async (e) => {
+    e.preventDefault();
+    $("loginOk").disabled = true;
+    try {
+      const res = await fetch(API + (setup ? "/setup" : "/login"), {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: $("loginUser").value, password: $("loginPass").value })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { location.reload(); return; }
+      $("loginError").textContent = data.error || "The server said " + res.status;
+    } catch (err) { $("loginError").textContent = "Can't reach the server."; }
+    $("loginOk").disabled = false;
+  };
+  dialog.showModal();
+}
+
+async function startGuest() {
+  state.guest = true;
+  state.current = HOME;
+  document.body.classList.add("guest");
+  const account = $("account");
+  account.hidden = false;
+  account.textContent = "Admin login";
+  account.onclick = () => askLogin(false);
+  await loadOverview();
+  render();
+  checkForUpdate();
+  loadHome();
+  setInterval(() => { if (!document.hidden) { loadOverview(); loadStatus(); } }, 30000);
+}
+
+async function loadOverview() {
+  try { state.overview = await (await fetch(API + "/overview", { cache: "no-store" })).json(); } catch (e) { /* keeps the last one */ }
+  if (state.overview) {
+    state.version = state.overview.version;
+    $("version").textContent = "v" + state.overview.version;
+    document.title = "BetterFlea v" + state.overview.version;
+  }
+}
+
+function renderGuest() {
+  const main = $("main");
+  main.innerHTML = "";
+  main.appendChild(notice("You're seeing how the flea is doing. Log in as the admin to change Better Flea's settings."));
+  const home = homeSection();
+  home.insertBefore(economyCard(), home.children[1]);
+  main.appendChild(home);
+  drawCharts();
+}
+
+function economyCard() {
+  const o = state.overview;
+  const card = make("div", "card economy");
+  card.appendChild(make("h3", "", "Economy"));
+  if (!o) { card.appendChild(make("div", "hint", "Loading…")); return card; }
+  const row = (name, on, sub) => {
+    const r = make("div", "econ-row");
+    const t = make("div");
+    t.append(make("div", "", name), make("div", "s", sub));
+    r.append(t, make("span", "onoff " + (on ? "on" : "off"), on ? "ON" : "OFF"));
+    card.appendChild(r);
+  };
+  const mode = { live: "Live (PvP)", pve: "PvE", season: "Season" }[o.livePrices.gameMode] || o.livePrices.gameMode;
+  row("Live prices", o.livePrices.enabled, o.livePrices.enabled ? "Real flea prices from tarkov.dev, " + mode + "." : "Using SPT's own prices.");
+  const w = o.wipeCycle.now;
+  const market = w ? Math.round((w.market - 1) * 100) : 0;
+  row("Wipe Cycle", o.wipeCycle.enabled, o.wipeCycle.enabled && w
+    ? "The flea is at level " + w.level + ". Prices overall " + (market >= 0 ? "+" : "") + market + "%."
+    : "Prices don't follow the wipe.");
+  if (w && w.movers && w.movers.length) {
+    card.appendChild(make("div", "s", "Most changed by the wipe right now:"));
+    for (const m of w.movers.slice(0, 6)) {
+      const pct = Math.round((m.factor - 1) * 100);
+      const r = make("div", "mover");
+      r.append(make("span", "", m.name), make("span", pct >= 0 ? "up" : "down", (pct >= 0 ? "▲ +" : "▼ ") + pct + "%"));
+      card.appendChild(r);
+    }
+  }
+  return card;
 }
 
 async function saveAll() {
@@ -886,6 +1016,7 @@ async function loadNames() {
 // ---------- rendering ----------
 
 function render() {
+  if (state.guest) { renderGuest(); return; }
   const main = $("main");
   const scroll = window.scrollY;
   const focusId = document.activeElement && document.activeElement.id;

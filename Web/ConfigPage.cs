@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
@@ -66,15 +65,12 @@ public class LiveSettings(
     }
 }
 
-// The settings page: https://<server>:6969/betterflea. Behind SPT's own web login: SPT admins only, and this PC
-// without logging in unless SPT is set to ask for it there too (http.json, webAuthenticationConfig).
+// The settings page: https://<server>:6969/betterflea. Anyone can see how the flea is doing; changing settings
+// needs the page's own admin login, made by whoever opens the page first.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload)]
-public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManager, HttpConfig httpConfig, TemplateTable templates,
+public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManager, TemplateTable templates,
     LocaleService locales, ItemHelper itemHelper) : IHttpListener
 {
-    // SPT's web login cookie.
-    private const string SptLogin = "SptWebCookie";
-
     private const string Root = "/betterflea";
 
     private static readonly Dictionary<string, string> Titles = new()
@@ -145,6 +141,20 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
                 case Root + "/api/save" when HttpMethods.IsPost(context.Request.Method):
                     await Save(context, cancellationToken);
                     break;
+                case Root + "/api/auth":
+                    await SendJson(context, new JsonObject { ["account"] = AdminLogin.HasAccount, ["admin"] = AdminLogin.IsAdmin(context),
+                        ["user"] = AdminLogin.IsAdmin(context) ? AdminLogin.User : null }, cancellationToken);
+                    break;
+                case Root + "/api/overview":
+                    await SendJson(context, Overview(), cancellationToken);
+                    break;
+                case Root + "/api/setup" or Root + "/api/login" when HttpMethods.IsPost(context.Request.Method):
+                    await LogIn(context, path == Root + "/api/setup", cancellationToken);
+                    break;
+                case Root + "/api/logout" when HttpMethods.IsPost(context.Request.Method):
+                    AdminLogin.LogOut(context);
+                    await SendJson(context, new JsonObject { ["ok"] = true }, cancellationToken);
+                    break;
                 default:
                     context.Response.StatusCode = 404;
                     break;
@@ -188,6 +198,34 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
 
     // The Economy tab: live price status, the Wipe Cycle's level, what moves most at a level (?level=30), and one
     // item's price through a wipe (?id=...).
+    // What anyone can see without logging in: whether live prices and the wipe cycle are on, and where the wipe is.
+    private JsonObject Overview()
+    {
+        var economy = configManager.Mod.Economy;
+        return new JsonObject
+        {
+            ["version"] = new ModMetadata().Version.ToString(),
+            ["livePrices"] = new JsonObject { ["enabled"] = economy.LivePrices.Enabled, ["gameMode"] = economy.LivePrices.GameMode },
+            ["wipeCycle"] = new JsonObject { ["enabled"] = economy.WipeCycle.Enabled, ["now"] = economy.WipeCycle.Enabled ? Wipe("", "") : null }
+        };
+    }
+
+    private async Task LogIn(HttpContext context, bool create, CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(context.Request.Body);
+        var body = JsonNode.Parse(await reader.ReadToEndAsync(cancellationToken));
+        var user = body?["user"]?.GetValue<string>() ?? "";
+        var password = body?["password"]?.GetValue<string>() ?? "";
+        var error = create ? AdminLogin.Create(context, user, password)
+            : await AdminLogin.LogIn(context, user, password) ? null : "Wrong username or password.";
+        if (error is not null)
+        {
+            context.Response.StatusCode = create ? 400 : 401;
+        }
+
+        await SendJson(context, error is null ? new JsonObject { ["ok"] = true } : new JsonObject { ["error"] = error }, cancellationToken);
+    }
+
     private JsonObject Wipe(string level, string id)
     {
         var at = int.TryParse(level, out var asked) && asked > 0 ? asked : Math.Max(1, WipeEconomy.Level);
@@ -369,44 +407,24 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         return _startedWith.Any(entry => RestartValues(entry.Key) != entry.Value);
     }
 
-    // Same rules as SPT's own web pages. Not logged in: off to SPT's login page (or a 401 for the page's own calls).
-    private async Task<bool> Allowed(HttpContext context, string path)
+    // Anyone can see the flea's stats; the settings need the admin login (AdminLogin).
+    private static readonly HashSet<string> OpenPaths = new(StringComparer.Ordinal)
     {
-        var login = httpConfig.WebAuthenticationConfig;
-        if (!login.Enabled || (!login.RequireCredentialsOnLocalhost && IsThisComputer(context.Connection.RemoteIpAddress)))
+        Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview",
+        Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
+    };
+
+    private static async Task<bool> Allowed(HttpContext context, string path)
+    {
+        if (OpenPaths.Contains(path) || AdminLogin.IsAdmin(context))
         {
             return true;
         }
 
-        AuthenticateResult result;
-        try
-        {
-            result = await context.AuthenticateAsync(SptLogin);
-        }
-        catch (InvalidOperationException)
-        {
-            result = AuthenticateResult.NoResult();
-        }
-
-        if (result.Succeeded && result.Principal?.HasClaim("isAdministrator", "true") == true)
-        {
-            return true;
-        }
-
-        if (path.StartsWith(Root + "/api/", StringComparison.Ordinal))
-        {
-            context.Response.StatusCode = result.Succeeded ? 403 : 401;
-            await SendJson(context, new JsonObject { ["error"] = result.Succeeded ? "Only SPT admins can change these settings." : "Log in to SPT first." },
-                context.RequestAborted);
-            return false;
-        }
-
-        context.Response.Redirect("/login?returnUrl=" + Uri.EscapeDataString(Root) + (result.Succeeded ? "&noPermissions=1" : ""));
+        context.Response.StatusCode = 401;
+        await SendJson(context, new JsonObject { ["error"] = "Log in as the admin first." }, context.RequestAborted);
         return false;
     }
-
-    private static bool IsThisComputer(IPAddress? address) =>
-        address is not null && IPAddress.IsLoopback(address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address);
     private static readonly Regex KeyLine = new("^\\s*\"([^\"]+)\"\\s*:", RegexOptions.Compiled);
     private static readonly Regex TermLine = new("^(?!(?:true|false|null)\\b)([a-z][A-Za-z0-9]*)\\s*[=:]\\s+(.+)$", RegexOptions.Compiled);
 
