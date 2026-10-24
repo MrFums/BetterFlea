@@ -1,5 +1,5 @@
 // BetterFlea - DEBUG
-// After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 {
   // true = write a lot of extra lines in the server log. Use this only to test.
   "debugLogging": false

@@ -1,28 +1,31 @@
 # Changelog
 
 ## 2.1.0
-- **Settings page in your browser:** open `https://<your server address>:6969/betterflea`. Every setting with a short note, reset-to-default buttons, sliders and +/- buttons. Nothing changes until you press Save; then the config files are updated (notes kept) and the changes apply straight away, apart from the flea bans.
-- **Home tab:** offers on the flea and server memory over the last few hours, who's selling, the biggest price movers and what's new in this version.
-- Listed under Mod Pages in the SPT launcher.
-- Saving remakes the flea's generated offers straight away, so changes show without waiting for old offers to expire. Settings that need a restart say so at the top of the page.
+
+**New**
+- **Settings page in your browser:** open `https://127.0.0.1:6969/betterflea` on the server PC, or click it under Mod Pages in the SPT launcher. Every setting has a short note, a reset button, and sliders or +/- buttons. Nothing changes until you press Save, then the config files are updated (notes kept) and the changes apply straight away, apart from the bans.
+- **Search:** finds any setting and takes you straight to it (press / to search).
 - **Flea styles:** Live-like (the default), Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
-- A search box at the top finds any setting and takes you straight to it (press / to search).
+- **Home tab:** offers on the flea and server memory over the last few hours, who's selling, the biggest price movers and what's new in this version.
+- **Ban a mod's items:** the Bans tab lists the server mods that add items. Ban everything a mod adds, or only some types (its guns, its backpacks...).
+- **All flea prices:** one setting makes every offer from other sellers dearer or cheaper. Trader prices don't change. The Overpriced and Flea sale styles use it.
+- **Live prices (off by default):** the real flea's 24 hour average from tarkov.dev as every item's base price, from Live, PvE or Season. Saved, so an outage changes nothing. Modded items are moved onto the same scale using similar base-game items (can be turned off). Real-game items that mods add back, like content backports, aren't counted as modded. Junk averages (an item listed at a few roubles) are ignored.
+- **Wipe Cycle (experimental, off by default):** prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe: hideout and quest items, guns by type, ammo by penetration, armour by class, stims. The Economy tab shows what it's doing right now and can preview any level.
+- Seller ratings grow with the players online: mostly low up to level 15, mostly high by level 40.
+- Saving remakes the flea's generated offers straight away, so changes show without waiting for old offers to expire. Settings that need a restart say so at the top of the page.
 - Advanced settings are tucked away behind a switch. Banned and allowed items can be searched for by name.
-- Switch whole sections or tabs off, export your settings to a file and import them again.
+- Switch whole sections off, and export your settings to a file and import them again.
 - Shows whether there's a newer release on GitHub.
 - Uses SPT's own web login: opens straight away on the server PC, SPT admin accounts anywhere else. `configs\web.jsonc` can turn the page off.
 - Debug logging can now be switched on and off without a restart.
-- **Live prices (off by default):** use the real flea's 24 hour average from tarkov.dev as every item's base price, from Live, PvE or Season. Saved, so an outage changes nothing. Modded items are moved onto the same scale using similar base-game items (can be turned off). Real-game items that mods add back, like content backports, aren't counted as modded. Junk averages (an item listed at a few roubles) are ignored.
-- **Wipe Cycle (experimental, off by default):** prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe: hideout and quest items, guns by type, ammo by penetration, armour by class, stims. Preview any level on the new Economy tab.
-- **Ban a mod's items:** the Bans tab lists the server mods that add items. Ban everything a mod adds, or only some types (its guns, its backpacks...). `bannedModItems` in `flea.jsonc`.
-- Picking a flea style no longer resets your flea bans.
-- Seller ratings grow with the players online: mostly low up to level 15, mostly high by level 40.
-- New setting: **All flea prices** (`priceMultiplier` in `prices.jsonc`) makes every offer from other sellers dearer or cheaper. Trader prices don't change. The Overpriced and Flea sale styles use it.
-- The Low memory style really is low now: about a third of the offers at startup (lists still fill up when opened), and memory is handed back sooner after browsing.
-- Fixed: turning packs off now puts back SPT's own pack settings, and offers can be as short as SPT's 6 minutes.
-- Fixed: with offer counts turned off, money for sale was still cut down to almost nothing.
-- With player listings turned off, the client plugin greys out the sell button and shows a small warning instead of the error that sends you back to the menu.
 
+**Fixes**
+- With player listings turned off, the client plugin greys out the sell button and shows a small warning instead of the error that sends you back to the menu.
+- The client plugin no longer stops checking the server after one failed check (a server restart while the game was open), so turning listings back on shows up again.
+- The Low memory style really is low now: about a third of the offers at startup (lists still fill up when opened), and memory is handed back sooner after browsing.
+- Turning packs off now puts back SPT's own pack settings, and offers can be as short as SPT's 6 minutes, so Base SPT matches plain SPT.
+- Picking a flea style no longer resets your bans.
+- With offer counts turned off, money for sale was still cut down to almost nothing.
 ## 2.0.0
 
 **Updating from 1.x:** extract the new zip over the old one. Your `config.jsonc` settings are copied into the new `configs\` folder on the first start and the old file is deleted.

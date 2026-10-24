@@ -1,6 +1,6 @@
 // BetterFlea - LISTINGS: how many offers there are, how many items are in one, and what currency they're in
 // Only the offers the server makes, not offers from players.
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // Delete this file and restart the server to get the default settings back.
 {
   // How many offers each item has. Normal SPT is 7 to 30 offers per item.

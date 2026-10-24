@@ -1,7 +1,7 @@
 // BetterFlea - CONDITION: partly used keys, meds, food, fuel, repair kits and guns
 // Some offers have items that are partly used. The price is lower when less is left.
 // (Armor, plates and helmets are in armor.jsonc.)
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // Delete this file and restart the server to get the default settings back.
 {
   // Keys and keycards:

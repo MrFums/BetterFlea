@@ -1,5 +1,5 @@
 // BetterFlea - WEAPONS: how guns are built for the flea, and players' own guns turning up
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // "Chance" values go from 0 (never) to 1 (always). For example, 0.6 means 60%.
 // Delete this file and restart the server to get the default settings back.
 {

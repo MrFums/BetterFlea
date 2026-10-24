@@ -1,5 +1,5 @@
 // BetterFlea - ECONOMY: real flea prices, and prices that follow the wipe
-// Lines that start with // are notes. Both are off by default.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file. Both are off by default.
 // Delete this file and restart the server to get the default settings back.
 {
   // Uses the real flea's 24 hour average price (from tarkov.dev) as every item's base price. The rest of

@@ -1,5 +1,5 @@
 // BetterFlea - SELLING: players selling their own items on the Flea Market
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // true = on. false = off. Delete this file and restart the server to get the default settings back.
 {
   "enabled": true,                   // false = players cannot sell on the Flea Market

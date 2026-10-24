@@ -1,5 +1,5 @@
 // BetterFlea - PRICES: the prices of the offers the server makes
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // "Chance" values go from 0 (never) to 1 (always). "Percent" values are percent: 10 means 10%.
 // Delete this file and restart the server to get the default settings back.
 {

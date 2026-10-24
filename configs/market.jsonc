@@ -1,6 +1,6 @@
 // BetterFlea - MARKET: how the market behaves over time: how long offers last, other players buying, barters,
 // the sellers' ratings, and offers going to someone else first.
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // "Chance" values go from 0 (never) to 1 (always). Delete this file and restart the server to get the defaults back.
 {
   // How long each offer is listed for, in minutes: a random time in this range per offer (live: up to 24 hours).

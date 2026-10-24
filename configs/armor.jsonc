@@ -1,5 +1,5 @@
 // BetterFlea - ARMOR: the plates body armor and rigs are listed with, and the condition of armor, helmets and plates
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // "Chance" values go from 0 (never) to 1 (always). Delete this file and restart the server to get the defaults back.
 //
 // Replaces SPT's own random plate removal. Class 5 and 6 front/back plates are flea-banned, so front/back plates are

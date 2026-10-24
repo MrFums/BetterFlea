@@ -1,5 +1,5 @@
 // BetterFlea - FLEA: what players can buy on the Flea Market
-// Lines that start with // are notes. After you change a setting, restart the server.
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // true = on. false = off. Delete this file and restart the server to get the default settings back.
 {
   // true = also use BSG's own list of banned items (for example M993 ammo).
