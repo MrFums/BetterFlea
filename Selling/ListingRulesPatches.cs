@@ -133,6 +133,13 @@ public class DisableFleaSellingPatch : AbstractPatch
             return false;
         }
 
+        var roots = listedIds.Select(id => id.ToString()).ToHashSet();
+        if (Flea.LevelLock.SellRefusal(pmcData, listed.Where(item => roots.Contains(item.Id.ToString()))) is { } tooLow)
+        {
+            __result = FleaSellingGate.Fail(sessionID, tooLow);
+            return false;
+        }
+
         if (PurchaseLock.AnyLocked(sessionID, listed))
         {
             __result = FleaSellingGate.Fail(sessionID, FleaSellingGate.BoughtFromTraderMessage);

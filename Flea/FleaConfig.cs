@@ -31,6 +31,7 @@ public record FleaConfig
 public record LevelLockConfig
 {
     [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    [JsonPropertyName("selling")] public bool Selling { get; set; } = true;
     [JsonPropertyName("moddedItems")] public bool ModdedItems { get; set; } = true;
 }
 

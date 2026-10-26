@@ -509,6 +509,14 @@ internal static class SoldBeforeYou
             return _responses!.AppendErrorToOutput(_output!.GetOutput(sessionId), SoldMessage(), BackendErrorCodes.OfferNotFound);
         }
 
+        foreach (var wanted in request.Offers)
+        {
+            if (wanted.Id is { } id && _offers!.GetOfferByOfferId(id) is { } offer && Flea.LevelLock.BuyRefusal(sessionId, offer) is { } tooLow)
+            {
+                return _responses!.AppendErrorToOutput(_output!.GetOutput(sessionId), tooLow);
+            }
+        }
+
         var chance = _config?.Mod.GeneratedOffers.SoldBeforeYouChance ?? 0;
         if (chance <= 0)
         {

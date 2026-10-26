@@ -67,10 +67,11 @@
   // Easiest to set on the settings page, which lists the mods that add items.
   "bannedModItems": {},
 
-  // Like the real flea: some items can only be bought from a certain level (the M4A1 from 25, a graphics card
-  // from 40). Uses the real game's levels, updated from tarkov.dev when live prices are on.
+  // Like the real flea: some items can only be bought and sold from a certain level (the M4A1 from 25, a
+  // graphics card from 30). Uses the real game's levels, updated from tarkov.dev when live prices are on.
   "levelLock": {
     "enabled": true,
-    "moddedItems": true              // modded items need the level most items of their kind need
+    "selling": true,                 // locked items can't be listed for sale either, like live
+    "moddedItems": true              // modded items unlock with the base-game items of their kind worth about the same
   }
 }

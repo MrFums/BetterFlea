@@ -219,6 +219,9 @@ internal static class LivePrices
             _estimated = Settings.EstimateModdedItems ? MatchModdedItems(live, baseGame) : 0;
             _applied = true;
         }
+
+        // Modded items' levels go by price.
+        Flea.LevelLock.Forget();
     }
 
     private static int _estimated;
@@ -291,6 +294,8 @@ internal static class LivePrices
 
             _applied = false;
         }
+
+        Flea.LevelLock.Forget();
     }
 
     // For the settings page: SPT's own price, the live price (null if the real flea doesn't sell it), and whether

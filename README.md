@@ -60,7 +60,7 @@ Changed something and want it back? Press Reset to default on that tab, or Reset
 - Take whole types of items off the flea: guns, ammo, keys, armour, meds and the rest.
 - Ban single items, or always allow them even if their type is banned. Search for them by name.
 - Ban the items another server mod adds: all of them, or just some types (only its guns, say).
-- Level locked items, like live: some items can only be bought from a certain level (the M4A1 from 25, a graphics card from 40). Uses the real game's levels. Modded items get the level most items of their kind need.
+- Level locked items, like live: some items can only be bought and sold from a certain level (the M4A1 from 25, a graphics card from 30). Uses the real game's levels. A modded item unlocks with the real items of its kind that are worth about the same, so a strong modded stim needs the level the strongest real stims need.
 
 ## 2. Offers
 

@@ -9,6 +9,7 @@ using SPTarkov.Server.Core.Helpers.Profile;
 using SPTarkov.Server.Core.Helpers.Ragfair;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
+using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.Ragfair;
 using SPTarkov.Server.Core.Models.Spt.Tables;
 
@@ -32,9 +33,10 @@ public class LevelLockLoad(ConfigManager configManager, ProfileHelper profileHel
     }
 }
 
-// Like the real flea: some items can only be bought from a certain level (the M4A1 at 25, a graphics card at 40).
+// Like the real flea: some items can only be bought from a certain level (the M4A1 at 25, a graphics card at 30).
 // The levels are the real game's (tarkov.dev), shipped with the mod and updated whenever live prices are fetched.
-// A modded item gets the level most base-game items of its kind have.
+// A modded item gets the level of the base-game items of its kind worth about the same. Locked items can't be
+// listed for sale either (optional).
 //
 // SPT has this built in (ragfair "tieredFlea"), but that copies every offer on the flea for every search. Here only
 // the page of offers a player is shown is looked at, and only a locked offer is copied (it gets marked locked and
@@ -46,7 +48,8 @@ internal static class LevelLock
     private static TemplateTable? _templates;
     private static Dictionary<string, int>? _live;
     private static Lazy<Dictionary<MongoId, int>> _levels = new(Build);
-    private static readonly Dictionary<MongoId, int> KindLevels = new();
+    private static readonly Dictionary<MongoId, int> ModdedLevels = new();
+    private static readonly Dictionary<MongoId, List<(double LogPrice, int Level)>> KindPeers = new();
 
     private static LevelLockConfig? Settings => _config?.Mod.Flea.LevelLock is { Enabled: true } settings ? settings : null;
 
@@ -71,9 +74,10 @@ internal static class LevelLock
 
     public static void Forget()
     {
-        lock (KindLevels)
+        lock (ModdedLevels)
         {
-            KindLevels.Clear();
+            ModdedLevels.Clear();
+            KindPeers.Clear();
         }
 
         _levels = new Lazy<Dictionary<MongoId, int>>(Build);
@@ -87,32 +91,88 @@ internal static class LevelLock
             return level;
         }
 
-        if (Settings is not { ModdedItems: true } || ModItems.IsBaseItem(tpl) ||_templates?.Items.GetValueOrDefault(tpl)?.Parent is not { } kind)
+        if (Settings is not { ModdedItems: true } || ModItems.IsBaseItem(tpl) || _templates?.Items.GetValueOrDefault(tpl) is not { } item)
         {
             return 0;
         }
 
-        lock (KindLevels)
+        lock (ModdedLevels)
         {
-            if (!KindLevels.TryGetValue(kind, out level))
+            if (!ModdedLevels.TryGetValue(tpl, out level))
             {
-                KindLevels[kind] = level = UsualLevel(kind);
+                ModdedLevels[tpl] = level = SimilarLevel(item);
+                var name = item.Name;
+                DebugLog.Summary(() => $"Level lock: modded {name} ({tpl}) unlocks at level {level}, like the base-game items priced closest to it.");
             }
 
             return level;
         }
     }
 
-    // The level most base-game items of this kind have (0 counts too).
-    private static int UsualLevel(MongoId kind)
+    // A modded item takes the level of the base-game items of its kind that are worth about the same, so a strong
+    // modded stim unlocks with the strong real ones and a weak one with the weak ones. Price stands in for how good
+    // an item is: the real flea's levels follow it closely within a kind. Too few base items of the exact kind
+    // (a mod's own category) and the wider kind above it is used.
+    private static int SimilarLevel(TemplateItem item)
     {
-        var levels = _levels.Value;
-        var counts = _templates!.Items.Where(entry => entry.Value.Parent == kind && ModItems.IsBaseItem(entry.Key))
-            .GroupBy(entry => levels.GetValueOrDefault(entry.Key))
-            .Select(group => (Level: group.Key, Count: group.Count()))
-            .ToList();
-        return counts.Count == 0 ? 0 : counts.MaxBy(entry => (entry.Count, entry.Level)).Level;
+        var price = PriceOf(item.Id);
+        if (price <= 0)
+        {
+            return 0;
+        }
+
+        MongoId? kind = item.Parent;
+        for (var depth = 0; depth < 3 && kind is { } current; depth++)
+        {
+            var peers = PeersOf(current);
+            if (peers.Count >= 3)
+            {
+                var target = Math.Log(price);
+                var nearest = peers.OrderBy(peer => Math.Abs(peer.LogPrice - target)).Take(3).Select(peer => peer.Level).Order().ToList();
+                return nearest[nearest.Count / 2];
+            }
+
+            kind = _templates!.Items.GetValueOrDefault(current)?.Parent;
+        }
+
+        return 0;
     }
+
+    // Base-game items that can be sold on the flea, anywhere under this kind: (log price, level).
+    private static List<(double LogPrice, int Level)> PeersOf(MongoId kind)
+    {
+        if (KindPeers.TryGetValue(kind, out var peers))
+        {
+            return peers;
+        }
+
+        var levels = _levels.Value;
+        var items = _templates!.Items;
+        peers = new List<(double, int)>();
+        foreach (var (tpl, item) in items)
+        {
+            if (item.Type != "Item" || item.Properties?.CanSellOnRagfair == false || !ModItems.IsBaseItem(tpl) || PriceOf(tpl) is var price && price <= 0)
+            {
+                continue;
+            }
+
+            MongoId? parent = item.Parent;
+            for (var depth = 0; depth < 4 && parent is { } current; depth++)
+            {
+                if (current == kind)
+                {
+                    peers.Add((Math.Log(price), levels.GetValueOrDefault(tpl)));
+                    break;
+                }
+
+                parent = items.GetValueOrDefault(current)?.Parent;
+            }
+        }
+
+        return KindPeers[kind] = peers;
+    }
+
+    private static double PriceOf(MongoId tpl) => _templates!.Prices.GetValueOrDefault(tpl);
 
     private static Dictionary<MongoId, int> Build()
     {
@@ -126,7 +186,7 @@ internal static class LevelLock
             }
         }
 
-        DebugLog.Summary(() => $"Level lock: {levels.Count} items need a level to buy ({(_live is null ? "shipped list" : "tarkov.dev")}).");
+        DebugLog.Summary(() => $"Level lock: {levels.Count} items need a level to buy or sell ({(_live is null ? "shipped list" : "tarkov.dev")}).");
         return levels;
     }
 
@@ -142,6 +202,30 @@ internal static class LevelLock
             DebugLog.Summary(() => $"Level lock: couldn't read the item levels: {ex.Message}");
             return [];
         }
+    }
+
+    // Like live, a locked item can't be listed either. Only the items listed count, not what's in or on them.
+    public static string? SellRefusal(PmcData pmcData, IEnumerable<Item> listed)
+    {
+        if (Settings is not { Selling: true } || pmcData.Info?.Level is not { } playerLevel)
+        {
+            return null;
+        }
+
+        var level = listed.Select(item => LevelFor(item.Template)).DefaultIfEmpty().Max();
+        return playerLevel >= level ? null : $"This item can only be sold at the Flea Market from level {level}.";
+    }
+
+    // The client won't buy a locked offer, but the server checks too.
+    public static string? BuyRefusal(MongoId sessionId, RagfairOffer offer)
+    {
+        if (Settings is null || offer.IsTraderOffer() || offer.Items is not { Count: > 0 } items
+            || _profiles?.GetPmcProfile(sessionId)?.Info?.Level is not { } playerLevel || LevelFor(items[0].Template) is var level && playerLevel >= level)
+        {
+            return null;
+        }
+
+        return $"This item can only be bought at the Flea Market from level {level}.";
     }
 
     public static void Apply(MongoId sessionId, SearchRequestData request, GetOffersResult result)
