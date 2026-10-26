@@ -91,7 +91,8 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     {
         var path = context.Request.Path.Value ?? "";
         return (path.Equals(Root, StringComparison.OrdinalIgnoreCase) || path.StartsWith(Root + "/", StringComparison.OrdinalIgnoreCase))
-            && !path.Equals(ClientDataRoute.Path, StringComparison.OrdinalIgnoreCase);
+            && !path.Equals(ClientDataRoute.Path, StringComparison.OrdinalIgnoreCase)
+            && !path.Equals(ClientDataRoute.LevelsPath, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task HandleAsync(MongoId sessionId, HttpContext context, CancellationToken cancellationToken)
@@ -273,16 +274,18 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         return result;
     }
 
-    // Server mods that add items: how many, and of which types (the bannedCategories names).
+    // Server mods that add items: how many, and of which types (the bannedCategories names). Items that can never be
+    // on the flea (SVM's pockets, say) are left out, so a mod that adds only those isn't listed.
     private JsonObject Mods()
     {
         var mods = new JsonArray();
-        foreach (var group in ModItems.All.GroupBy(entry => entry.Value).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        var sellable = ModItems.All
+            .Select(entry => (Item: templates.Items.GetValueOrDefault(entry.Key), Mod: entry.Value))
+            .Where(entry => entry.Item is not null && entry.Item.Properties?.CanSellOnRagfair is not false);
+        foreach (var group in sellable.GroupBy(entry => entry.Mod).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
             var types = group
-                .Select(entry => templates.Items.GetValueOrDefault(entry.Key))
-                .Where(item => item is not null)
-                .GroupBy(item => FleaCategories.Find(item!, itemHelper)?.Name ?? FleaCategories.Uncategorised)
+                .GroupBy(entry => FleaCategories.Find(entry.Item!, itemHelper)?.Name ?? FleaCategories.Uncategorised)
                 .OrderByDescending(type => type.Count());
             mods.Add(new JsonObject
             {

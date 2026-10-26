@@ -22,6 +22,7 @@ public class FleaCategoryFilter(
     {
         var config = configManager.Mod.Flea;
         var items = templates.Items;
+        HandbookTree.Bind(templates);
         var allowed = ToMongoIdSet(config.AllowedItems, "allowedItems");
         var banned = ToMongoIdSet(config.BannedItems, "bannedItems");
 
@@ -60,7 +61,7 @@ public class FleaCategoryFilter(
         }
 
         var missing = allowed.Concat(banned)
-            .Where(id => !items.ContainsKey(id))
+            .Where(id => !items.ContainsKey(id) && !HandbookTree.IsCategory(id))
             .Select(id => id.ToString())
             .Distinct()
             .ToList();
@@ -140,7 +141,8 @@ public class FleaCategoryFilter(
         };
     }
 
-    // true = allow, false = ban, null = leave. A tpl beats a category; allowed beats banned.
+    // true = allow, false = ban, null = leave. A tpl beats a category; allowed beats banned. A category is a handbook
+    // one (what the settings page offers) or an item type.
     private bool? Decide(TemplateItem item, HashSet<MongoId> allowed, HashSet<MongoId> banned, out string reason)
     {
         var tpl = item.Id;
@@ -148,8 +150,8 @@ public class FleaCategoryFilter(
 
         if (allowed.Contains(tpl)) return true;
         if (banned.Contains(tpl)) return false;
-        if (allowed.Count > 0 && itemHelper.IsOfBaseclasses(tpl, allowed)) return true;
-        if (banned.Count > 0 && itemHelper.IsOfBaseclasses(tpl, banned)) return false;
+        if (allowed.Count > 0 && (HandbookTree.InAny(tpl, allowed) || itemHelper.IsOfBaseclasses(tpl, allowed))) return true;
+        if (banned.Count > 0 && (HandbookTree.InAny(tpl, banned) || itemHelper.IsOfBaseclasses(tpl, banned))) return false;
 
         var category = FleaCategories.Find(item, itemHelper);
         if (ModItems.ModOf(tpl) is { } mod && configManager.Mod.Flea.BannedModItems.TryGetValue(mod, out var modBans)

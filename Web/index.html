@@ -31,7 +31,10 @@
   input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
   header { position: sticky; top: 0; z-index: 5; background: rgba(11, 12, 16, 0.95); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
-  .bar { max-width: 1060px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  /* One line on wide screens: the search box shrinks to make room for "Unsaved changes", so nothing jumps down a line. */
+  .bar { max-width: 1060px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+  .bar > * { flex-shrink: 0; }
+  @media (max-width: 980px) { .bar { flex-wrap: wrap; } }
   .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
   .brand img { width: 40px; height: 40px; border-radius: 8px; }
   .brand h1 { font-size: 18px; margin: 0; font-weight: 650; }
@@ -40,9 +43,9 @@
   .pill { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; text-decoration: none; }
   .pill.ok { color: var(--green); border-color: var(--green-dark); background: var(--green-soft); }
   .pill.new { color: var(--bg); background: var(--warn); border-color: var(--warn); font-weight: 600; }
-  .status { font-size: 12.5px; color: var(--muted); }
-  .status.dirty { color: var(--warn); }
-  .status.bad { color: var(--bad); }
+  /* Always takes its space, only shown with changes, so nothing in the bar ever moves. */
+  .status { font-size: 12.5px; color: var(--warn); white-space: nowrap; visibility: hidden; }
+  .status.dirty { visibility: visible; }
   /* Messages after Save, Discard or Import float under the bar, so they never push the buttons around. */
   .bar { position: relative; }
   .toast { position: absolute; right: 16px; top: calc(100% + 8px); max-width: min(460px, calc(100vw - 32px)); background: var(--panel-2); border: 1px solid var(--line);
@@ -148,6 +151,11 @@
   .chip button { border: 0; background: none; color: var(--muted); cursor: pointer; width: 20px; height: 20px; border-radius: 50%; }
   .chip button:hover { color: var(--bad); background: rgba(226, 112, 92, 0.12); }
   .chips .none { color: var(--faint); font-size: 12.5px; }
+  .levels { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .levels .none { color: var(--faint); font-size: 12.5px; }
+  .level-row { display: flex; align-items: center; gap: 10px; max-width: 480px; }
+  .level-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .level-name small { color: var(--faint); }
   .finder { position: relative; margin-top: 8px; max-width: 380px; }
   .finder .text { width: 100%; }
   .results { margin-top: 4px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto; }
@@ -158,7 +166,7 @@
   .add { display: flex; gap: 8px; padding: 10px 14px 10px 0; border-top: 1px solid var(--line); }
   .remove { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; }
   .remove:hover { color: var(--bad); border-color: var(--bad); }
-  .search { position: relative; flex: 0 1 300px; }
+  .bar > .search { position: relative; flex: 0 1 300px; min-width: 140px; }
   .search input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
   .search input:focus { outline: none; border-color: var(--green-dark); }
   .search-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
@@ -246,7 +254,8 @@
   dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
   body.guest main { grid-template-columns: minmax(0, 1fr); }
   body.guest main > .notice { margin: 0; }
-  .card.economy { margin-bottom: 12px; }
+  .card.economy, .card.lookup { margin-bottom: 12px; }
+  .econ-row .synced { color: var(--muted); font-size: 12px; margin-top: 2px; }
   body.guest .search, body.guest #status, body.guest #discard, body.guest #save, body.guest #menu { display: none; }
   #loginDialog label { display: block; margin: 10px 0 4px; color: var(--text); font-size: 13px; }
   #loginDialog input { width: 100%; box-sizing: border-box; padding: 8px 10px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; font: inherit; }
@@ -280,7 +289,7 @@
       <div class="search-results" id="searchResults" hidden></div>
     </div>
     <a class="pill" id="update">Checking for updates…</a>
-    <span class="status" id="status"></span>
+    <span class="status" id="status">Unsaved changes</span>
     <button class="btn" id="discard" disabled>Discard</button>
     <button class="btn primary" id="save" disabled>Save</button>
     <div class="menu" id="menu">
@@ -359,6 +368,10 @@ const LABELS = {
   "flea.jsonc:bannedItems": "Banned items",
   "flea.jsonc:allowedItems": "Always allowed",
   "flea.jsonc:bannedModItems": "Mod items",
+  "flea.jsonc:levelLock": "Item unlock levels",
+  "flea.jsonc:levelLock.allowSellingBelowLevel": "Allow selling below the level",
+  "flea.jsonc:levelLock.moddedItems": "Modded items",
+  "flea.jsonc:levelLock.levels": "Your own levels",
   "listings.jsonc:listings": "Offer counts",
   "listings.jsonc:listings.multiplier": "Offers",
   "listings.jsonc:listings.currencyMultiplier": "Money for sale",
@@ -429,6 +442,10 @@ const DESC = {
   "flea.jsonc:bannedItems": "Items or whole categories that are never on the Flea Market.",
   "flea.jsonc:allowedItems": "Items or whole categories that are always on the Flea Market, even if banned above.",
   "flea.jsonc:bannedModItems": "Keep a server mod's items off the flea: all of them, or only some types. Only mods that add items are listed.",
+  "flea.jsonc:levelLock": "Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40). In game, items show the level they unlock at and flea categories show a lock. Off by default; the Live progression flea style turns it on. Applies straight away.",
+  "flea.jsonc:levelLock.allowSellingBelowLevel": "Let players list items they can't buy yet. Buying stays locked.",
+  "flea.jsonc:levelLock.moddedItems": "Modded items unlock with the real items of their kind worth about the same. Off: modded items need no level.",
+  "flea.jsonc:levelLock.levels": "Pick the level an item or a whole category unlocks at, in place of the real game's. 0 = no level needed. An item's own level beats its category's. Modded items count too.",
 
   // Listings
   "listings.jsonc:listings": "How many offers each item gets.",
@@ -450,7 +467,7 @@ const DESC = {
   "listings.jsonc:itemsPerOffer.bulk": "Bulbs, wires, bolts and the like: sold by the pile.",
   "listings.jsonc:itemsPerOffer.stock": "Rarer barter goods, common meds, food and parts: a few at a time.",
   "listings.jsonc:itemsPerOffer.few": "Rare, valuable or big items and all gear: usually one.",
-  "listings.jsonc:itemsPerOffer.signalFlares": "Usually one per offer.",
+  "listings.jsonc:itemsPerOffer.signalFlares": "Signal flares and the toy gun's 20x1mm disks. Usually one per offer.",
   "listings.jsonc:itemsPerOffer.ammoBoxes": "Usually one, sometimes up to three.",
   "listings.jsonc:itemsPerOffer.*.max": "Most items in one offer.",
   "listings.jsonc:itemsPerOffer.*.falloff": "How fast bigger amounts get rarer. Lower = more offers of just one.",
@@ -607,7 +624,7 @@ const DESC = {
   "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes.",
   "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes.",
   "selling.jsonc:saleDelay.noDelayChance": "Chance of no wait at all for offers at or under the normal price.",
-  "selling.jsonc:saleDelay.expensivePercent": "This far over the normal price, most items never sell.",
+  "selling.jsonc:saleDelay.expensivePercent": "This far over the normal price, only 1 in 20 buyers is interested. Any dearer never sells.",
   "selling.jsonc:flipPenalty": "Buy lots of one item and list it straight away, and buyers take longer to turn up. Needs Sale speed on.",
   "selling.jsonc:flipPenalty.windowMinutes": "How long a purchase counts, in minutes.",
   "selling.jsonc:flipPenalty.freePurchases": "Purchases of one item before it counts.",
@@ -615,7 +632,7 @@ const DESC = {
   "selling.jsonc:flipPenalty.maxExtraMinutes": "Longest extra wait, in minutes.",
   "selling.jsonc:flipPenalty.countFleaPurchases": "Count flea purchases too, not only traders.",
   "selling.jsonc:flipPenalty.fenceMultiplier": "Each Fence purchase counts as this many.",
-  "selling.jsonc:purchaseLock": "Items bought from traders (Fence too) can never be listed. Ammo and stacks aren't locked.",
+  "selling.jsonc:purchaseLock": "Items bought from traders (Fence too) can never be listed. Ammo and stacks aren't locked. Purchases are remembered while this is off too, so turning it on also locks what was bought before.",
   "selling.jsonc:purchaseLock.includeFleaPurchases": "Also lock items bought from other players on the flea.",
 
   // Economy
@@ -651,7 +668,7 @@ const ADVANCED = [
   "weapons.jsonc:presets.comboTacticalWeight", "weapons.jsonc:presets.laserLightChance", "weapons.jsonc:presets.extraTacticalChance",
   "weapons.jsonc:presets.emptyMountChance", "weapons.jsonc:presets.emptyRingsChance", "weapons.jsonc:presets.maxAttachmentDepth",
   "weapons.jsonc:presets.backupSightChance",
-  "armor.jsonc:conditionByRarity",
+  "armor.jsonc:conditionByRarity", "flea.jsonc:levelLock.levels",
   "market.jsonc:simulatedSales.everyMinutes", "market.jsonc:simulatedSales.dealSpeedup",
   "market.jsonc:barterOffers.valueMin", "market.jsonc:barterOffers.valueMax",
   "market.jsonc:sellerRating.min", "market.jsonc:sellerRating.max", "market.jsonc:sellerRating.everydayMax",
@@ -684,6 +701,8 @@ const CHOICES = {
 
 // Lists of item ids.
 const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems"];
+// Item or category ids, each with a level.
+const LEVEL_TABLES = ["flea.jsonc:levelLock.levels"];
 // Tables you can add entries to.
 const OPEN_TABLES = ["listings.jsonc:listings.categoryMultipliers", "listings.jsonc:listings.minimumOffers", "listings.jsonc:listings.superrareMinimumOffers"];
 
@@ -705,7 +724,9 @@ const OFF = {
 const BAD_CONDITION ={ mint: 0.1, worn: 0.5, destroyed: 0.25, obliterated: 0.15 };
 
 const STYLES = [
-  { id: "live", name: "Live-like (default)", short: "As close to the live flea as it gets.", about: "Everything as it ships: as close to the live flea as Better Flea gets.", files: {} },
+  { id: "live", name: "Balanced (default)", short: "Live-like, without item unlock levels.", about: "Everything as it ships: a live-like flea, but every item can be bought and sold from the level the flea opens. Pick Live progression for unlock levels too.", files: {} },
+  { id: "progression", name: "Live progression", short: "As close to the live flea as it gets: items unlock at the level the real flea needs.", levelLock: true,
+    about: "Balanced, plus item unlock levels: items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40). Your bans are kept.", files: {} },
   { id: "spt", name: "Base SPT", short: "Better Flea's changes off. The plain SPT flea.", about: "Better Flea's flea changes switched off, so the flea works like plain SPT. The memory saver stays on.", files: OFF },
   { id: "rough", name: "Rough market", short: "Fewer offers, lots of worn and broken gear.", about: "Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast.",
     files: {
@@ -821,12 +842,7 @@ function hidden(file, path) {
 }
 function dirtyFiles() { return state.files.filter(f => !same(f.values, state.saved[f.file])); }
 
-// Only the short "Unsaved changes" sits in the bar. Anything longer goes in the toast under it.
-function setStatus(text, kind) {
-  const s = $("status");
-  s.textContent = text;
-  s.className = "status" + (kind ? " " + kind : "");
-}
+// Only "Unsaved changes" sits in the bar, shown or hidden. Anything longer goes in the toast under it.
 let toastTimer = 0;
 function toast(text, kind, ms) {
   const t = $("toast");
@@ -839,10 +855,8 @@ function toast(text, kind, ms) {
 function refreshBar() {
   const dirty = dirtyFiles();
   $("save").disabled = $("discard").disabled = dirty.length === 0;
-  if (dirty.length) {
-    setStatus("Unsaved changes", "dirty");
-    $("status").title = dirty.map(f => f.title).join(", ");
-  } else if ($("status").className.includes("dirty")) { setStatus(""); $("status").title = ""; }
+  $("status").classList.toggle("dirty", dirty.length > 0);
+  $("status").title = dirty.map(f => f.title).join(", ");
 }
 
 // ---------- loading and saving ----------
@@ -949,16 +963,18 @@ function economyCard() {
   const card = make("div", "card economy");
   card.appendChild(make("h3", "", "Economy"));
   if (!o) { card.appendChild(make("div", "hint", "Loading…")); return card; }
-  const row = (name, on, sub) => {
+  const row = (name, on, sub, extra) => {
     const r = make("div", "econ-row");
     const t = make("div");
     t.append(make("div", "", name), make("div", "s", sub));
+    if (extra) t.appendChild(make("div", "synced", extra));
     r.append(t, make("span", "onoff " + (on ? "on" : "off"), on ? "ON" : "OFF"));
     card.appendChild(r);
   };
   const mode = { live: "Live (PvP)", pve: "PvE", season: "Season" }[o.livePrices.gameMode] || o.livePrices.gameMode;
-  const synced = o.livePrices.fetched ? " Updated " + ago(o.livePrices.fetched) + (o.livePrices.failed ? ", the last update failed." : ".") : " Not fetched yet.";
-  row("Live prices", o.livePrices.enabled, o.livePrices.enabled ? "Real flea prices from tarkov.dev, " + mode + "." + synced : "Using SPT's own prices.");
+  const synced = o.livePrices.fetched ? "Prices updated " + ago(o.livePrices.fetched) + (o.livePrices.failed ? ", the last update failed." : ".") : "Not fetched yet.";
+  row("Live prices", o.livePrices.enabled, o.livePrices.enabled ? "Real flea prices from tarkov.dev, " + mode + "." : "Using SPT's own prices.",
+    o.livePrices.enabled ? synced : "");
   const w = o.wipeCycle.now;
   const market = w ? Math.round((w.market - 1) * 100) : 0;
   row("Wipe Cycle", o.wipeCycle.enabled, o.wipeCycle.enabled && w
@@ -1024,6 +1040,10 @@ async function loadNames() {
   for (const key of ITEM_LISTS) {
     const [file, path] = key.split(":");
     for (const id of getAt(state.byFile[file].values, path.split(".")) || []) if (!state.names[id]) ids.add(id);
+  }
+  for (const key of LEVEL_TABLES) {
+    const [file, path] = key.split(":");
+    for (const id of Object.keys(getAt(state.byFile[file].values, path.split(".")) || {})) if (!state.names[id]) ids.add(id);
   }
   if (!ids.size) return;
   try {
@@ -1139,7 +1159,7 @@ function render() {
   }
   section.appendChild(head);
 
-  if (f.file === "flea.jsonc") section.appendChild(notice("Changes on this page apply after a server restart."));
+  if (f.file === "flea.jsonc") section.appendChild(notice("Bans apply after a server restart. Item unlock levels apply straight away."));
   if (f.file === "economy.jsonc" && getAt(f.values, ["livePrices", "enabled"]) && getAt(f.values, ["wipeCycle", "enabled"]))
     section.appendChild(notice("Live prices and the Wipe Cycle aren't made to run together. You may run into issues."));
   if (tabOff) section.appendChild(notice("Better Flea's " + f.title.toLowerCase() + " changes are off: this part of the flea works like plain SPT."));
@@ -1162,7 +1182,8 @@ function render() {
 function notice(text) { const n = document.createElement("div"); n.className = "notice"; n.textContent = text; return n; }
 
 function currentStyle() {
-  return STYLES.find(s => s.files && state.files.filter(styled).every(f => same(f.values, merge(f.defaults, s.files[f.file] || {}))));
+  return STYLES.find(s => s.files && !!s.levelLock === levelLockOn()
+    && state.files.filter(styled).every(f => same(f.values, merge(f.defaults, s.files[f.file] || {}))));
 }
 
 function ordered(f, path, obj) {
@@ -1189,6 +1210,7 @@ function buildNode(f, path) {
   const def = getAt(f.defaults, path);
   if (inList(ITEM_LISTS, f.file, path)) return itemList(f, path, value || [], def);
   if (f.file === "flea.jsonc" && path.join(".") === "bannedModItems") return modBans(f, path, value || {}, def);
+  if (inList(LEVEL_TABLES, f.file, path)) return levelTable(f, path, value || {}, def);
   if (isObject(value)) return group(f, path, value, def);
 
   const row = document.createElement("div");
@@ -1367,11 +1389,47 @@ function itemList(f, path, value, def) {
     chips.appendChild(chip);
   }
 
+  control.append(chips, itemFinder("find-" + path.join("-"), (item) => { if (!value.includes(item.id)) change(f, path, value.concat(item.id)); }));
+  row.appendChild(control);
+  return row;
+}
+
+// Your own unlock levels: an item or category, and its level.
+function levelTable(f, path, value, def) {
+  const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
+  row.append(label(f, path, true), resetButton(f, path, value, def));
+  const control = make("div", "control levels");
+  const ids = Object.keys(value);
+  if (!ids.length) control.appendChild(make("span", "none", "None yet. Everything unlocks at the real game's level."));
+  for (const id of ids) {
+    const known = state.names[id];
+    const entry = make("div", "level-row");
+    entry.title = id;
+    const name = make("span", "level-name", known ? known.name : id);
+    if (known && known.category) name.appendChild(make("small", "", " category"));
+    const remove = make("button", "remove", "×");
+    remove.title = "Remove";
+    remove.onclick = () => { const copy = clone(value); delete copy[id]; change(f, path, copy); };
+    entry.append(name, stepper(f, path.concat(id), value[id], 1), remove);
+    control.appendChild(entry);
+  }
+  control.appendChild(itemFinder("find-" + path.join("-"), (item) => {
+    if (item.id in value) return;
+    const copy = clone(value);
+    copy[item.id] = 15;
+    change(f, path, copy);
+  }));
+  row.appendChild(control);
+  return row;
+}
+
+// Search for an item or category by name, or paste an ID.
+function itemFinder(id, onPick) {
   const finder = document.createElement("div");
   finder.className = "finder";
   const search = document.createElement("input");
   search.className = "text";
-  search.id = "find-" + path.join("-");
+  search.id = id;
   search.placeholder = "Search for an item or category to add, or paste an ID";
   const results = document.createElement("div");
   results.className = "results";
@@ -1379,7 +1437,7 @@ function itemList(f, path, value, def) {
   let timer = null;
   const add = (item) => {
     state.names[item.id] = item;
-    if (!value.includes(item.id)) change(f, path, value.concat(item.id));
+    onPick(item);
   };
   search.oninput = () => {
     clearTimeout(timer);
@@ -1416,9 +1474,7 @@ function itemList(f, path, value, def) {
   };
   search.onblur = () => setTimeout(() => { results.hidden = true; }, 150);
   finder.append(search, results);
-  control.append(chips, finder);
-  row.appendChild(control);
-  return row;
+  return finder;
 }
 
 // ---------- home ----------
@@ -1616,7 +1672,7 @@ function settingsIndex() {
         const v = value[key];
         // A section's own on/off switch sits on the section's row, so the section stands for it.
         if (inList(HIDDEN, f.file, p) || (key === "enabled" && path.length && typeof v === "boolean")) continue;
-        const special = inList(ITEM_LISTS, f.file, p) || (f.file === "flea.jsonc" && p.join(".") === "bannedModItems");
+        const special = inList(ITEM_LISTS, f.file, p) || inList(LEVEL_TABLES, f.file, p) || (f.file === "flea.jsonc" && p.join(".") === "bannedModItems");
         out.push({ f, path: p, label: labelFor(f.file, p), desc: lookup(DESC, f.file, p) || "" });
         if (isObject(v) && !special && !inList(OPEN_TABLES, f.file, p)) walk(p, v);
       }
@@ -1789,7 +1845,7 @@ function economyPanel() {
 
 // One item: its prices now, from SPT and live, and through a wipe. Guests see it too.
 function itemLookup(e, d) {
-  const look = make("div", "card");
+  const look = make("div", "card lookup");
   look.appendChild(make("h3", "", "Item lookup"));
   const finder = make("div", "finder");
   const search = document.createElement("input");
@@ -1939,7 +1995,7 @@ function stepper(f, path, value, step) {
   el.className = "num";
   el.step = "any";
   el.value = value;
-  el.onchange = () => { const v = parseFloat(el.value); if (!isNaN(v)) change(f, path, Math.max(0, v)); };
+  el.onchange = () => { const v = parseFloat(el.value); if (!isNaN(v)) change(f, path, Math.max(0, Number.isInteger(step) ? Math.round(v) : v)); };
   const minus = document.createElement("button");
   minus.className = "step";
   minus.textContent = "−";
@@ -2038,9 +2094,17 @@ function randomise(file, path, def) {
 const STYLE_KEEPS = ["flea.jsonc", "economy.jsonc", "debug.jsonc"];
 const styled = (f) => !STYLE_KEEPS.includes(f.file);
 
+// From the Bans tab a style only switches item unlock levels on or off; the bans stay.
+const levelLockOn = () => !!getAt((state.byFile["flea.jsonc"] || {}).values || {}, ["levelLock", "enabled"]);
+
 function useStyle(style, everything) {
   for (const f of state.files.filter(f => everything || styled(f))) {
     f.values = style.files ? merge(f.defaults, style.files[f.file] || {}) : randomise(f.file, [], f.defaults);
+  }
+  const flea = state.byFile["flea.jsonc"];
+  if (flea && isObject(flea.values.levelLock)) {
+    flea.values = clone(flea.values);
+    flea.values.levelLock.enabled = !!style.levelLock;
   }
   state.styleNote = style.name + ": " + style.about + " Press Save to use it.";
   render();

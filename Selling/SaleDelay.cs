@@ -44,7 +44,7 @@ public class SaleDelayPatchesLoad(
 }
 
 // Sale speed goes by price against normal: undercut sells in under a minute, normal in a few minutes,
-// much dearer mostly never. Gun builds still sell now and then when dear. SPT's buyer timeline is pushed
+// past expensivePercent over never. SPT's buyer timeline is pushed
 // back by one wait, so its spacing stays.
 //
 // "Normal" is worked out from what's actually listed, priced the way the flea's own offers are. SPT's normal is
@@ -59,12 +59,9 @@ internal static class SaleDelayGate
     private static SPTarkov.Server.Core.Models.Spt.Config.RagfairConfig? _ragfairConfig;
 
     [ThreadStatic] private static double? _priceRatio;
-    [ThreadStatic] private static bool _soughtAfter;
     [ThreadStatic] private static double? _gunValue;
     [ThreadStatic] private static double? _contentsValue;
     [ThreadStatic] private static int _packUnits;
-
-    private const int BuildParts = 4;
 
     // packUnits: how many of the item a pack offer sells at once (its price is for all of them). 1 otherwise.
     public static void BeginListing(List<Item>? listed, ItemHelper itemHelper, int packUnits)
@@ -76,23 +73,19 @@ internal static class SaleDelayGate
             return;
         }
 
-        if (!itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON))
-        {
-            _contentsValue = ContentsValue(listed);
-            return;
-        }
-
-        _soughtAfter = listed.Count(item => !itemHelper.IsOfBaseclass(item.Template, BaseClasses.AMMO)) > BuildParts;
+        // A gun goes by the trader-based value the flea's guns use; with that off, by its parts like anything else.
         if (BetterFlea.Prices.GunPricing.Applies(listed))
         {
             _gunValue = BetterFlea.Prices.GunPricing.Value(listed);
+            return;
         }
+
+        _contentsValue = ContentsValue(listed);
     }
 
     public static void EndListing()
     {
         _priceRatio = null;
-        _soughtAfter = false;
         _gunValue = null;
         _contentsValue = null;
         _packUnits = 1;
@@ -162,15 +155,20 @@ internal static class SaleDelayGate
         _priceRatio = ratio;
         DebugLog.Write(() => $"Sale check: listed {listedPrice:0} RUB against a normal {normal:0} (SPT's average says {normalPrice:0}), x{ratio:0.00}");
 
-        // 5% chance at expensivePercent over, falling away fast. Half as fast for a gun build.
+        // Falls from 100% at 5% over to 5% at expensivePercent over. Past that nobody buys it.
         var over = ratio - 1.05;
         if (over <= 0)
         {
             return 100;
         }
 
-        var steep = Math.Log(20) / Math.Max(0.01, settings.ExpensivePercent / 100.0 - 0.05);
-        var chance = 100 * Math.Exp(-(_soughtAfter ? steep / 2 : steep) * over);
+        var limit = settings.ExpensivePercent / 100.0 - 0.05;
+        if (over > limit)
+        {
+            return 0;
+        }
+
+        var chance = 100 * Math.Exp(-Math.Log(20) / Math.Max(0.01, limit) * over);
         return chance < 1 ? 0 : Math.Round(chance);
     }
 

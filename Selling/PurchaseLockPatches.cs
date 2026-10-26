@@ -39,7 +39,8 @@ public class PurchaseLockPatchesLoad(
 
 // Ids of items players bought from traders. The item itself isn't marked, since unknown fields get sent to
 // every client and through co-op sync. Stacks and ammo boxes are never locked (they can be merged or opened).
-// Saved to data/purchase-locks.json and pruned against the inventory.
+// Saved to data/purchase-locks.json and pruned against the inventory, so it never holds more than players own.
+// Purchases are recorded even with the lock off, so turning it on also covers what was bought before.
 internal static class PurchaseLock
 {
     private const string FileName = "purchase-locks.json";
@@ -55,10 +56,16 @@ internal static class PurchaseLock
     private static LockFile _data = new();
 
     [ThreadStatic] private static HashSet<string>? _ownedBefore;
+    [ThreadStatic] private static bool _fromFlea;
+    [ThreadStatic] private static int _warningsBefore;
 
     public sealed class LockFile
     {
+        // Bought from traders.
         public Dictionary<string, HashSet<string>> Players { get; set; } = new();
+
+        // Bought from other players on the flea, only locked with includeFleaPurchases.
+        public Dictionary<string, HashSet<string>> FleaPurchases { get; set; } = new();
     }
 
     private static bool Enabled => _config?.Mod.PlayerSelling.PurchaseLock.Enabled == true;
@@ -74,20 +81,26 @@ internal static class PurchaseLock
         _data = DataFiles.Read<LockFile>(FileName) ?? new LockFile();
     }
 
-    public static void BeforePurchase(PmcData pmcData, ProcessBuyTradeRequestData request)
+    // SPT's purchase types: a trader's own screen, a trader's offer on the flea, and another seller's flea offer.
+    public static void BeforePurchase(PmcData pmcData, ProcessBuyTradeRequestData request, ItemEventRouterResponse output)
     {
-        var fromTrader = request.Type is "buy_from_trader" or "buy_from_ragfair_trader"
-            || (IncludeFleaPurchases && request.Type == "buy_from_ragfair");
-        _ownedBefore = Enabled && fromTrader ? OwnedIds(pmcData) : null;
+        var fromTrader = request.Type is "buy_from_trader" or "buy_from_ragfair_trader";
+        _fromFlea = request.Type == "buy_from_ragfair_pmc";
+        _warningsBefore = output.Warnings?.Count ?? 0;
+        _ownedBefore = fromTrader || _fromFlea ? OwnedIds(pmcData) : null;
     }
 
     public static void AfterPurchase(PmcData pmcData, MongoId player, ItemEventRouterResponse output)
     {
         var before = _ownedBefore;
+        var fromFlea = _fromFlea;
         _ownedBefore = null;
-        if (before is null || !Enabled || output.Warnings is { Count: > 0 })
+
+        // Several actions can share one response, so only a warning from this purchase means it failed.
+        var failed = (output.Warnings?.Count ?? 0) > _warningsBefore;
+        if (before is null || failed)
         {
-            DebugLog.Write(() => $"Purchase lock: skipped a purchase by {player} (lock on: {Enabled}, trader purchase: {before is not null}, warnings: {output.Warnings?.Count ?? 0})");
+            DebugLog.Write(() => $"Purchase lock: skipped a purchase by {player} (trader or flea purchase: {before is not null}, failed: {failed})");
             return;
         }
 
@@ -104,8 +117,8 @@ internal static class PurchaseLock
 
         lock (Sync)
         {
-            var locks = LocksFor(player.ToString(), create: true)!;
-            Prune(locks, pmcData);
+            var locks = LocksFor(fromFlea ? _data.FleaPurchases : _data.Players, player.ToString(), create: true)!;
+            Prune(player.ToString(), pmcData);
             locks.UnionWith(added);
             if (locks.Count > MaxLocksPerPlayer)
             {
@@ -115,7 +128,7 @@ internal static class PurchaseLock
             Save();
         }
 
-        DebugLog.Write(() => $"Purchase lock: {player} bought {added.Count} item(s) from a trader, locked: {string.Join(", ", added)}");
+        DebugLog.Write(() => $"Purchase lock: {player} bought {added.Count} item(s) from {(fromFlea ? "the flea" : "a trader")}, recorded: {string.Join(", ", added)}");
     }
 
     public static bool AnyLocked(MongoId player, List<Item> listed)
@@ -127,8 +140,8 @@ internal static class PurchaseLock
 
         lock (Sync)
         {
-            var locks = LocksFor(player.ToString(), create: false);
-            var locked = locks is not null && listed.Any(item => !CanSlipThrough(item) && locks.Contains(item.Id.ToString()));
+            var locks = Locked(player.ToString());
+            var locked = locks.Count > 0 && listed.Any(item => !CanSlipThrough(item) && locks.Contains(item.Id.ToString()));
             DebugLog.Write(() => $"Purchase lock: {player} listing {string.Join(", ", listed.Select(item => item.Id))} - {(locked ? "refused, bought from a trader" : "allowed")}");
             return locked;
         }
@@ -158,19 +171,22 @@ internal static class PurchaseLock
         lock (Sync)
         {
             var removed = 0;
-            foreach (var (player, locks) in _data.Players.ToList())
+            foreach (var list in new[] { _data.Players, _data.FleaPurchases })
             {
-                var inventory = TryInventory(saveServer, player);
-                if (inventory is null)
+                foreach (var (player, locks) in list.ToList())
                 {
-                    continue;
-                }
+                    var inventory = TryInventory(saveServer, player);
+                    if (inventory is null)
+                    {
+                        continue;
+                    }
 
-                var keep = inventory.Where(item => !CanSlipThrough(item)).Select(item => item.Id.ToString()).ToHashSet();
-                removed += locks.RemoveWhere(id => !keep.Contains(id));
-                if (locks.Count == 0)
-                {
-                    _data.Players.Remove(player);
+                    var keep = inventory.Where(item => !CanSlipThrough(item)).Select(item => item.Id.ToString()).ToHashSet();
+                    removed += locks.RemoveWhere(id => !keep.Contains(id));
+                    if (locks.Count == 0)
+                    {
+                        list.Remove(player);
+                    }
                 }
             }
 
@@ -204,23 +220,40 @@ internal static class PurchaseLock
 
         lock (Sync)
         {
-            return LocksFor(player.ToString(), create: false)?.ToList() ?? new List<string>();
+            return Locked(player.ToString()).ToList();
         }
+    }
+
+    // Trader purchases, plus flea purchases when those are locked too.
+    private static HashSet<string> Locked(string player)
+    {
+        var locks = new HashSet<string>(LocksFor(_data.Players, player, create: false) ?? []);
+        if (IncludeFleaPurchases && LocksFor(_data.FleaPurchases, player, create: false) is { } flea)
+        {
+            locks.UnionWith(flea);
+        }
+
+        return locks;
     }
 
     // Only on a purchase, when the inventory is known to be complete.
-    private static void Prune(HashSet<string> locks, PmcData pmcData)
+    private static void Prune(string player, PmcData pmcData)
     {
         var owned = OwnedIds(pmcData);
-        if (owned.Count > 0)
+        if (owned.Count == 0)
         {
-            locks.RemoveWhere(id => !owned.Contains(id));
+            return;
+        }
+
+        foreach (var list in new[] { _data.Players, _data.FleaPurchases })
+        {
+            LocksFor(list, player, create: false)?.RemoveWhere(id => !owned.Contains(id));
         }
     }
 
-    private static HashSet<string>? LocksFor(string player, bool create)
+    private static HashSet<string>? LocksFor(Dictionary<string, HashSet<string>> list, string player, bool create)
     {
-        if (_data.Players.TryGetValue(player, out var locks))
+        if (list.TryGetValue(player, out var locks))
         {
             return locks;
         }
@@ -231,7 +264,7 @@ internal static class PurchaseLock
         }
 
         locks = new HashSet<string>();
-        _data.Players[player] = locks;
+        list[player] = locks;
         return locks;
     }
 
@@ -248,9 +281,9 @@ public class LockPurchasePatch : AbstractPatch
     }
 
     [PatchPrefix]
-    public static void Prefix(PmcData pmcData, ProcessBuyTradeRequestData buyRequestData)
+    public static void Prefix(PmcData pmcData, ProcessBuyTradeRequestData buyRequestData, ItemEventRouterResponse output)
     {
-        PurchaseLock.BeforePurchase(pmcData, buyRequestData);
+        PurchaseLock.BeforePurchase(pmcData, buyRequestData, output);
     }
 
     [PatchPostfix]
@@ -260,7 +293,8 @@ public class LockPurchasePatch : AbstractPatch
     }
 }
 
-// GET /betterflea/client-data for the client plugin: flea-banned types and the caller's trader-bought items.
+// GET /betterflea/client-data for the client plugin: flea-banned types, the caller's trader-bought items and level.
+// GET /betterflea/item-levels: the level each item unlocks at, asked for only when LevelsVersion changes.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload)]
 public class ClientDataRoute(
     TemplateTable templates,
@@ -270,25 +304,34 @@ public class ClientDataRoute(
     JsonUtil jsonUtil) : IHttpListener
 {
     public const string Path = "/betterflea/client-data";
+    public const string LevelsPath = "/betterflea/item-levels";
 
     // Currency, dogtags and quest items are kept off by the game itself, so they get no icon.
-    private List<string>? _fleaBanned;
+    // Built again if the bans change: the server answers before startup has applied them.
+    private (int Bans, List<string> Ids)? _fleaBanned;
     private readonly object _sync = new();
 
     public bool CanHandle(HttpContext context)
     {
-        return context.Request.Path.Equals(Path, StringComparison.OrdinalIgnoreCase);
+        return context.Request.Path.Equals(Path, StringComparison.OrdinalIgnoreCase)
+            || context.Request.Path.Equals(LevelsPath, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task HandleAsync(MongoId sessionId, HttpContext context, CancellationToken cancellationToken)
     {
-        var body = jsonUtil.Serialize(new ClientData
-        {
-            FleaBanned = FleaBanned(),
-            BoughtFromTrader = PurchaseLock.LockedIds(sessionId),
-            PurchaseLockOn = PurchaseLock.IsOn,
-            SellingOff = !configManager.Mod.PlayerSelling.Enabled
-        });
+        var body = context.Request.Path.Equals(LevelsPath, StringComparison.OrdinalIgnoreCase)
+            ? jsonUtil.Serialize(Flea.LevelLock.ForClient())
+            : jsonUtil.Serialize(new ClientData
+            {
+                FleaBanned = FleaBanned(),
+                BoughtFromTrader = PurchaseLock.LockedIds(sessionId),
+                PurchaseLockOn = PurchaseLock.IsOn,
+                SellingOff = !configManager.Mod.PlayerSelling.Enabled,
+                LevelLockOn = Flea.LevelLock.On,
+                LevelLockSelling = Flea.LevelLock.LockSelling,
+                LevelsVersion = Flea.LevelLock.Version,
+                PlayerLevel = Flea.LevelLock.PlayerLevel(sessionId)
+            });
 
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(body ?? "{}", cancellationToken);
@@ -298,14 +341,23 @@ public class ClientDataRoute(
     {
         lock (_sync)
         {
-            return _fleaBanned ??= templates.Handbook.Items
+            var bans = FleaSellingGate.BanCount;
+            if (_fleaBanned is { } cached && cached.Bans == bans)
+            {
+                return cached.Ids;
+            }
+
+            var ids = templates.Handbook.Items
                 .Select(entry => itemHelper.GetItem(entry.Id))
+                // SPT turns CanSellOnRagfair off for the items Better Flea bans, so those are let through first.
                 .Where(item => item.Key
-                    && item.Value?.Properties?.CanSellOnRagfair == true
                     && item.Value?.Properties?.QuestItem != true
-                    && !ragfairServerHelper.IsItemValidRagfairItem(item))
+                    && (FleaSellingGate.IsBanned(item.Value!.Id)
+                        || item.Value?.Properties?.CanSellOnRagfair == true && !ragfairServerHelper.IsItemValidRagfairItem(item)))
                 .Select(item => item.Value!.Id.ToString())
                 .ToList();
+            _fleaBanned = (bans, ids);
+            return ids;
         }
     }
 
@@ -317,5 +369,13 @@ public class ClientDataRoute(
         public bool PurchaseLockOn { get; set; }
 
         public bool SellingOff { get; set; }
+
+        public bool LevelLockOn { get; set; }
+
+        public bool LevelLockSelling { get; set; }
+
+        public int LevelsVersion { get; set; }
+
+        public int PlayerLevel { get; set; }
     }
 }

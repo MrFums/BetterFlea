@@ -44,7 +44,8 @@ public enum QuantityTier
 internal static class OfferQuantityGate
 {
     private static readonly MongoId BarterItem = new("5448eb774bdc2d0a728b4567");
-    private const string SignalFlareCaliber = "Caliber26x75";
+    // Signal flares, and the toy gun's 20x1mm disks, which are sold one or two at a time like them.
+    private static readonly HashSet<string> FewAtATimeCalibers = ["Caliber26x75", "Caliber20x1mm"];
     private static readonly MongoId Throwable = new("543be6564bdc2df4348b4568");
     private static readonly MongoId AmmoBox = new("543be5cb4bdc2deb348b4568");
     private static readonly MongoId[] EverydayKinds =
@@ -75,7 +76,7 @@ internal static class OfferQuantityGate
         }
 
         // Flares share the ammo class, so tell them apart by calibre.
-        if (_itemHelper.GetItem(tpl).Value?.Properties?.Caliber == SignalFlareCaliber)
+        if (_itemHelper.GetItem(tpl).Value?.Properties?.Caliber is { } caliber && FewAtATimeCalibers.Contains(caliber))
         {
             return Roll(settings.SignalFlares);
         }

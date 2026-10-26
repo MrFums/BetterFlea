@@ -13,6 +13,7 @@ public class ArmorOffersLoad(
     ConfigManager configManager,
     ItemHelper itemHelper,
     RagfairServerHelper ragfairServerHelper,
+    PresetHelper presetHelper,
     RagfairConfig ragfairConfig) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
@@ -22,7 +23,7 @@ public class ArmorOffersLoad(
             configManager.Load();
         }
 
-        ArmorOffers.Bind(configManager, itemHelper, ragfairServerHelper);
+        ArmorOffers.Bind(configManager, itemHelper, ragfairServerHelper, presetHelper);
 
         // SPT pulls a plate out of 40% of armor offers. We fit plates ourselves instead.
         ArmorOffers.SptPlateRemovalChance = ragfairConfig.Dynamic.Armor.RemoveRemovablePlateChance;
@@ -39,6 +40,7 @@ internal static class ArmorOffers
     private static ConfigManager? _config;
     private static ItemHelper? _itemHelper;
     private static RagfairServerHelper? _ragfair;
+    private static PresetHelper? _presets;
     private static int _fitted;
 
     private static readonly MongoId ArmorVestBase = new("5448e54d4bdc2dcc718b4568");
@@ -48,11 +50,12 @@ internal static class ArmorOffers
 
     private static readonly string[] FavouredPlates = ["monoclete", "elaphros"];
 
-    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, RagfairServerHelper ragfairServerHelper)
+    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, RagfairServerHelper ragfairServerHelper, PresetHelper presetHelper)
     {
         _config = configManager;
         _itemHelper = itemHelper;
         _ragfair = ragfairServerHelper;
+        _presets = presetHelper;
     }
 
     private static ArmorOffersConfig Settings => _config!.Mod.GeneratedOffers.Armor;
@@ -210,7 +213,7 @@ internal static class ArmorOffers
     // With fallback, the nearest class there is (some Russian carriers only take their own plates).
     private static List<MongoId> Options(Slot slot, int armorClass, bool fallback = false)
     {
-        var fitting = (slot.Properties?.Filters?.FirstOrDefault()?.Filter ?? [])
+        var fitting = PresetOfferGate.Parts(slot)
             .Where(tpl => IsPlate(tpl) && _ragfair!.IsItemValidRagfairItem(_itemHelper!.GetItem(tpl))
                 && (_itemHelper.GetItem(tpl).Value?.Properties?.Weight ?? 0) > 0)
             .ToList();
@@ -256,12 +259,30 @@ internal static class ArmorOffers
     // Monoclete, Elaphros, Titan, NewSphereTech.
     private const double LightPlateWeight = 2.5;
 
-    // 0 at about 40k or less, 1 at about 400k or more, log scale.
+    // Carriers by price with their default plates: 0 for the cheapest fifth, 1 for the dearest few. By rank, not
+    // roubles, so SPT's price scale doesn't matter.
     private static double Premium(MongoId carrier)
     {
-        var price = BuildQuality.Price(carrier);
-        return price <= 0 ? 0 : Math.Clamp(Math.Log(price / 40_000) / Math.Log(10), 0, 1);
+        var prices = CarrierPrices.Value;
+        var price = PriceWithPlates(carrier);
+        if (prices.Count == 0 || price <= 0)
+        {
+            return 0;
+        }
+
+        var index = prices.BinarySearch(price);
+        var rank = (double)(index < 0 ? ~index : index) / prices.Count;
+        return Math.Clamp((rank - 0.2) / 0.75, 0, 1);
     }
+
+    private static readonly Lazy<List<double>> CarrierPrices = new(() =>
+        _presets!.GetDefaultPresets().Values.Where(preset => preset.Items is { Count: > 0 } && IsCarrier(preset.Items[0].Template))
+            .Select(preset => PriceWithPlates(preset.Items[0].Template)).Where(price => price > 0).OrderBy(price => price).ToList());
+
+    private static double PriceWithPlates(MongoId carrier) =>
+        _presets!.GetDefaultPreset(carrier)?.Items is { Count: > 0 } items
+            ? items.Sum(item => BuildQuality.Price(item.Template))
+            : BuildQuality.Price(carrier);
 
     private static void Add(List<Item> items, Item carrier, Slot slot, MongoId? plate)
     {

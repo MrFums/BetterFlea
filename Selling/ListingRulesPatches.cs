@@ -8,6 +8,7 @@ using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.ItemEvent;
 using SPTarkov.Server.Core.Models.Eft.Ragfair;
+using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Routers;
 using SPTarkov.Server.Core.Utils;
 
@@ -17,7 +18,8 @@ namespace BetterFlea.Selling;
 public class DisableFleaSellingPatchesLoad(
     ConfigManager configManager,
     HttpResponseUtil httpResponseUtil,
-    EventOutputHolder eventOutputHolder) : IOnLoad
+    EventOutputHolder eventOutputHolder,
+    RagfairConfig ragfairConfig) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -26,7 +28,7 @@ public class DisableFleaSellingPatchesLoad(
             configManager.Load();
         }
 
-        FleaSellingGate.Bind(configManager, httpResponseUtil, eventOutputHolder);
+        FleaSellingGate.Bind(configManager, httpResponseUtil, eventOutputHolder, ragfairConfig);
         new DisableFleaSellingPatch().Enable();
         return Task.CompletedTask;
     }
@@ -40,15 +42,18 @@ internal static class FleaSellingGate
     private static ConfigManager? _config;
     private static HttpResponseUtil? _http;
     private static EventOutputHolder? _output;
+    private static RagfairConfig? _ragfair;
 
     public static void Bind(
         ConfigManager configManager,
         HttpResponseUtil http,
-        EventOutputHolder output)
+        EventOutputHolder output,
+        RagfairConfig ragfair)
     {
         _config = configManager;
         _http = http;
         _output = output;
+        _ragfair = ragfair;
     }
 
     public static bool Blocked => _config is not null && !_config.Mod.PlayerSelling.Enabled;
@@ -94,6 +99,14 @@ internal static class FleaSellingGate
     }
 
     public const string BoughtFromTraderMessage = "Trader items can't be sold at the Flea Market.";
+    public const string BannedMessage = "This item is banned from the Flea Market.";
+
+    // Better Flea's bans only keep generated offers off the flea, so players are stopped from listing them here.
+    public static bool AnyBanned(IEnumerable<Item> listed) => listed.Any(item => IsBanned(item.Template));
+
+    public static bool IsBanned(MongoId tpl) => _ragfair?.Dynamic.Blacklist.Custom.Contains(tpl) == true;
+
+    public static int BanCount => _ragfair?.Dynamic.Blacklist.Custom.Count ?? 0;
 
     // No error code on purpose: RagfairUnavailable kicks the player to the menu.
     public static ItemEventRouterResponse Fail(MongoId sessionID, string message)
@@ -134,6 +147,12 @@ public class DisableFleaSellingPatch : AbstractPatch
         }
 
         var roots = listedIds.Select(id => id.ToString()).ToHashSet();
+        if (FleaSellingGate.AnyBanned(listed.Where(item => roots.Contains(item.Id.ToString()))))
+        {
+            __result = FleaSellingGate.Fail(sessionID, FleaSellingGate.BannedMessage);
+            return false;
+        }
+
         if (Flea.LevelLock.SellRefusal(pmcData, listed.Where(item => roots.Contains(item.Id.ToString()))) is { } tooLow)
         {
             __result = FleaSellingGate.Fail(sessionID, tooLow);

@@ -29,7 +29,7 @@ Everything can be turned off or tuned in the settings.
 **Fika headless client: do NOT install the BepInEx plugin on it.** It only needs the server mod on the server.
 
 ## How to install
-1. Download `BetterFlea-2.1.2.zip`.
+1. Download `BetterFlea-2.2.0.zip`.
 2. Open your SPT install folder.
 3. Extract the zip into this folder. The 2 parts go to the correct folders by themselves.
 4. Only the server host needs the server component. Obviously. Every REAL player needs the BepInEx plugin.
@@ -60,7 +60,7 @@ Changed something and want it back? Press Reset to default on that tab, or Reset
 - Take whole types of items off the flea: guns, ammo, keys, armour, meds and the rest.
 - Ban single items, or always allow them even if their type is banned. Search for them by name.
 - Ban the items another server mod adds: all of them, or just some types (only its guns, say).
-- Level locked items, like live: some items can only be bought and sold from a certain level (the M4A1 from 25, a graphics card from 30). Uses the real game's levels. A modded item unlocks with the real items of its kind that are worth about the same, so a strong modded stim needs the level the strongest real stims need.
+- Item unlock levels (off by default; the Live progression flea style turns them on, or the Bans tab): some items can only be bought and sold from a certain level (the M4A1 from 25, a graphics card from 40). Items show the level they unlock at when inspected and flea categories show a lock, like live. Uses the real game's levels. A modded item unlocks with the real items of its kind that are worth about the same, so a strong modded stim needs the level the strongest real stims need. With Advanced settings on, you can set your own level for any item or whole category.
 
 ## 2. Offers
 
@@ -119,6 +119,7 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 ## 5. Prices
 I would personally recommend setting the marked key price to 1.5 as I feel marked keys a bit too cheap in base SPT. I've left this untouched for the default.
 
+- Base prices are SPT 4.1.7's on every SPT 4.1 version. Older SPT versions add two prices together, which made the flea about 2.5 times too dear, so updating SPT doesn't change your flea.
 - An offer is never cheaper than what a trader pays for the item. No buying on the flea to sell to a trader.
 - Prices go up and down over time.
 - Some sellers ask too much, and now and then someone sells one cheap.
@@ -126,9 +127,9 @@ I would personally recommend setting the marked key price to 1.5 as I feel marke
 - Want the whole flea dearer or cheaper? One setting does every offer from other sellers. Trader prices don't change.
 
 ## 6. Player selling
-I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. The trader item lock is off by default - turn it on and any item bought from a trader cannot be sold on the flea.
+I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. The trader item lock is off by default - turn it on and any item bought from a trader cannot be sold on the flea. Purchases are remembered while it's off too, so turning it on mid-wipe also locks what was bought before.
 
-- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced barely sells. Good gun builds still sell now and then. "Normal" goes by what's in your item: armour with one plate is priced as armour with one plate.
+- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced rarely sells, and more than 30% over never does. "Normal" goes by what's in your item: armour with one plate is priced as armour with one plate.
 - Found in raid only is off by default, like live.
 
 Well whats the difference between the flip penalty and the trader item lock?

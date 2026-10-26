@@ -26,6 +26,7 @@ public class LevelLockLoad(ConfigManager configManager, ProfileHelper profileHel
         }
 
         LevelLock.Bind(configManager, profileHelper, templates);
+        HandbookTree.Bind(templates);
         LevelGatePatch.Globals = globals;
         new LevelLockPatch().Enable();
         new LevelGatePatch().Enable();
@@ -33,7 +34,7 @@ public class LevelLockLoad(ConfigManager configManager, ProfileHelper profileHel
     }
 }
 
-// Like the real flea: some items can only be bought from a certain level (the M4A1 at 25, a graphics card at 30).
+// Like the real flea: some items can only be bought from a certain level (the M4A1 at 25, a graphics card at 40).
 // The levels are the real game's (tarkov.dev), shipped with the mod and updated whenever live prices are fetched.
 // A modded item gets the level of the base-game items of its kind worth about the same. Locked items can't be
 // listed for sale either (optional).
@@ -52,6 +53,78 @@ internal static class LevelLock
     private static readonly Dictionary<MongoId, List<(double LogPrice, int Level)>> KindPeers = new();
 
     private static LevelLockConfig? Settings => _config?.Mod.Flea.LevelLock is { Enabled: true } settings ? settings : null;
+
+    public static bool On => Settings is not null;
+
+    public static bool LockSelling => Settings is { AllowSellingBelowLevel: false };
+
+    // Changes whenever the levels the client was sent could have changed, so it only fetches them again then.
+    private static int _forgets;
+    public static int Version => HashCode.Combine(_forgets, On, Settings is { ModdedItems: true }, Custom().Stamp);
+
+    // The levels the server owner set on the settings page, by item or category ID.
+    private static (Dictionary<string, int>? Source, Dictionary<MongoId, int> Levels, int Stamp) _custom = (null, new(), 0);
+
+    private static (Dictionary<string, int>? Source, Dictionary<MongoId, int> Levels, int Stamp) Custom()
+    {
+        var source = Settings?.Levels;
+        var custom = _custom;
+        if (ReferenceEquals(custom.Source, source))
+        {
+            return custom;
+        }
+
+        var levels = new Dictionary<MongoId, int>();
+        var stamp = 0;
+        foreach (var (id, level) in source ?? [])
+        {
+            if (MongoId.IsValidMongoId(id))
+            {
+                levels[new MongoId(id)] = Math.Max(0, level);
+                stamp ^= HashCode.Combine(id.ToLowerInvariant(), level);
+            }
+        }
+
+        return _custom = (source, levels, stamp);
+    }
+
+    // An item's own setting beats its nearest category's, and a handbook category beats an item type.
+    private static int? CustomLevel(MongoId tpl)
+    {
+        var levels = Custom().Levels;
+        if (levels.Count == 0)
+        {
+            return null;
+        }
+
+        if (levels.TryGetValue(tpl, out var level))
+        {
+            return level;
+        }
+
+        foreach (var category in HandbookTree.CategoriesOf(tpl))
+        {
+            if (levels.TryGetValue(category, out level))
+            {
+                return level;
+            }
+        }
+
+        MongoId? kind = _templates?.Items.GetValueOrDefault(tpl)?.Parent;
+        for (var depth = 0; depth < 10 && kind is { } current; depth++)
+        {
+            if (levels.TryGetValue(current, out level))
+            {
+                return level;
+            }
+
+            kind = _templates!.Items.GetValueOrDefault(current)?.Parent;
+        }
+
+        return null;
+    }
+
+    private static (int Version, Dictionary<string, int> Levels)? _forClient;
 
     public static void Bind(ConfigManager configManager, ProfileHelper profileHelper, TemplateTable templates)
     {
@@ -81,11 +154,49 @@ internal static class LevelLock
         }
 
         _levels = new Lazy<Dictionary<MongoId, int>>(Build);
+        HandbookPrices = new Lazy<Dictionary<MongoId, double>>(ReadHandbook);
+        Interlocked.Increment(ref _forgets);
+    }
+
+    public static int PlayerLevel(MongoId sessionId) => _profiles?.GetPmcProfile(sessionId)?.Info?.Level ?? 0;
+
+    // Every flea item that needs a level, modded ones included, for the client plugin to show on items and categories.
+    public static Dictionary<string, int> ForClient()
+    {
+        var version = Version;
+        if (_forClient is { } cached && cached.Version == version)
+        {
+            return cached.Levels;
+        }
+
+        var levels = new Dictionary<string, int>();
+        if (On && _templates?.Handbook?.Items is { } handbook)
+        {
+            foreach (var entry in handbook)
+            {
+                if (LevelFor(entry.Id) is > 0 and var level)
+                {
+                    levels[entry.Id.ToString()] = level;
+                }
+            }
+        }
+
+        _forClient = (version, levels);
+        var moddedItems = _templates?.Items.Where(entry => entry.Value.Type == "Item" && !ModItems.IsBaseItem(entry.Key)).Select(entry => entry.Key).ToList() ?? [];
+        var modded = moddedItems.Count;
+        var lockedModded = moddedItems.Count(tpl => levels.ContainsKey(tpl.ToString()));
+        DebugLog.Summary(() => $"Level lock: {levels.Count} items need a level, {lockedModded} of the {modded} modded items among them.");
+        return levels;
     }
 
     // 0 = no level needed beyond the flea's own.
     public static int LevelFor(MongoId tpl)
     {
+        if (CustomLevel(tpl) is { } custom)
+        {
+            return custom;
+        }
+
         if (_levels.Value.TryGetValue(tpl, out var level))
         {
             return level;
@@ -112,21 +223,22 @@ internal static class LevelLock
     // A modded item takes the level of the base-game items of its kind that are worth about the same, so a strong
     // modded stim unlocks with the strong real ones and a weak one with the weak ones. Price stands in for how good
     // an item is: the real flea's levels follow it closely within a kind. Too few base items of the exact kind
-    // (a mod's own category) and the wider kind above it is used.
+    // (a mod's own category) and the wider kind above it is used. Works for any mod's items: only the item's type
+    // and price are looked at. An item with no price at all gets the level most items of its kind need.
     private static int SimilarLevel(TemplateItem item)
     {
         var price = PriceOf(item.Id);
-        if (price <= 0)
-        {
-            return 0;
-        }
-
         MongoId? kind = item.Parent;
         for (var depth = 0; depth < 3 && kind is { } current; depth++)
         {
             var peers = PeersOf(current);
             if (peers.Count >= 3)
             {
+                if (price <= 0)
+                {
+                    return peers.GroupBy(peer => peer.Level).MaxBy(group => (group.Count(), group.Key))!.Key;
+                }
+
                 var target = Math.Log(price);
                 var nearest = peers.OrderBy(peer => Math.Abs(peer.LogPrice - target)).Take(3).Select(peer => peer.Level).Order().ToList();
                 return nearest[nearest.Count / 2];
@@ -172,7 +284,25 @@ internal static class LevelLock
         return KindPeers[kind] = peers;
     }
 
-    private static double PriceOf(MongoId tpl) => _templates!.Prices.GetValueOrDefault(tpl);
+    // The flea price, or the handbook (trader) price for a mod that only set that.
+    private static double PriceOf(MongoId tpl) =>
+        _templates!.Prices.GetValueOrDefault(tpl) is > 0 and var price ? price : HandbookPrices.Value.GetValueOrDefault(tpl);
+
+    private static Lazy<Dictionary<MongoId, double>> HandbookPrices = new(ReadHandbook);
+
+    private static Dictionary<MongoId, double> ReadHandbook()
+    {
+        var prices = new Dictionary<MongoId, double>();
+        foreach (var entry in _templates?.Handbook?.Items ?? [])
+        {
+            if (entry.Price is > 0 and var price)
+            {
+                prices[entry.Id] = price;
+            }
+        }
+
+        return prices;
+    }
 
     private static Dictionary<MongoId, int> Build()
     {
@@ -207,7 +337,7 @@ internal static class LevelLock
     // Like live, a locked item can't be listed either. Only the items listed count, not what's in or on them.
     public static string? SellRefusal(PmcData pmcData, IEnumerable<Item> listed)
     {
-        if (Settings is not { Selling: true } || pmcData.Info?.Level is not { } playerLevel)
+        if (!LockSelling || pmcData.Info?.Level is not { } playerLevel)
         {
             return null;
         }

@@ -30,9 +30,12 @@ public record FleaConfig
 
 public record LevelLockConfig
 {
-    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
-    [JsonPropertyName("selling")] public bool Selling { get; set; } = true;
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    [JsonPropertyName("allowSellingBelowLevel")] public bool AllowSellingBelowLevel { get; set; }
     [JsonPropertyName("moddedItems")] public bool ModdedItems { get; set; } = true;
+
+    // Item or category ID -> the level it unlocks at, in place of the real game's. 0 = no level needed.
+    [JsonPropertyName("levels")] public Dictionary<string, int> Levels { get; set; } = new();
 }
 
 public record BanFromFleaConfig

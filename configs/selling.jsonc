@@ -6,15 +6,15 @@
   "foundInRaidOnly": false,          // true = players can only sell items that are found in raid
 
   // How fast a player's offer sells depends on its price against the normal price.
-  // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: longer, and
-  // at expensivePercent over the normal price most items never sell. A gun build (a gun with its parts on) still
-  // sells now and then even when dear, because people pay over the odds for a good one.
+  // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: longer and
+  // less likely, and past expensivePercent over the normal price it never sells. The normal price goes by what's in
+  // the item: its parts, plates and their condition.
   "saleDelay": {
     "enabled": true,
     "minMinutes": 2,                 // shortest wait at the normal price
     "maxMinutes": 8,                 // longest wait at the normal price
     "noDelayChance": 0.1,            // chance of no wait at all, for offers at or under the normal price. 0.1 = 10%
-    "expensivePercent": 30           // this much over the normal price, only about 1 in 20 buyers is still interested
+    "expensivePercent": 30           // this much over the normal price, only 1 in 20 buyers is still interested; any dearer never sells
   },
 
   // A player who buys many of one item, then sells it on the Flea Market, waits longer for a buyer.
@@ -33,6 +33,8 @@
   // Players can still use them, or sell them to a trader.
   // Parts on a bought gun are also locked.
   // Ammo, ammo boxes and other items that stack are not locked.
+  // Purchases are remembered even while this is off, so turning it on also locks what was bought before.
+  // An item is forgotten once the player no longer has it.
   "purchaseLock": {
     "enabled": false,
     "includeFleaPurchases": false  // true = items bought from other players on the flea are locked too, not only from traders

@@ -1,21 +1,36 @@
 # Changelog
 
-## 2.1.2
+## 2.2.0
 
 **New**
-- **Level locked items, like live:** some items can only be bought and sold from a certain level (the M4A1 from 25, a graphics card from 30). Below that level the offer shows locked with its unlock level, and listing the item says which level you need. Uses the real game's level for every item, kept up to date from tarkov.dev when Live prices are on. A modded item unlocks with the real items of its kind that are worth about the same, so a strong modded stim needs the level the strongest real stims need. On by default, on the Bans tab, and selling can be left unlocked.
+- **Ready for SPT 4.1.7:** SPT 4.1.6 and older add two base prices together for most items instead of using one ([SPT issue #135](https://github.com/SP-Tushonka/server-csharp/issues/135)), so the whole flea was about 2.5 times too dear. SPT 4.1.7 fixes this. Better Flea now uses the fixed prices on every SPT 4.1 version, so nothing changes when you update SPT. Flea prices are now roughly 40% of what they were (a LEDX about 1.1 million instead of 2.9 million). Want it dearer? Raise the price multiplier on the Prices tab.
+- Which plates armour gets and how cheap budget gun builds are went by fixed rouble amounts. They now work the same on the new prices.
+- **Item unlock levels (off by default):** some items can only be bought and sold from a certain level (the M4A1 from 25, a graphics card from 40). Like live, an item's inspect window says "Unlocks on flea market: X Level", flea categories show a lock with the level they open at, offers you can't buy yet show locked, and items you can't sell yet are greyed out when adding an offer. Uses the real game's level for every item, kept up to date from tarkov.dev when Live prices are on. A modded item unlocks with the real items of its kind that are worth about the same, so a strong modded stim needs the level the strongest real stims need. Pick the new **Live progression** flea style, or turn it on in the Bans tab; selling can be left unlocked. With Advanced settings on, you can set your own level for any item or whole category.
+- The default flea style, Live-like, is now called **Balanced**. It's live-like but has no item unlock levels; **Live progression** is the style closest to the live flea.
 - **Seller badges:** like the live flea, some sellers have an Edge of Darkness (20%) or Unheard (15%) badge, and very rarely a Developer, Sherpa or Emissary one. The shares are on the Market tab.
+- The trader item lock now remembers trader purchases while it's off too (and flea purchases, for "Lock flea purchases too"), so turning it on mid-wipe also locks what was bought before. An item is forgotten once its owner no longer has it, so the list stays small.
 - Item lookup on the read-only page, so everyone can look up an item's prices.
 - The read-only page shows when live prices were last updated.
 
 **Fixes**
 - A seller's rating could change from one offer to the next. Each seller name now keeps the same rating and badge on every offer, even after a restart.
-- An overpriced listing could still sell straight away. Armour with one plate was judged against offers with full plates, so a 1-plate Zhuk at a full-plate price sold. The normal price for your listing now goes by what's actually in it: the item, its plates and parts, and their condition.
+- An overpriced listing could still sell straight away. Armour with one plate was judged against offers with full plates, so a 1-plate Zhuk at a full-plate price sold. The normal price for your listing now goes by what's actually in it: the item, its plates and parts, and their condition. A listing more than 30% over that price (expensivePercent) never sells, gun builds included.
 - With Live prices on, guns got far too high a base price (the AKS-74U at 76,000 while its offers were 15,000). tarkov.dev's average for a gun counts every build listed, so guns now use the day's low price. Live prices are fetched again once after updating.
 - Players under the flea's level could see offers from players with an Edge of Darkness or other badge.
-- The Bans tab could credit another mod's items to SVM ("Other 2"). An item now only goes to a mod when that mod clearly adds it.
-- The Save and Discard buttons jumped down while "Saved" showed. Messages now show under the bar.
-- The flea icon on an equipped gun sat on top of its durability bar.
+- The Bans tab could credit another mod's items to SVM ("Other 2"). An item now only goes to a mod when that mod clearly adds it, and mods whose only items can never be on the flea (SVM's pockets) aren't listed.
+- Banning or always allowing a whole category picked from the Bans tab search did nothing. Categories now work there, as well as single items.
+- Items you ban had no red flea icon, and a player without the plugin could still list them. They now get the icon, and the server refuses the listing.
+- The Save and Discard buttons jumped down while "Saved" showed, and "Log out admin" dropped to a second line when "Unsaved changes" showed. Messages now show under the bar, and nothing in the top bar moves any more.
+- The flea icon on an equipped gun sat on top of its durability bar. It now sits next to the gun's mastery level, as it does in the inspect window.
+- The red and orange flea icons often only showed after an item was moved. They now show on every item as soon as the plugin hears from the server.
+- The flea icon's tooltip now has its heading (Flea banned, Bought from trader) in bold.
+- The add-offer screen gave the game's own wording for items it can't list ("This item can't be sold at the Flea Market.") next to Better Flea's. Every reason now reads the same way: "Flea banned - cannot be listed", "Bought from trader - cannot be listed", "Contains ... - cannot be listed".
+- The read-only page's "Updated X ago" for live prices was easy to miss. It now has its own line.
+- The trader item lock could miss a purchase (an STM-9 bought from Skier wasn't locked) when the game sent it together with another action that gave a warning.
+- "Lock flea purchases too" never locked anything: it looked for the wrong kind of purchase.
+- After saving bans, levels or other settings that don't remake the flea, items stopped filling up when opened, so most showed only a few offers (often 15) instead of their full count (30 or more, 60 for guns). Items fill up again as before.
+- The toy gun's 20x1mm disks were listed by the stack. They now come one or two at a time, like signal flares.
+- With WTT-Armory installed, the server console could fill with "Could not add ... to cache, it does not exist in the item database!". Its M700XL lists parts from a mod that isn't installed, and Better Flea asked SPT about them when building one for the flea. Parts that aren't installed are now skipped.
 
 ## 2.1.1
 

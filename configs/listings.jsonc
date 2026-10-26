@@ -59,7 +59,7 @@
     "bulk": { "max": 35, "falloff": 0.8 },     // common small barter items: bulbs, wires, bolts. Above 20 is rare
     "stock": { "max": 6, "falloff": 0.55 },    // rare small barter items, and common meds, food and weapon parts
     "few": { "max": 3, "falloff": 0.3 },       // very rare or big items, and all gear: GPU, LEDX, rigs
-    "signalFlares": { "max": 2, "falloff": 0.1 }, // signal flares (stack of 60 in SPT): usually 1 per offer
+    "signalFlares": { "max": 2, "falloff": 0.1 }, // signal flares and toy gun 20x1mm disks (SPT sells them by the stack): usually 1 per offer
     "ammoBoxes": { "max": 3, "falloff": 0.5 },     // ammo boxes: usually 1, sometimes up to 3
     "grenadeWeights": [1, 4, 3, 1, 0.5, 0.25, 0.1, 0.05], // F1, RGD-5, M67 etc. Chance weight for 1, 2, 3... per offer. Here 2s and 3s are most common
     "grenadeBulk": { "chance": 0.04, "min": 6, "max": 12 }, // now and then a pile of the grenades people stock up on (F-1, RGD-5, M67, Zarya, VOGs, smokes)

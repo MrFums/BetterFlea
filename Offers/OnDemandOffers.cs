@@ -80,9 +80,10 @@ internal static class OnDemandOffers
 
     private static Timer? _trimTimer;
 
+    // Full counts are kept: forgetting them without remaking the offers stopped every item filling up. Saving a
+    // file that changes them (listings.jsonc) remakes the flea, which forgets them anyway (FleaRefresh, Forget).
     public static void SettingsChanged()
     {
-        FullCounts.Clear();
         if (_trimTimer is not null)
         {
             var every = TimeSpan.FromSeconds(Math.Clamp(Settings.KeepSeconds / 4, 5, 60));

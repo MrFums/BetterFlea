@@ -76,19 +76,47 @@ internal static class FleaMarker
         // An equipped gun (and a flea offer's item) shows a durability bar along the bottom.
         var durability = cell is SlotItemView slotItem ? slotItem._durabilitySlider : cell is RagfairOfferItemView offerItem ? offerItem._durabilitySlider : null;
         marker.Durability = durability != null ? durability.transform as RectTransform : null;
+        marker.Mastery = cell is SlotItemView gun ? gun._masteringLabel : null;
         marker.transform.SetAsLastSibling();
         marker.gameObject.SetActive(true);
         marker.Follow();
     }
 
-    // Redraw every marker after an icon setting changes.
+    public static void UpdateCell(ItemView cell)
+    {
+        // Only the player's own items, not trader or flea lists.
+        var shown = cell.ItemContext != null && cell.ItemContext.HasViewComponent(EItemViewComponent.QuestItem);
+        Update(cell.QuestsItemViewPanel, cell, shown ? cell.Item : null, ItemUiContext.Instance?.Tooltip);
+    }
+
+    private static int _seenStamp;
+
+    // The bans and trader purchases arrive in the background, often after the cells are drawn.
+    public static void RefreshIfChanged()
+    {
+        if (_seenStamp != FleaStatus.MarkersStamp)
+        {
+            _seenStamp = FleaStatus.MarkersStamp;
+            RefreshAll();
+        }
+    }
+
+    // Redraw every shown item's marker, after an icon setting or the server's answer changes.
     public static void RefreshAll()
     {
         foreach (var marker in UnityEngine.Object.FindObjectsOfType<Marker>(true))
         {
-            if (marker.ShownItem != null)
+            if (marker.ShownItem != null && marker.CellView == null)
             {
-                Update(marker.Panel, marker.CellView, marker.ShownItem, marker.Tooltip);
+                Update(marker.Panel, null, marker.ShownItem, marker.Tooltip);
+            }
+        }
+
+        foreach (var cell in UnityEngine.Object.FindObjectsOfType<ItemView>())
+        {
+            if (cell.Item != null && cell.QuestsItemViewPanel != null)
+            {
+                UpdateCell(cell);
             }
         }
     }
@@ -244,6 +272,7 @@ internal static class FleaMarker
         public RectTransform Insured;
         public RectTransform RepairBuff;
         public RectTransform Durability;
+        public TextMeshProUGUI Mastery;
 
         // The cell lays itself out during the frame.
         private void LateUpdate()
@@ -256,6 +285,12 @@ internal static class FleaMarker
             if (Cell == null)
             {
                 FollowInInspectWindow();
+                return;
+            }
+
+            if (Mastery != null && Mastery.gameObject.activeInHierarchy && !string.IsNullOrEmpty(Mastery.text))
+            {
+                FollowMastery();
                 return;
             }
 
@@ -311,6 +346,19 @@ internal static class FleaMarker
             }
 
             rect.localPosition = new Vector3(right, bottom + height / 2f, 0f);
+        }
+
+        // An equipped gun: right of its mastery level, like the inspect window has it.
+        private void FollowMastery()
+        {
+            var rect = (RectTransform)transform;
+            var parent = (RectTransform)rect.parent;
+            var width = rect.rect.width;
+
+            var bounds = Mastery.textBounds;
+            var textRight = Mastery.rectTransform.TransformPoint(new Vector3(bounds.max.x, bounds.center.y, 0f));
+            var local = parent.InverseTransformPoint(textRight);
+            rect.localPosition = new Vector3(local.x + width / 3f + width, local.y, 0f);
         }
 
         private static RectTransform Visible(RectTransform target)

@@ -37,7 +37,23 @@ internal class RagfairSelectPatch : ModulePatch
             error = Tags.BoughtFromTraderWarning;
             __result = false;
         }
+        else if (FleaStatus.SellLockLevel(item) is var level && level > 0)
+        {
+            error = Tags.LevelLockWarning(level);
+            __result = false;
+        }
+        // The game's own "can't be sold" for items its data bans, worded like ours.
+        else if (!__result && error == CannotBePlaced)
+        {
+            error = Tags.FleaBannedWarning;
+        }
+        else if (!__result && !item.CanSellOnRagfair && item is CompoundItem compound && compound.TryGetLastForbiddenItem(out var inside))
+        {
+            error = Tags.ContainsWarning(inside.Name.Localized());
+        }
     }
+
+    private static string CannotBePlaced => "ragfair/This item cannot be placed at ragfair".Localized();
 }
 
 // Every listing goes through here, quick-sell mods included. A bought item is stopped with a warning
@@ -96,9 +112,7 @@ internal class ItemCellMarkerPatch : ModulePatch
     [PatchPostfix]
     public static void Postfix(ItemView __instance)
     {
-        // Only the player's own items, not trader or flea lists.
-        var shown = __instance.ItemContext != null && __instance.ItemContext.HasViewComponent(EItemViewComponent.QuestItem);
-        FleaMarker.Update(__instance.QuestsItemViewPanel, __instance, shown ? __instance.Item : null, ItemUiContext.Instance?.Tooltip);
+        FleaMarker.UpdateCell(__instance);
     }
 }
 
@@ -134,7 +148,7 @@ internal static class CanSellOnRagfair
 
     public static void Apply(Item item, ref bool result)
     {
-        if (result && (FleaStatus.SellingOff || FleaStatus.IsFleaBanned(item) || FleaStatus.IsBoughtFromTrader(item)))
+        if (result && (FleaStatus.SellingOff || FleaStatus.IsFleaBanned(item) || FleaStatus.IsBoughtFromTrader(item) || FleaStatus.SellLockLevel(item) > 0))
         {
             result = false;
         }

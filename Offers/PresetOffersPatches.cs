@@ -489,7 +489,7 @@ internal static partial class PresetOfferGate
 
         return depth > 0 && CanPaths.GetOrAdd(tpl, id => (_itemHelper.GetItem(id).Value?.Properties?.Slots ?? [])
             .Where(slot => slot.Name?.StartsWith("mod_muzzle", StringComparison.Ordinal) == true)
-            .Any(slot => slot.Properties?.Filters?.FirstOrDefault()?.Filter?.Any(child => LeadsToSuppressorWithin(child, depth - 1)) == true));
+            .Any(slot => Parts(slot).Any(child => LeadsToSuppressorWithin(child, depth - 1))));
     }
 
     private static bool Strippable(string slotName) =>
@@ -547,6 +547,10 @@ internal static partial class PresetOfferGate
 
         return filters.Any(filter => filter.Filter is { } ids && ids.Any(id => id == tpl || _itemHelper!.IsOfBaseclass(tpl, id)));
     }
+
+    // What a slot takes, leaving out parts that aren't installed (mods sometimes list another mod's parts).
+    internal static IEnumerable<MongoId> Parts(Slot? slot) =>
+        (slot?.Properties?.Filters?.FirstOrDefault()?.Filter ?? []).Where(tpl => !tpl.IsEmpty && _itemHelper!.GetItem(tpl).Key);
 
     private static Slot? SlotOn(MongoId parentTpl, string? slotName) =>
         _itemHelper!.GetItem(parentTpl).Value?.Properties?.Slots?.FirstOrDefault(slot => slot.Name == slotName);
@@ -642,8 +646,7 @@ internal static partial class PresetOfferGate
             && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper.GetItem(tpl))
             && !_botGenerator!.IsItemIncompatibleWithCurrentItems(state.Built, tpl, can.SlotId).Incompatible.GetValueOrDefault(false);
 
-        var allowed = _itemHelper.GetItem(parent.Template).Value?.Properties?.Slots?.FirstOrDefault(slot => slot.Name == can.SlotId)
-            ?.Properties?.Filters?.FirstOrDefault()?.Filter ?? [];
+        var allowed = Parts(_itemHelper.GetItem(parent.Template).Value?.Properties?.Slots?.FirstOrDefault(slot => slot.Name == can.SlotId));
         MongoId? device = state.Factory.TryGetValue((parent.Template, can.SlotId), out var factoryDevice) && Fits(factoryDevice)
             ? factoryDevice
             : allowed.Where(Fits).OrderBy(tpl => _prices!.GetFleaPriceForItem(tpl)).Cast<MongoId?>().FirstOrDefault();
@@ -698,7 +701,7 @@ internal static partial class PresetOfferGate
             var price = _prices!.GetFleaPriceForItem(part.Template);
             MongoId? cheaper = state.Factory.TryGetValue((parent.Template, part.SlotId!), out var factoryPart) && factoryPart != part.Template && Fits(factoryPart)
                 ? factoryPart
-                : (slot.Properties?.Filters?.FirstOrDefault()?.Filter ?? []).Where(Fits).OrderBy(tpl => _prices.GetFleaPriceForItem(tpl)).Cast<MongoId?>().FirstOrDefault();
+                : Parts(slot).Where(Fits).OrderBy(tpl => _prices.GetFleaPriceForItem(tpl)).Cast<MongoId?>().FirstOrDefault();
             if (cheaper is { } swap && swap != part.Template && _prices.GetFleaPriceForItem(swap) < price)
             {
                 built[built.IndexOf(part)] = new Item { Id = part.Id, Template = swap, ParentId = part.ParentId, SlotId = part.SlotId };
@@ -1023,7 +1026,7 @@ internal static partial class PresetOfferGate
                 routes.Add(route);
             }
 
-            foreach (var tpl in SlotOn(key.Holder, key.Slot)?.Properties?.Filters?.FirstOrDefault()?.Filter ?? [])
+            foreach (var tpl in Parts(SlotOn(key.Holder, key.Slot)))
             {
                 if (_itemHelper!.GetItem(tpl).Value?.Properties is null)
                 {
@@ -1165,7 +1168,7 @@ internal static partial class PresetOfferGate
                     continue;
                 }
 
-                var fill = (slot.Properties?.Filters?.FirstOrDefault()?.Filter ?? []).FirstOrDefault(tpl => SlotAccepts(slot, tpl) && !IsOptic(tpl)
+                var fill = Parts(slot).FirstOrDefault(tpl => SlotAccepts(slot, tpl) && !IsOptic(tpl)
                     && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper.GetItem(tpl))
                     && !_botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slotName).Incompatible.GetValueOrDefault(false));
                 if (fill.IsEmpty)
@@ -1288,7 +1291,7 @@ internal static partial class PresetOfferGate
         RingRouteCache.GetOrAdd((holderTpl, slotName), key =>
         {
             var routes = new List<List<(string Slot, MongoId Tpl)>>();
-            foreach (var tpl in SlotOn(key.Holder, key.Slot)?.Properties?.Filters?.FirstOrDefault()?.Filter ?? [])
+            foreach (var tpl in Parts(SlotOn(key.Holder, key.Slot)))
             {
                 if (BuildQuality.IsRingMount(tpl))
                 {
@@ -1308,7 +1311,7 @@ internal static partial class PresetOfferGate
                         continue;
                     }
 
-                    routes.AddRange((sub.Properties?.Filters?.FirstOrDefault()?.Filter ?? []).Where(BuildQuality.IsRingMount)
+                    routes.AddRange(Parts(sub).Where(BuildQuality.IsRingMount)
                         .Select(ring => new List<(string Slot, MongoId Tpl)> { (key.Slot, tpl), (subName, ring) }));
                 }
             }
@@ -1437,7 +1440,7 @@ internal static partial class PresetOfferGate
             var isMuzzle = slot.Name.StartsWith("mod_muzzle", StringComparison.Ordinal);
             var wantCan = isMuzzle && state.WantsSuppressor
                 && !built.Any(item => _itemHelper!.IsOfBaseclass(item.Template, SilencerBase))
-                && (slot.Properties?.Filters?.FirstOrDefault()?.Filter ?? []).Any(LeadsToSuppressor);
+                && Parts(slot).Any(LeadsToSuppressor);
             alwaysFill |= wantCan;
             if (!alwaysFill && Random.Shared.NextDouble() >= TierChance(slot.Name, tier))
             {
@@ -1476,7 +1479,7 @@ internal static partial class PresetOfferGate
                 && (!IsOptic(tpl) || required && MaxZoom(tpl) <= state.ZoomCap)
                 && !(avoidCarryHandle && HasScopeSlot(tpl));
 
-            var allowedBySlot = slot.Properties?.Filters?.FirstOrDefault()?.Filter?.ToList() ?? [];
+            var allowedBySlot = Parts(slot).ToList();
             var isBarrel = slot.Name == "mod_barrel";
 
             // No handguard longer than the barrel.

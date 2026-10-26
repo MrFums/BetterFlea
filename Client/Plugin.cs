@@ -7,7 +7,7 @@ using SPT.Reflection.Patching;
 
 namespace BetterFlea.Client;
 
-[BepInPlugin("com.fums.betterflea.client", "BetterFlea Client", "2.1.2")]
+[BepInPlugin("com.fums.betterflea.client", "BetterFlea Client", "2.2.0")]
 [BepInDependency("com.SPT.core", BepInDependency.DependencyFlags.HardDependency)]
 public class Plugin : BaseUnityPlugin
 {
@@ -33,6 +33,15 @@ public class Plugin : BaseUnityPlugin
         Enable(() => new RagfairSelectPatch());
         Enable(() => new AddOfferPatch());
         Enable(() => new InventoryChangedPatch());
+        Enable(() => new InspectUnlockPrefixPatch());
+        Enable(() => new CategoryLevelPatch());
+        Enable(() => new CategorySelectPatch());
+        Enable(() => new CategoryDeselectPatch());
+    }
+
+    private void Update()
+    {
+        FleaMarker.RefreshIfChanged();
     }
 
     private static void Enable(Func<ModulePatch> create)
