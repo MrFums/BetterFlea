@@ -640,7 +640,7 @@ const DESC = {
   "economy.jsonc:livePrices.gameMode": "Which game's prices to use.",
   "economy.jsonc:livePrices.estimateModdedItems": "Items the real game doesn't have get a price on the live scale, worked out from similar base-game items. Real-game items that a mod adds back (content backports) are not counted as modded: they get their real price, or keep their own if the real flea doesn't sell them.",
   "economy.jsonc:livePrices.refreshHours": "Fetch new prices this long after the last fetch. Goes by the clock, so restarts don't matter.",
-  "economy.jsonc:wipeCycle": "Experimental. Prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe. Early on, hideout and quest items are dear and everything is scarce. Late on, the best guns, ammo, armour and stims are dear, and early-wipe items are cheap.",
+  "economy.jsonc:wipeCycle": "Experimental. Prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe. Early on, hideout and quest items are dear and everything is scarce. Late on, the best guns, ammo, armour and stims are dear, and early-wipe items are cheap. The Live progression flea style turns it on.",
   "economy.jsonc:wipeCycle.strength": "Size of the swings. 1 = normal, 0.5 = half, 2 = double.",
   "economy.jsonc:wipeCycle.levelStep": "Prices move every this many levels.",
   "economy.jsonc:wipeCycle.cooldownMinutes": "Once the flea's level changes it stays put this long, so swapping profiles can't be used to buy low and sell high.",
@@ -724,9 +724,9 @@ const OFF = {
 const BAD_CONDITION ={ mint: 0.1, worn: 0.5, destroyed: 0.25, obliterated: 0.15 };
 
 const STYLES = [
-  { id: "live", name: "Balanced (default)", short: "Live-like, without item unlock levels.", about: "Everything as it ships: a live-like flea, but every item can be bought and sold from the level the flea opens. Pick Live progression for unlock levels too.", files: {} },
-  { id: "progression", name: "Live progression", short: "As close to the live flea as it gets: items unlock at the level the real flea needs.", levelLock: true,
-    about: "Balanced, plus item unlock levels: items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40). Your bans are kept.", files: {} },
+  { id: "live", name: "Balanced (default)", short: "Live-like, without item unlock levels or the Wipe Cycle.", about: "Everything as it ships: a live-like flea, but every item can be bought and sold from the level the flea opens, and prices don't follow the wipe. Pick Live progression for both.", files: {} },
+  { id: "progression", name: "Live progression", short: "As close to the live flea as it gets: items unlock at the level the real flea needs, and prices follow the wipe.", levelLock: true, wipeCycle: true,
+    about: "Balanced, plus item unlock levels and the Wipe Cycle. Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40), and prices follow how far into the wipe the players are (Economy tab, experimental). Your bans are kept.", files: {} },
   { id: "spt", name: "Base SPT", short: "Better Flea's changes off. The plain SPT flea.", about: "Better Flea's flea changes switched off, so the flea works like plain SPT. The memory saver stays on.", files: OFF },
   { id: "rough", name: "Rough market", short: "Fewer offers, lots of worn and broken gear.", about: "Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast.",
     files: {
@@ -1182,7 +1182,7 @@ function render() {
 function notice(text) { const n = document.createElement("div"); n.className = "notice"; n.textContent = text; return n; }
 
 function currentStyle() {
-  return STYLES.find(s => s.files && !!s.levelLock === levelLockOn()
+  return STYLES.find(s => s.files && !!s.levelLock === levelLockOn() && !!s.wipeCycle === wipeCycleOn()
     && state.files.filter(styled).every(f => same(f.values, merge(f.defaults, s.files[f.file] || {}))));
 }
 
@@ -2094,8 +2094,10 @@ function randomise(file, path, def) {
 const STYLE_KEEPS = ["flea.jsonc", "economy.jsonc", "debug.jsonc"];
 const styled = (f) => !STYLE_KEEPS.includes(f.file);
 
-// From the Bans tab a style only switches item unlock levels on or off; the bans stay.
+// From the Bans tab a style only switches item unlock levels on or off; the bans stay. From the Economy tab, only the
+// Wipe Cycle; live prices stay.
 const levelLockOn = () => !!getAt((state.byFile["flea.jsonc"] || {}).values || {}, ["levelLock", "enabled"]);
+const wipeCycleOn = () => !!getAt((state.byFile["economy.jsonc"] || {}).values || {}, ["wipeCycle", "enabled"]);
 
 function useStyle(style, everything) {
   for (const f of state.files.filter(f => everything || styled(f))) {
@@ -2105,6 +2107,11 @@ function useStyle(style, everything) {
   if (flea && isObject(flea.values.levelLock)) {
     flea.values = clone(flea.values);
     flea.values.levelLock.enabled = !!style.levelLock;
+  }
+  const economy = state.byFile["economy.jsonc"];
+  if (economy && isObject(economy.values.wipeCycle)) {
+    economy.values = clone(economy.values);
+    economy.values.wipeCycle.enabled = !!style.wipeCycle;
   }
   state.styleNote = style.name + ": " + style.about + " Press Save to use it.";
   render();

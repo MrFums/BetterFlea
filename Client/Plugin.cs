@@ -20,7 +20,7 @@ public class Plugin : BaseUnityPlugin
     {
         Log = Logger;
         ShowFleaBannedIcon = Config.Bind("Icons", "ShowFleaBannedIcon", false, "Red icon on items banned at the Flea Market, with its tooltip text.");
-        ShowTraderIcon = Config.Bind("Icons", "ShowTraderIcon", true, "Orange icon on items bought from a trader, with its tooltip text.");
+        ShowTraderIcon = Config.Bind("Icons", "ShowTraderIcon", true, "Orange icon on items bought from a trader, with its tooltip text. Only shows when the server has the trader item lock on.");
         ShowFleaBannedIcon.SettingChanged += (_, __) => FleaMarker.RefreshAll();
         ShowTraderIcon.SettingChanged += (_, __) => FleaMarker.RefreshAll();
 

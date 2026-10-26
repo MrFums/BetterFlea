@@ -54,7 +54,7 @@ Changed something and want it back? Press Reset to default on that tab, or Reset
 
 Forgot the password? Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` and restart the server, then make a new account. Your settings are kept.
 
-Flea styles change everything at once. **Balanced** is the default: live-like, without item unlock levels. **Live progression** is Balanced plus item unlock levels, as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
+Flea styles change everything at once. **Balanced** is the default: live-like, without item unlock levels or the Wipe Cycle. **Live progression** is Balanced plus item unlock levels and the Wipe Cycle (prices follow the wipe, experimental), as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
 
 ![Home tab](imageExamples/web-home.png)
 
@@ -148,7 +148,7 @@ Well whats the difference between the flip penalty and the trader item lock?
 
 ## 7. Economy (off by default)
 - **Live prices:** every item starts from its real flea price, the 24 hour average on tarkov.dev, and the rest of Better Flea's pricing goes on top. Pick Live, PvE or Season. Prices are saved, so if tarkov.dev is down the last ones are used. Modded items get a price worked out from similar base-game items. Items from content backport mods are real game items, so they get their real price.
-- **Wipe Cycle (experimental):** prices follow how far into the wipe the players online are, based on how real flea prices moved through a whole wipe. Everything is dear right at the start, hideout and early quest items are dear before people get to them, and the best guns, ammo, armour and stims are dear late on. After the flea's level changes it stays put for 30 minutes, so swapping profiles can't be used to flip items.
+- **Wipe Cycle (experimental):** prices follow how far into the wipe the players online are, based on how real flea prices moved through a whole wipe. Everything is dear right at the start, hideout and early quest items are dear before people get to them, and the best guns, ammo, armour and stims are dear late on. After the flea's level changes it stays put for 30 minutes, so swapping profiles can't be used to flip items. The Live progression flea style turns it on.
 
 They're not made to run together, so you may run into issues if you turn both on.
 
