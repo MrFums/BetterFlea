@@ -102,12 +102,12 @@ internal static class BuildQuality
     }
 
     // Ergo points and recoil % are on similar scales, so they're weighted directly.
-    // Budget builds also lose a point per 7.5k roubles of flea price (SPT 4.1.7's price scale; see BasePriceFix).
+    // Budget builds also lose a point per 20k roubles.
     public static double Score(List<Item> built, BuildStyle style)
     {
         var (ergo, recoil, _, _) = Stats(built);
         var (wErgo, wRecoil) = StyleWeights(style);
-        var cost = style == BuildStyle.Budget ? built.Skip(1).Sum(item => Price(item.Template)) / 7500 : 0;
+        var cost = style == BuildStyle.Budget ? built.Skip(1).Sum(item => Price(item.Template)) / 20000 : 0;
         return wErgo * ergo - wRecoil * recoil - cost;
     }
 

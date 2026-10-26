@@ -3,8 +3,6 @@
 ## 2.2.0
 
 **New**
-- **Ready for SPT 4.1.7:** SPT 4.1.6 and older add two base prices together for most items instead of using one ([SPT issue #135](https://github.com/SP-Tushonka/server-csharp/issues/135)), so the whole flea was about 2.5 times too dear. SPT 4.1.7 fixes this. Better Flea now uses the fixed prices on every SPT 4.1 version, so nothing changes when you update SPT. Flea prices are now roughly 40% of what they were (a LEDX about 1.1 million instead of 2.9 million). Want it dearer? Raise the price multiplier on the Prices tab.
-- Which plates armour gets and how cheap budget gun builds are went by fixed rouble amounts. They now work the same on the new prices.
 - **Item unlock levels (off by default):** some items can only be bought and sold from a certain level (the M4A1 from 25, a graphics card from 40). Like live, an item's inspect window says "Unlocks on flea market: X Level", flea categories show a lock with the level they open at, offers you can't buy yet show locked, and items you can't sell yet are greyed out when adding an offer. Uses the real game's level for every item, kept up to date from tarkov.dev when Live prices are on. A modded item unlocks with the real items of its kind that are worth about the same, so a strong modded stim needs the level the strongest real stims need. Pick the new **Live progression** flea style, or turn it on in the Bans tab; selling can be left unlocked. With Advanced settings on, you can set your own level for any item or whole category.
 - The default flea style, Live-like, is now called **Balanced**. It's live-like but has no item unlock levels; **Live progression** is the style closest to the live flea.
 - **Seller badges:** like the live flea, some sellers have an Edge of Darkness (20%) or Unheard (15%) badge, and very rarely a Developer, Sherpa or Emissary one. The shares are on the Market tab.
@@ -31,6 +29,7 @@
 - After saving bans, levels or other settings that don't remake the flea, items stopped filling up when opened, so most showed only a few offers (often 15) instead of their full count (30 or more, 60 for guns). Items fill up again as before.
 - The toy gun's 20x1mm disks were listed by the stack. They now come one or two at a time, like signal flares.
 - With WTT-Armory installed, the server console could fill with "Could not add ... to cache, it does not exist in the item database!". Its M700XL lists parts from a mod that isn't installed, and Better Flea asked SPT about them when building one for the flea. Parts that aren't installed are now skipped.
+- Which plates armour gets went by a carrier's price in roubles (40k to 400k), so it stopped working when prices change (Live prices, a price multiplier, or SPT's own price changes). It now goes by how the carrier ranks against other carriers with their default plates.
 
 ## 2.1.1
 

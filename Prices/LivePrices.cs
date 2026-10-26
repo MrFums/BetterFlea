@@ -20,8 +20,6 @@ public class LivePricesLoad(ConfigManager configManager, TemplateTable templates
         }
 
         LivePrices.Bind(configManager, templates);
-        BasePriceFixPatch.Bind(templates);
-        new BasePriceFixPatch().Enable();
         new LivePricesPatch().Enable();
         return Task.CompletedTask;
     }

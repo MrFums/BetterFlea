@@ -8,8 +8,9 @@ Better Flea makes the Flea Market in SPT better. Yeah that's the best I could co
 - Your own guns turn up: builds you save, and guns you die with, sold by whoever killed you.
 - Body armour comes with realistic plates, and gear comes in every condition from mint to wrecked.
 - Offers look real: a normal number of items in each offer, partly used keys, meds, food and fuel, and the odd scam to watch out for.
-- A living market: offers last up to 24 hours, other players buy the good deals, sellers have flea ratings, and now and then something is "sold before you".
+- A living market: offers last up to 24 hours, other players buy the good deals, sellers have flea ratings and Edge of Darkness or Unheard badges, and now and then something is "sold before you".
 - Selling depends on your price: undercut and it sells fast, overprice and it sits there. Flipping is slowed down.
+- Item unlock levels like live (optional): the M4A1 from level 25, a graphics card from 40, shown in game like live.
 - Prices change a little over time. An offer is never cheaper than what a trader pays for the item.
 - Turn off whole groups of items on the Flea Market.
 - 3 times the base game's offers, with about the same server memory as SPT without the mod.
@@ -50,6 +51,10 @@ Everything is changed on the settings page: open `https://127.0.0.1:6969/betterf
 Every setting is explained right there, and most changes apply as soon as you press Save. Please don't edit the files in the `configs` folder by hand.
 
 Changed something and want it back? Press Reset to default on that tab, or Reset everything in the More menu.
+
+Forgot the password? Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` and restart the server, then make a new account. Your settings are kept.
+
+Flea styles change everything at once. **Balanced** is the default: live-like, without item unlock levels. **Live progression** is Balanced plus item unlock levels, as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
 
 ![Home tab](imageExamples/web-home.png)
 
@@ -119,7 +124,6 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 ## 5. Prices
 I would personally recommend setting the marked key price to 1.5 as I feel marked keys a bit too cheap in base SPT. I've left this untouched for the default.
 
-- Base prices are SPT 4.1.7's on every SPT 4.1 version. Older SPT versions add two prices together, which made the flea about 2.5 times too dear, so updating SPT doesn't change your flea.
 - An offer is never cheaper than what a trader pays for the item. No buying on the flea to sell to a trader.
 - Prices go up and down over time.
 - Some sellers ask too much, and now and then someone sells one cheap.
@@ -155,6 +159,7 @@ The server makes all the rules. The BepInEx plugin shows them to the player:
 
 - **Flea Market icon on items (off by default).** Red = banned on the Flea Market. Orange = bought from a trader (only when the trader item lock is on). Hover the icon to see why. Turn them on in the **F12 menu** (BepInEx configuration manager).
 - **These items are grey** when you add an offer on the Flea Market.
+- **Item unlock levels (when on):** items show the level they unlock at when inspected, flea categories show a lock, and offers you can't buy yet show locked, like live.
 - **Player listings turned off?** The sell button is greyed out and you get a small warning instead of the error that kicks you to the menu.
 - **Quick-sell mods** sell these items to a trader. They do not try the Flea Market first.
 
