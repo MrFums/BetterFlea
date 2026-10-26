@@ -9,6 +9,7 @@
 - The trader item lock now remembers trader purchases while it's off too (and flea purchases, for "Lock flea purchases too"), so turning it on mid-wipe also locks what was bought before. An item is forgotten once its owner no longer has it, so the list stays small.
 - Item lookup on the read-only page, so everyone can look up an item's prices.
 - The read-only page shows when live prices were last updated.
+- The orange trader icon is now on by default, so players see it as soon as the server turns the trader item lock on. The red flea banned icon stays off by default. Both can be changed in the F12 menu. If you already have the plugin, your current setting is kept.
 
 **Fixes**
 - A seller's rating could change from one offer to the next. Each seller name now keeps the same rating and badge on every offer, even after a restart.

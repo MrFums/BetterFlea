@@ -157,7 +157,7 @@ They're not made to run together, so you may run into issues if you turn both on
 ## What the BepInEx plugin does
 The server makes all the rules. The BepInEx plugin shows them to the player:
 
-- **Flea Market icon on items (off by default).** Red = banned on the Flea Market. Orange = bought from a trader (only when the trader item lock is on). Hover the icon to see why. Turn them on in the **F12 menu** (BepInEx configuration manager).
+- **Flea Market icon on items.** Red = banned on the Flea Market (off by default). Orange = bought from a trader (on by default, only shows when the trader item lock is on). Hover the icon to see why. Change them in the **F12 menu** (BepInEx configuration manager).
 - **These items are grey** when you add an offer on the Flea Market.
 - **Item unlock levels (when on):** items show the level they unlock at when inspected, flea categories show a lock, and offers you can't buy yet show locked, like live.
 - **Player listings turned off?** The sell button is greyed out and you get a small warning instead of the error that kicks you to the menu.
