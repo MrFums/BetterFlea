@@ -80,6 +80,9 @@ public record MarketFile
     [JsonPropertyName("sellerRating")]
     public SellerRatingConfig SellerRating { get; set; } = new();
 
+    [JsonPropertyName("sellerBadges")]
+    public SellerBadgesConfig SellerBadges { get; set; } = new();
+
     [JsonPropertyName("packs")]
     public PackOffersConfig Packs { get; set; } = new();
 

@@ -41,11 +41,13 @@
         <EmbeddedResource Include="Web\index.html;Web\icon.png;CHANGELOG.md" LogicalName="BetterFlea.web.%(Filename)%(Extension)" />
         <!-- How real flea prices moved through a wipe, per item (Wipe Cycle). -->
         <EmbeddedResource Include="Prices\wipe-curves.json" LogicalName="BetterFlea.data.wipe-curves.json" />
+        <!-- The level each item can be bought from on the real flea (tarkov.dev's minLevelForFlea). -->
+        <EmbeddedResource Include="Flea\flea-levels.json" LogicalName="BetterFlea.data.flea-levels.json" />
     </ItemGroup>
 
     <PropertyGroup>
         <ModOutputDir>$(ServerDir)\user\mods\$(AssemblyName)</ModOutputDir>
-        <Version>2.1.1</Version>
+        <Version>2.1.2</Version>
     </PropertyGroup>
 
     <!-- Only with -p:ServerDir="C:\path\to\SPT\SPT_Runtime": copies the mod into that server. Without it, it just builds. -->

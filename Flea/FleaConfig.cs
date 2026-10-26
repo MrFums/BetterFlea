@@ -21,8 +21,17 @@ public record FleaConfig
     [JsonPropertyName("bannedModItems")]
     public Dictionary<string, List<string>> BannedModItems { get; set; } = new();
 
+    [JsonPropertyName("levelLock")]
+    public LevelLockConfig LevelLock { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
+}
+
+public record LevelLockConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    [JsonPropertyName("moddedItems")] public bool ModdedItems { get; set; } = true;
 }
 
 public record BanFromFleaConfig

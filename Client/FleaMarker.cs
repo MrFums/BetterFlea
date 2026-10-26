@@ -73,6 +73,9 @@ internal static class FleaMarker
         marker.RepairBuff = cell != null && cell.BottomPanel != null && cell.BottomPanel.RepairBuffIcon != null
             ? cell.BottomPanel.RepairBuffIcon.rectTransform
             : null;
+        // An equipped gun (and a flea offer's item) shows a durability bar along the bottom.
+        var durability = cell is SlotItemView slotItem ? slotItem._durabilitySlider : cell is RagfairOfferItemView offerItem ? offerItem._durabilitySlider : null;
+        marker.Durability = durability != null ? durability.transform as RectTransform : null;
         marker.transform.SetAsLastSibling();
         marker.gameObject.SetActive(true);
         marker.Follow();
@@ -240,6 +243,7 @@ internal static class FleaMarker
         public TextMeshProUGUI CountText;
         public RectTransform Insured;
         public RectTransform RepairBuff;
+        public RectTransform Durability;
 
         // The cell lays itself out during the frame.
         private void LateUpdate()
@@ -281,8 +285,8 @@ internal static class FleaMarker
                 bottom = Mathf.Max(bottom, checkHigh.y + Gap);
             }
 
-            // Step up past the checkmark, insured and repair buff icons.
-            var obstacles = new[] { checkmark, Visible(Insured), Visible(RepairBuff) };
+            // Step up past the checkmark, insured and repair buff icons and the durability bar.
+            var obstacles = new[] { checkmark, Visible(Insured), Visible(RepairBuff), Visible(Durability) };
             for (var moved = true; moved;)
             {
                 moved = false;

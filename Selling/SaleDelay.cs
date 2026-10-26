@@ -24,7 +24,10 @@ namespace BetterFlea.Selling;
 [Injectable(TypePriority = OnLoadOrder.RagfairCallbacks - 1)]
 public class SaleDelayPatchesLoad(
     ConfigManager configManager,
-    GlobalTable globalTable) : IOnLoad
+    GlobalTable globalTable,
+    ItemHelper itemHelper,
+    RagfairPriceService ragfairPriceService,
+    SPTarkov.Server.Core.Models.Spt.Config.RagfairConfig ragfairConfig) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -33,7 +36,7 @@ public class SaleDelayPatchesLoad(
             configManager.Load();
         }
 
-        SaleDelayGate.Bind(configManager, globalTable);
+        SaleDelayGate.Bind(configManager, globalTable, itemHelper, ragfairPriceService, ragfairConfig);
         new SaleDelayPatch().Enable();
         new SellChancePatch().Enable();
         return Task.CompletedTask;
@@ -43,24 +46,39 @@ public class SaleDelayPatchesLoad(
 // Sale speed goes by price against normal: undercut sells in under a minute, normal in a few minutes,
 // much dearer mostly never. Gun builds still sell now and then when dear. SPT's buyer timeline is pushed
 // back by one wait, so its spacing stays.
+//
+// "Normal" is worked out from what's actually listed, priced the way the flea's own offers are. SPT's normal is
+// the average of every offer of that item, so a 1-plate armour was weighed against full-plate ones and sold at a
+// full-plate price.
 internal static class SaleDelayGate
 {
     private static ConfigManager? _config;
     private static GlobalTable? _globals;
+    private static ItemHelper? _itemHelper;
+    private static RagfairPriceService? _prices;
+    private static SPTarkov.Server.Core.Models.Spt.Config.RagfairConfig? _ragfairConfig;
 
     [ThreadStatic] private static double? _priceRatio;
     [ThreadStatic] private static bool _soughtAfter;
     [ThreadStatic] private static double? _gunValue;
+    [ThreadStatic] private static double? _contentsValue;
+    [ThreadStatic] private static int _packUnits;
 
     private const int BuildParts = 4;
 
-    public static void BeginListing(List<Item>? listed, ItemHelper itemHelper)
+    // packUnits: how many of the item a pack offer sells at once (its price is for all of them). 1 otherwise.
+    public static void BeginListing(List<Item>? listed, ItemHelper itemHelper, int packUnits)
     {
-        _priceRatio = null;
-        _soughtAfter = false;
-        _gunValue = null;
-        if (listed is not { Count: > 0 } || !itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON))
+        EndListing();
+        _packUnits = Math.Max(1, packUnits);
+        if (listed is not { Count: > 0 })
         {
+            return;
+        }
+
+        if (!itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON))
+        {
+            _contentsValue = ContentsValue(listed);
             return;
         }
 
@@ -76,6 +94,51 @@ internal static class SaleDelayGate
         _priceRatio = null;
         _soughtAfter = false;
         _gunValue = null;
+        _contentsValue = null;
+        _packUnits = 1;
+    }
+
+    // One of the listed item with everything in it (plates, inserts, rounds in a mag), each part priced like on a
+    // generated offer: base price and SPT's multiplier for it, its own condition, then key wear, drift and never under
+    // what a trader pays. Then the whole market's multiplier and the Wipe Cycle. Null leaves it to SPT.
+    private static double? ContentsValue(List<Item> listed)
+    {
+        if (_prices is null || _itemHelper is null || _ragfairConfig is null)
+        {
+            return null;
+        }
+
+        var root = listed[0];
+        // An ammo box's price already covers the rounds in it.
+        var parts = _itemHelper.IsOfBaseclass(root.Template, BaseClasses.AMMO_BOX) ? [root] : listed;
+        var dynamic = _ragfairConfig.Dynamic;
+        var total = 0.0;
+        foreach (var item in parts)
+        {
+            // Built-in soft armour comes with the armour; SPT doesn't price it either.
+            if (_itemHelper.IsOfBaseclass(item.Template, BaseClasses.BUILT_IN_INSERTS))
+            {
+                continue;
+            }
+
+            var price = _prices.GetFleaPriceForItem(item.Template);
+            if (dynamic.ItemPriceMultiplier?.TryGetValue(item.Template, out var multiplier) == true)
+            {
+                price *= multiplier;
+            }
+
+            if (dynamic.IgnoreQualityPriceVarianceBlacklist?.Contains(item.Template) != true)
+            {
+                price *= _itemHelper.GetItemQualityModifier(item);
+            }
+
+            price = BetterFlea.Prices.PriceGate.Adjust(item.Template, Money.ROUBLES, item, price, counted: false);
+            var rounds = item != root && item.SlotId == "cartridges" ? Math.Max(1, item.Upd?.StackObjectsCount ?? 1) : 1;
+            total += price * rounds;
+        }
+
+        total *= (_config?.Mod.Prices.PriceMultiplier ?? 1.0) * BetterFlea.Prices.WipeEconomy.Factor(root.Template);
+        return total > 0 ? total : null;
     }
 
     // Null leaves it to SPT.
@@ -87,8 +150,9 @@ internal static class SaleDelayGate
             return null;
         }
 
-        // SPT sums a gun's flea part prices; use the same trader-based value the flea's guns use.
-        var normal = _gunValue is { } gun ? gun * quality : normalPrice;
+        // SPT sums a gun's flea part prices; use the same trader-based value the flea's guns use. Anything else goes
+        // by what's in it (condition included already).
+        var normal = _gunValue is { } gun ? gun * quality : _contentsValue is { } contents ? contents * _packUnits : normalPrice;
         if (normal <= 0)
         {
             return null;
@@ -96,6 +160,7 @@ internal static class SaleDelayGate
 
         var ratio = listedPrice / normal;
         _priceRatio = ratio;
+        DebugLog.Write(() => $"Sale check: listed {listedPrice:0} RUB against a normal {normal:0} (SPT's average says {normalPrice:0}), x{ratio:0.00}");
 
         // 5% chance at expensivePercent over, falling away fast. Half as fast for a gun build.
         var over = ratio - 1.05;
@@ -109,10 +174,14 @@ internal static class SaleDelayGate
         return chance < 1 ? 0 : Math.Round(chance);
     }
 
-    public static void Bind(ConfigManager configManager, GlobalTable globalTable)
+    public static void Bind(ConfigManager configManager, GlobalTable globalTable, ItemHelper itemHelper, RagfairPriceService prices,
+        SPTarkov.Server.Core.Models.Spt.Config.RagfairConfig ragfairConfig)
     {
         _config = configManager;
         _globals = globalTable;
+        _itemHelper = itemHelper;
+        _prices = prices;
+        _ragfairConfig = ragfairConfig;
     }
 
     public static void Delay(List<SellResult> sales)
@@ -374,7 +443,11 @@ internal static class FlipPenaltyGate
             _listing = (player, item.Template);
         }
 
-        SaleDelayGate.BeginListing(item is null ? null : pmcData.Inventory!.Items!.GetItemWithChildren(item.Id), _itemHelper!);
+        // A pack's price is for every item in it; SPT counts them the same way.
+        var packUnits = offerRequest.SellInOnePiece == true
+            ? (int)(offerRequest.Items ?? []).Sum(id => pmcData.Inventory!.Items!.FirstOrDefault(i => i.Id == id)?.Upd?.StackObjectsCount ?? 1)
+            : 1;
+        SaleDelayGate.BeginListing(item is null ? null : pmcData.Inventory!.Items!.GetItemWithChildren(item.Id), _itemHelper!, packUnits);
     }
 
     public static void EndListing()

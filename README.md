@@ -29,7 +29,7 @@ Everything can be turned off or tuned in the settings.
 **Fika headless client: do NOT install the BepInEx plugin on it.** It only needs the server mod on the server.
 
 ## How to install
-1. Download `BetterFlea-2.1.1.zip`.
+1. Download `BetterFlea-2.1.2.zip`.
 2. Open your SPT install folder.
 3. Extract the zip into this folder. The 2 parts go to the correct folders by themselves.
 4. Only the server host needs the server component. Obviously. Every REAL player needs the BepInEx plugin.
@@ -60,6 +60,7 @@ Changed something and want it back? Press Reset to default on that tab, or Reset
 - Take whole types of items off the flea: guns, ammo, keys, armour, meds and the rest.
 - Ban single items, or always allow them even if their type is banned. Search for them by name.
 - Ban the items another server mod adds: all of them, or just some types (only its guns, say).
+- Level locked items, like live: some items can only be bought from a certain level (the M4A1 from 25, a graphics card from 40). Uses the real game's levels. Modded items get the level most items of their kind need.
 
 ## 2. Offers
 
@@ -111,6 +112,7 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 - Offers last up to 24 hours, like live. Good deals don't last long, overpriced ones sit there.
 - Other players buy offers, and now and then something you try to buy was "sold before you".
 - Seller ratings go up to 300 and grow with the players on the server: mostly low up to level 15, mostly high by level 40. Someone selling a stack of one item is usually a flipper with a high rating.
+- Some sellers have an Edge of Darkness or Unheard badge, like live, and very rarely a special one. A seller keeps the same rating and badge on every offer.
 - Rare barter offers that want items people actually have lying around.
 - Packs: several items you have to buy together. Most are scams, so do the maths. Very rarely someone lists a silly amount.
 
@@ -126,7 +128,7 @@ I would personally recommend setting the marked key price to 1.5 as I feel marke
 ## 6. Player selling
 I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. The trader item lock is off by default - turn it on and any item bought from a trader cannot be sold on the flea.
 
-- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced barely sells. Good gun builds still sell now and then.
+- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced barely sells. Good gun builds still sell now and then. "Normal" goes by what's in your item: armour with one plate is priced as armour with one plate.
 - Found in raid only is off by default, like live.
 
 Well whats the difference between the flip penalty and the trader item lock?

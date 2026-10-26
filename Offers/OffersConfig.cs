@@ -35,6 +35,9 @@ public record GeneratedOffersConfig
     [JsonPropertyName("sellerRating")]
     public SellerRatingConfig SellerRating { get; set; } = new();
 
+    [JsonPropertyName("sellerBadges")]
+    public SellerBadgesConfig SellerBadges { get; set; } = new();
+
     [JsonPropertyName("simulatedSales")]
     public SimulatedSalesConfig SimulatedSales { get; set; } = new();
 
@@ -453,6 +456,21 @@ public record SellerRatingConfig
 
     [JsonPropertyName("newSellerChance")]
     public double NewSellerChance { get; set; } = 0.05;
+}
+
+public record SellerBadgesConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("edgeOfDarknessChance")]
+    public double EdgeOfDarknessChance { get; set; } = 0.20;
+
+    [JsonPropertyName("unheardChance")]
+    public double UnheardChance { get; set; } = 0.15;
+
+    [JsonPropertyName("specialChance")]
+    public double SpecialChance { get; set; } = 0.001;
 }
 
 public record SimulatedSalesConfig

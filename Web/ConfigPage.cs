@@ -202,10 +202,15 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     private JsonObject Overview()
     {
         var economy = configManager.Mod.Economy;
+        var (_, _, fetched, _, error, _) = LivePrices.Status();
         return new JsonObject
         {
             ["version"] = new ModMetadata().Version.ToString(),
-            ["livePrices"] = new JsonObject { ["enabled"] = economy.LivePrices.Enabled, ["gameMode"] = economy.LivePrices.GameMode },
+            ["livePrices"] = new JsonObject
+            {
+                ["enabled"] = economy.LivePrices.Enabled, ["gameMode"] = economy.LivePrices.GameMode, ["fetched"] = fetched, ["failed"] = error is not null,
+                ["estimateModdedItems"] = economy.LivePrices.EstimateModdedItems
+            },
             ["wipeCycle"] = new JsonObject { ["enabled"] = economy.WipeCycle.Enabled, ["now"] = economy.WipeCycle.Enabled ? Wipe("", "") : null }
         };
     }
@@ -407,10 +412,10 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         return _startedWith.Any(entry => RestartValues(entry.Key) != entry.Value);
     }
 
-    // Anyone can see the flea's stats; the settings need the admin login (AdminLogin).
+    // Anyone can see the flea's stats and look items up; the settings need the admin login (AdminLogin).
     private static readonly HashSet<string> OpenPaths = new(StringComparer.Ordinal)
     {
-        Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview",
+        Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview", Root + "/api/items", Root + "/api/economy",
         Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
     };
 

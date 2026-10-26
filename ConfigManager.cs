@@ -84,6 +84,7 @@ public class ConfigManager(
                 SoldBeforeYouChance = market.SoldBeforeYouChance,
                 BarterOffers = market.BarterOffers,
                 SellerRating = market.SellerRating,
+                SellerBadges = market.SellerBadges,
                 Packs = market.Packs
             },
             Prices = prices,

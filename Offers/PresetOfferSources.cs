@@ -790,7 +790,10 @@ internal static class LostGunOffers
             OnDemandOffers.Keep(offer.Id);
             if (Settings.KillerAsSeller && !string.IsNullOrWhiteSpace(gun.Killer) && offer.User is { } user)
             {
+                // The killer's own rating and badge, not the generated name's.
                 user.Nickname = gun.Killer;
+                user.MemberType = user.SelectedMemberCategory = SPTarkov.Server.Core.Models.Enums.MemberCategory.Default;
+                OfferLifecycle.SetSeller(offer);
             }
 
             // Back after a restart: the time it had left.

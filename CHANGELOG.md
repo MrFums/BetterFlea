@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.2
+
+**New**
+- **Level locked items, like live:** some items can only be bought from a certain level (the M4A1 from 25, a graphics card from 40). Below that level the offer shows locked with its unlock level. Uses the real game's level for every item, kept up to date from tarkov.dev when Live prices are on. Modded items get the level most items of their kind need. On by default, on the Bans tab.
+- **Seller badges:** like the live flea, some sellers have an Edge of Darkness (20%) or Unheard (15%) badge, and very rarely a Developer, Sherpa or Emissary one. The shares are on the Market tab.
+- Item lookup on the read-only page, so everyone can look up an item's prices.
+- The read-only page shows when live prices were last updated.
+
+**Fixes**
+- A seller's rating could change from one offer to the next. Each seller name now keeps the same rating and badge on every offer, even after a restart.
+- An overpriced listing could still sell straight away. Armour with one plate was judged against offers with full plates, so a 1-plate Zhuk at a full-plate price sold. The normal price for your listing now goes by what's actually in it: the item, its plates and parts, and their condition.
+- With Live prices on, guns got far too high a base price (the AKS-74U at 76,000 while its offers were 15,000). tarkov.dev's average for a gun counts every build listed, so guns now use the day's low price. Live prices are fetched again once after updating.
+- Players under the flea's level could see offers from players with an Edge of Darkness or other badge.
+- The Bans tab could credit another mod's items to SVM ("Other 2"). An item now only goes to a mod when that mod clearly adds it.
+- The Save and Discard buttons jumped down while "Saved" showed. Messages now show under the bar.
+- The flea icon on an equipped gun sat on top of its durability bar.
+
 ## 2.1.1
 
 **New**

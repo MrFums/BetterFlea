@@ -45,6 +45,15 @@
     "newSellerChance": 0.05
   },
 
+  // Badges next to a generated seller's name, like the real flea's Edge of Darkness and Unheard players. Each
+  // seller name keeps its badge (and its rating) on every offer. Never a trader's or system badge.
+  "sellerBadges": {
+    "enabled": true,
+    "edgeOfDarknessChance": 0.20,
+    "unheardChance": 0.15,
+    "specialChance": 0.001           // a Developer, Sherpa or Emissary badge. 0.001 = 1 in 1000
+  },
+
   // Packs: several of an item you have to buy all together. Most are scams, a little dearer than buying them one by one
   // so they sit mid-list looking like any other offer; the rest are a fair bundle a bit under the single offers, near the top. Only for the item types SPT allows in packs.
   "packs": {

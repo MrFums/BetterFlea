@@ -100,12 +100,18 @@ internal static class PriceGate
         DataFiles.Write(DriftFile, Drifts.ToDictionary(entry => entry.Key.ToString(), entry => entry.Value.State()));
     }
 
-    public static double Adjust(MongoId tpl, MongoId currency, Item? item, double price)
+    // counted = false: only working out a price (a player's listing), no offer is being made.
+    public static double Adjust(MongoId tpl, MongoId currency, Item? item, double price, bool counted = true)
     {
         price *= UsedListingsGate.KeyPriceFactor(tpl, item);
         price *= DriftFactor(tpl);
 
         var floor = FloorFor(tpl, item, currency);
+        if (price < floor && !counted)
+        {
+            return floor;
+        }
+
         if (price < floor)
         {
             Interlocked.Increment(ref _raisedToFloor);

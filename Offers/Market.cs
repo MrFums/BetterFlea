@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
@@ -75,7 +76,11 @@ internal static class OfferLifecycle
 
     private static TimeSpan BuyerInterval() => TimeSpan.FromMinutes(Math.Max(1, _config!.Mod.GeneratedOffers.SimulatedSales.EveryMinutes));
 
-    public static void SettingsChanged() => _buyers?.Change(BuyerInterval(), BuyerInterval());
+    public static void SettingsChanged()
+    {
+        _buyers?.Change(BuyerInterval(), BuyerInterval());
+        ForgetSellers();
+    }
 
     // Under 1 = good deal, over 1 = overpriced, against the normal price for its condition.
     public static double DealRatio(RagfairOffer offer)
@@ -113,32 +118,92 @@ internal static class OfferLifecycle
         offer.EndTime = offer.StartTime + duration;
     }
 
-    // Mostly everyday players with low ratings, some regulars up to max. Bulk sellers are mostly regulars.
-    public static void SetSellerRating(RagfairOffer offer)
+    // One seller per name: the same name shows the same rating and badge on every offer. Rolled from the name, so
+    // a restart gives them the same again; rolled anew only when the wipe level (which ratings grow with) moves.
+    private sealed record Seller(int WipeLevel, double? Rating, MemberCategory Badge);
+
+    private static readonly ConcurrentDictionary<string, Seller> Sellers = new(StringComparer.Ordinal);
+
+    public static void ForgetSellers() => Sellers.Clear();
+
+    public static void SetSeller(RagfairOffer offer)
     {
-        var settings = _config!.Mod.GeneratedOffers.SellerRating;
-        if (!settings.Enabled || offer.User is not { } user)
+        if (offer.User is not { } user)
         {
             return;
         }
 
+        var wipeLevel = BetterFlea.Prices.WipeEconomy.Level > 0 ? BetterFlea.Prices.WipeEconomy.Level : 15;
+        var name = user.Nickname ?? "";
+        if (!Sellers.TryGetValue(name, out var seller) || seller.WipeLevel != wipeLevel)
+        {
+            var roll = new Random(StableHash(name));
+            var badge = RollBadge(roll);
+            seller = new Seller(wipeLevel, RollRating(roll, wipeLevel, Math.Max(1, offer.Quantity)), badge);
+            Sellers[name] = seller;
+        }
+
+        if (seller.Rating is { } rating)
+        {
+            user.Rating = rating;
+        }
+
+        // SPT's own flea level gate only hides Default sellers; LevelGatePatch hides badged ones too.
+        if (seller.Badge != MemberCategory.Default)
+        {
+            user.MemberType = seller.Badge;
+            user.SelectedMemberCategory = seller.Badge;
+        }
+    }
+
+    // Never Trader, System, Group or UnitTest: the game treats those offers differently.
+    private static readonly MemberCategory[] SpecialBadges = [MemberCategory.Developer, MemberCategory.Sherpa, MemberCategory.Emissary];
+
+    private static MemberCategory RollBadge(Random roll)
+    {
+        var settings = _config!.Mod.GeneratedOffers.SellerBadges;
+        var dice = roll.NextDouble();
+        var pick = roll.Next(SpecialBadges.Length);
+        if (!settings.Enabled)
+        {
+            return MemberCategory.Default;
+        }
+
+        var special = Math.Clamp(settings.SpecialChance, 0, 1);
+        var eod = Math.Clamp(settings.EdgeOfDarknessChance, 0, 1);
+        var unheard = Math.Clamp(settings.UnheardChance, 0, 1);
+        return dice < special ? SpecialBadges[pick]
+            : dice < special + eod ? MemberCategory.UniqueId
+            : dice < special + eod + unheard ? MemberCategory.Unheard
+            : MemberCategory.Default;
+    }
+
+    // Mostly everyday players with low ratings, some regulars up to max. Bulk sellers are mostly regulars.
+    // Null leaves SPT's.
+    private static double? RollRating(Random roll, int wipeLevel, int quantity)
+    {
+        var settings = _config!.Mod.GeneratedOffers.SellerRating;
+        if (!settings.Enabled)
+        {
+            return null;
+        }
+
         // Sellers' ratings grow with the wipe: up to level 15 most are new to the flea, by level 50 few are. Goes by
         // the highest level of the players online (15 when nobody is).
-        var wipeLevel = BetterFlea.Prices.WipeEconomy.Level > 0 ? BetterFlea.Prices.WipeEconomy.Level : 15;
         var t = Math.Clamp((wipeLevel - 15) / 35.0, 0, 1);
         var grown = t * t * (3 - 2 * t);
 
-        var quantity = Math.Max(1, offer.Quantity);
-        if (quantity == 1 && Random.Shared.NextDouble() < settings.NewSellerChance * (1 - 0.85 * grown))
+        // Always the same number of rolls, so a name's place in each range stays put as the wipe goes on.
+        var (newRoll, regularRoll, shareRoll) = (roll.NextDouble(), roll.NextDouble(), roll.NextDouble());
+        if (quantity == 1 && newRoll < settings.NewSellerChance * (1 - 0.85 * grown))
         {
-            user.Rating = Math.Round(-2 + Random.Shared.NextDouble() * (Math.Max(settings.Min, -2) + 2), 2);
-            return;
+            return Math.Round(-2 + shareRoll * (Math.Max(settings.Min, -2) + 2), 2);
         }
 
         // Someone with several of one item is usually a flipper with a long flea history. Not always.
         var regularChance = quantity == 1 ? settings.RegularChance : Math.Min(0.9, settings.FlipperChance + 0.03 * (quantity - 2));
         regularChance += (0.5 - regularChance) * 0.6 * grown;
-        var regular = Random.Shared.NextDouble() < regularChance;
+        var regular = regularRoll < regularChance;
         var everydayMax = Math.Max(settings.Min, Math.Min(settings.EverydayMax * (1 + grown), settings.Max));
         var everydayMin = settings.Min + (Math.Min(5, everydayMax) - settings.Min) * grown;
         var (low, high, bias) = regular
@@ -146,8 +211,20 @@ internal static class OfferLifecycle
             : (everydayMin, everydayMax, 1.3 - 0.5 * grown);
         low = Math.Max(0.01, low);
         high = Math.Max(low, high);
-        var share = Math.Pow(Random.Shared.NextDouble(), bias);
-        user.Rating = Math.Round(Math.Exp(Math.Log(low) + share * (Math.Log(high) - Math.Log(low))), 2);
+        var share = Math.Pow(shareRoll, bias);
+        return Math.Round(Math.Exp(Math.Log(low) + share * (Math.Log(high) - Math.Log(low))), 2);
+    }
+
+    // string.GetHashCode changes every run.
+    private static int StableHash(string text)
+    {
+        var hash = 2166136261u;
+        foreach (var c in text)
+        {
+            hash = (hash ^ c) * 16777619u;
+        }
+
+        return (int)hash;
     }
 
     private static void BuyersComeRound()
@@ -218,7 +295,7 @@ public class OfferListedTimePatch : AbstractPatch
         if (details.Creator == OfferCreator.FakePlayer && __result is not null)
         {
             OfferLifecycle.SetListedTime(__result, justListed: ListingCountGate.NoCap);
-            OfferLifecycle.SetSellerRating(__result);
+            OfferLifecycle.SetSeller(__result);
         }
     }
 }

@@ -45,7 +45,8 @@ internal static class LivePrices
     private static int _fetching;
 
     // Known: every item tarkov.dev has, priced or not (base-game items, wherever they come from).
-    public record Cache(string[] Modes, long Fetched, Dictionary<string, double> Prices, string[]? Known = null);
+    // Levels: the level each item can be bought from on the real flea, where it needs one (LevelLock).
+    public record Cache(string[] Modes, long Fetched, Dictionary<string, double> Prices, string[]? Known = null, Dictionary<string, int>? Levels = null);
 
     private static LivePricesConfig Settings => _config!.Mod.Economy.LivePrices;
 
@@ -83,7 +84,8 @@ internal static class LivePrices
         }
 
         _cache ??= DataFiles.Read<Cache>(CacheFile);
-        var usable = _cache is { Known: not null } && _cache.Modes.Order().SequenceEqual(WantedModes.Order());
+        // A 2.1.1 file has no levels and averaged guns' builds: fetched again once.
+        var usable = _cache is { Known: not null, Levels: not null } && _cache.Modes.Order().SequenceEqual(WantedModes.Order());
         if (!usable)
         {
             // Nothing for these game modes yet: wait for it, so the first offers already use it.
@@ -121,6 +123,7 @@ internal static class LivePrices
             var modes = WantedModes;
             var sums = new Dictionary<string, (double Sum, int Count)>();
             var known = new HashSet<string>();
+            var levels = new Dictionary<string, int>();
             foreach (var mode in modes)
             {
                 using var stream = Http.GetStreamAsync(string.Format(Source, mode)).GetAwaiter().GetResult();
@@ -128,8 +131,12 @@ internal static class LivePrices
                 foreach (var item in json.RootElement.GetProperty("data").GetProperty("items").EnumerateObject())
                 {
                     known.Add(item.Name);
-                    if (item.Value.TryGetProperty("avg24hPrice", out var price) && price.ValueKind == JsonValueKind.Number
-                        && price.GetDouble() is var value and > 0)
+                    if (item.Value.TryGetProperty("minLevelForFlea", out var level) && level.ValueKind == JsonValueKind.Number && level.GetInt32() > 0)
+                    {
+                        levels[item.Name] = level.GetInt32();
+                    }
+
+                    if (PriceOf(item.Value) is var value and > 0)
                     {
                         var (sum, count) = sums.GetValueOrDefault(item.Name);
                         sums[item.Name] = (sum + value, count + 1);
@@ -143,8 +150,9 @@ internal static class LivePrices
             }
 
             _cache = new Cache(modes, DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                sums.ToDictionary(entry => entry.Key, entry => Math.Round(entry.Value.Sum / entry.Value.Count)), known.ToArray());
+                sums.ToDictionary(entry => entry.Key, entry => Math.Round(entry.Value.Sum / entry.Value.Count)), known.ToArray(), levels);
             DataFiles.Write(CacheFile, _cache);
+            Flea.LevelLock.UseLive(levels);
             _error = null;
             DebugLog.Summary(() => $"Live prices: {_cache.Prices.Count} prices from tarkov.dev ({string.Join(", ", modes)}).");
         }
@@ -159,8 +167,27 @@ internal static class LivePrices
         }
     }
 
+    // A gun's 24 hour average is over every build listed (a 17k stock AKS-74U averages 69k), so a gun gets the day's
+    // low instead: about a stock gun. Everything else gets its average.
+    private static double PriceOf(JsonElement item)
+    {
+        static double Number(JsonElement item, string name) =>
+            item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetDouble() : 0;
+
+        var gun = item.TryGetProperty("types", out var types) && types.ValueKind == JsonValueKind.Array
+            && types.EnumerateArray().Any(type => type.ValueKind == JsonValueKind.String && type.GetString() == "gun");
+        var low = gun ? Number(item, "low24hPrice") : 0;
+        if (gun && low <= 0)
+        {
+            low = Number(item, "lastLowPrice");
+        }
+
+        return low > 0 ? low : Number(item, "avg24hPrice");
+    }
+
     private static void Use(Cache? cache)
     {
+        Flea.LevelLock.UseLive(cache?.Levels);
         if (cache is null || !Settings.Enabled)
         {
             return;

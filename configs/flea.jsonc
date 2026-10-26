@@ -65,5 +65,12 @@
   // Items added by other server mods, by mod name. ["all"] bans everything the mod adds, or list the types
   // to ban from it, named as above. Example: { "Some Mod": ["weapons.guns", "gear.backpacks"] }
   // Easiest to set on the settings page, which lists the mods that add items.
-  "bannedModItems": {}
+  "bannedModItems": {},
+
+  // Like the real flea: some items can only be bought from a certain level (the M4A1 from 25, a graphics card
+  // from 40). Uses the real game's levels, updated from tarkov.dev when live prices are on.
+  "levelLock": {
+    "enabled": true,
+    "moddedItems": true              // modded items need the level most items of their kind need
+  }
 }

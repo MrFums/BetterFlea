@@ -28,6 +28,8 @@ internal static class ModItems
     private static HashSet<MongoId> _baseItems = [];
     private static Lazy<Dictionary<string, string>> _modById = new(() => new Dictionary<string, string>());
 
+    public static bool IsBaseItem(MongoId tpl) => _baseItems.Contains(tpl);
+
     public static string? ModOf(MongoId tpl) =>
         _baseItems.Contains(tpl) ? null : _modById.Value.GetValueOrDefault(tpl.ToString().ToLowerInvariant());
 
@@ -57,25 +59,29 @@ internal static class ModItems
         _modById = new Lazy<Dictionary<string, string>>(() => Index(others), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
-    // Every item-like id in each mod's folder. An id found in several mods goes to the one that mentions it most.
+    // Every item-like id in each mod's folder. An id found in several mods goes to the one that has it in a json
+    // file, then to the one that mentions it most. A tie goes to no one: a dll that just names an id (SVM naming
+    // WTT's USEC customisation, say) mustn't take another mod's items.
     private static Dictionary<string, string> Index(List<SptMod> mods)
     {
-        var counts = new Dictionary<string, Dictionary<string, int>>();
+        var counts = new Dictionary<string, Dictionary<string, (int Json, int All)>>();
         foreach (var mod in mods)
         {
             var name = mod.ModMetadata.Name ?? Path.GetFileName(mod.Directory);
             foreach (var file in Files(mod.Directory))
             {
+                var json = !Path.GetExtension(file).Equals(".dll", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                 try
                 {
                     foreach (var id in Ids(File.ReadAllBytes(file)))
                     {
                         if (!counts.TryGetValue(id, out var byMod))
                         {
-                            counts[id] = byMod = new Dictionary<string, int>();
+                            counts[id] = byMod = new Dictionary<string, (int Json, int All)>();
                         }
 
-                        byMod[name] = byMod.GetValueOrDefault(name) + 1;
+                        var seen = byMod.GetValueOrDefault(name);
+                        byMod[name] = (seen.Json + json, seen.All + 1);
                     }
                 }
                 catch (Exception ex)
@@ -86,8 +92,27 @@ internal static class ModItems
         }
 
         var baseIds = _baseItems.Select(tpl => tpl.ToString().ToLowerInvariant()).ToHashSet();
-        return counts.Where(entry => !baseIds.Contains(entry.Key))
-            .ToDictionary(entry => entry.Key, entry => entry.Value.MaxBy(byMod => byMod.Value).Key);
+        var owners = new Dictionary<string, string>();
+        foreach (var (id, byMod) in counts)
+        {
+            if (!baseIds.Contains(id) && Owner(byMod) is { } owner)
+            {
+                owners[id] = owner;
+            }
+        }
+
+        return owners;
+    }
+
+    private static string? Owner(Dictionary<string, (int Json, int All)> byMod)
+    {
+        var ranked = byMod.OrderByDescending(entry => entry.Value.Json > 0).ThenByDescending(entry => entry.Value.All).Take(2).ToList();
+        if (ranked.Count == 2 && (ranked[0].Value.Json > 0) == (ranked[1].Value.Json > 0) && ranked[0].Value.All == ranked[1].Value.All)
+        {
+            return null;
+        }
+
+        return ranked[0].Key;
     }
 
     private static IEnumerable<string> Files(string directory)

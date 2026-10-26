@@ -43,6 +43,12 @@
   .status { font-size: 12.5px; color: var(--muted); }
   .status.dirty { color: var(--warn); }
   .status.bad { color: var(--bad); }
+  /* Messages after Save, Discard or Import float under the bar, so they never push the buttons around. */
+  .bar { position: relative; }
+  .toast { position: absolute; right: 16px; top: calc(100% + 8px); max-width: min(460px, calc(100vw - 32px)); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; font-size: 12.5px; color: var(--muted); box-shadow: 0 10px 30px rgba(0,0,0,0.5); pointer-events: none; }
+  .toast.bad { color: var(--bad); border-color: rgba(226, 112, 92, 0.5); }
+  .toast[hidden] { display: none; }
 
   .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
   .btn:hover:not(:disabled) { border-color: var(--slate); }
@@ -288,6 +294,7 @@
     </div>
     <button class="btn" id="account" hidden></button>
     <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <div class="toast" id="toast" role="status" hidden></div>
   </div>
 </header>
 
@@ -814,16 +821,28 @@ function hidden(file, path) {
 }
 function dirtyFiles() { return state.files.filter(f => !same(f.values, state.saved[f.file])); }
 
+// Only the short "Unsaved changes" sits in the bar. Anything longer goes in the toast under it.
 function setStatus(text, kind) {
   const s = $("status");
   s.textContent = text;
   s.className = "status" + (kind ? " " + kind : "");
 }
+let toastTimer = 0;
+function toast(text, kind, ms) {
+  const t = $("toast");
+  clearTimeout(toastTimer);
+  t.textContent = text;
+  t.className = "toast" + (kind ? " " + kind : "");
+  t.hidden = !text;
+  if (text && ms) toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+}
 function refreshBar() {
   const dirty = dirtyFiles();
   $("save").disabled = $("discard").disabled = dirty.length === 0;
-  if (dirty.length) setStatus("Unsaved changes: " + dirty.map(f => f.title).join(", "), "dirty");
-  else if ($("status").className.includes("dirty")) setStatus("");
+  if (dirty.length) {
+    setStatus("Unsaved changes", "dirty");
+    $("status").title = dirty.map(f => f.title).join(", ");
+  } else if ($("status").className.includes("dirty")) { setStatus(""); $("status").title = ""; }
 }
 
 // ---------- loading and saving ----------
@@ -919,6 +938,8 @@ function renderGuest() {
   main.appendChild(notice("You're seeing how the flea is doing. Log in as the admin to change Better Flea's settings."));
   const home = homeSection();
   home.insertBefore(economyCard(), home.children[1]);
+  const e = state.econ || (state.econ = { level: 0, item: null });
+  home.insertBefore(itemLookup(e, e.data || {}), home.children[2]);
   main.appendChild(home);
   drawCharts();
 }
@@ -936,7 +957,8 @@ function economyCard() {
     card.appendChild(r);
   };
   const mode = { live: "Live (PvP)", pve: "PvE", season: "Season" }[o.livePrices.gameMode] || o.livePrices.gameMode;
-  row("Live prices", o.livePrices.enabled, o.livePrices.enabled ? "Real flea prices from tarkov.dev, " + mode + "." : "Using SPT's own prices.");
+  const synced = o.livePrices.fetched ? " Updated " + ago(o.livePrices.fetched) + (o.livePrices.failed ? ", the last update failed." : ".") : " Not fetched yet.";
+  row("Live prices", o.livePrices.enabled, o.livePrices.enabled ? "Real flea prices from tarkov.dev, " + mode + "." + synced : "Using SPT's own prices.");
   const w = o.wipeCycle.now;
   const market = w ? Math.round((w.market - 1) * 100) : 0;
   row("Wipe Cycle", o.wipeCycle.enabled, o.wipeCycle.enabled && w
@@ -958,7 +980,7 @@ async function saveAll() {
   const dirty = dirtyFiles();
   if (!dirty.length) return;
   $("save").disabled = true;
-  setStatus("Saving…");
+  toast("Saving…");
   let remaking = false;
   for (const f of dirty) {
     try {
@@ -972,7 +994,7 @@ async function saveAll() {
       state.restartNeeded = !!data.restartNeeded;
       remaking = remaking || !!data.remaking;
     } catch (e) {
-      setStatus("Couldn't save " + f.title + ": " + e.message, "bad");
+      toast("Couldn't save " + f.title + ": " + e.message, "bad", 10000);
       render();
       return;
     }
@@ -981,15 +1003,14 @@ async function saveAll() {
   render();
   // The preview goes back to the flea's own level, which a test level may just have changed.
   if (dirty.some(f => f.file === "economy.jsonc")) { if (state.econ) { state.econ.level = 0; state.econ.previewing = false; } setTimeout(loadEconomy, 4000); }
-  setStatus(remaking ? "Saved. The flea is being remade with the new settings, give it a few seconds." : "Saved.");
-  setTimeout(() => { if ($("status").textContent.startsWith("Saved")) setStatus(""); }, 6000);
+  toast(remaking ? "Saved. The flea is being remade with the new settings, give it a few seconds." : "Saved.", "", 6000);
 }
 
 function discard() {
   for (const f of state.files) f.values = clone(state.saved[f.file]);
   state.styleNote = "";
   render();
-  setStatus("Changes discarded.");
+  toast("Changes discarded.", "", 4000);
 }
 
 function change(f, path, value) {
@@ -1413,8 +1434,9 @@ async function loadStatus() {
     if (!res.ok) throw new Error();
     state.status = await res.json();
   } catch (e) { /* keeps the last one */ }
-  // Not while someone is reading a graph.
-  if (state.current === HOME && !document.querySelector(".chart:hover")) render();
+  // Not while someone is reading a graph or typing in the item lookup.
+  const typing = document.activeElement && document.activeElement.id === "econ-find";
+  if (state.current === HOME && !typing && !document.querySelector(".chart:hover")) render();
 }
 
 function make(tag, className, text) {
@@ -1674,7 +1696,7 @@ async function loadEconomy() {
   const query = "?level=" + (e.level || "") + (e.item ? "&id=" + e.item.id : "");
   try { e.data = await (await fetch(API + "/economy" + query, { cache: "no-store" })).json(); } catch (err) { e.data = null; }
   if (!e.level && e.data) e.level = e.data.previewLevel;
-  if (state.current === "economy.jsonc") render();
+  if (state.current === "economy.jsonc" || state.guest) render();
 }
 
 function ago(seconds) {
@@ -1761,7 +1783,12 @@ function economyPanel() {
     ["Cheaper", d.movers.slice(half).filter(m => m.factor < 0.995).slice(0, 10).map(pct)]]));
   wrap.appendChild(wipe);
 
-  // One item: its prices now, from SPT and live, and through a wipe.
+  wrap.appendChild(itemLookup(e, d));
+  return wrap;
+}
+
+// One item: its prices now, from SPT and live, and through a wipe. Guests see it too.
+function itemLookup(e, d) {
   const look = make("div", "card");
   look.appendChild(make("h3", "", "Item lookup"));
   const finder = make("div", "finder");
@@ -1769,11 +1796,13 @@ function economyPanel() {
   search.className = "text";
   search.id = "econ-find";
   search.placeholder = "Search for an item…";
+  search.value = e.query || "";
   const results = make("div", "results");
   results.hidden = true;
   let timer = null;
   search.oninput = () => {
     clearTimeout(timer);
+    e.query = search.value;
     const q = search.value.trim();
     if (q.length < 2) { results.hidden = true; return; }
     timer = setTimeout(async () => {
@@ -1794,9 +1823,11 @@ function economyPanel() {
 
   if (e.item && d.curve) {
     look.appendChild(make("div", "k econ-item", e.item.name));
+    const estimates = state.guest ? state.overview && state.overview.livePrices.estimateModdedItems
+      : getAt(state.byFile["economy.jsonc"].values, ["livePrices", "estimateModdedItems"]);
     const liveText = d.livePrice ? count(d.livePrice) + " ₽"
       : d.baseGame ? "the real flea doesn't sell it, so it keeps its own price"
-      : "not in the real game (modded), " + (getAt(state.byFile["economy.jsonc"].values, ["livePrices", "estimateModdedItems"]) ? "estimated from similar items" : "keeps SPT's price");
+      : "not in the real game (modded), " + (estimates ? "estimated from similar items" : "keeps SPT's price");
     const facts = make("div", "facts econ-facts");
     facts.append(make("div", "", "Base price now: " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + (d.sptPrice ? count(d.sptPrice) + " ₽" : "none")),
       make("div", "", "Live price: " + liveText));
@@ -1807,8 +1838,7 @@ function economyPanel() {
     const points = d.curve.map((v, i) => ({ t: i + 1, v: v * 100 }));
     setTimeout(() => lineChart(chart, points, v => Math.round(v) + "% of normal", t => "Level " + Math.round(t)), 0);
   }
-  wrap.appendChild(look);
-  return wrap;
+  return look;
 }
 // ---------- mod items ----------
 
@@ -2082,7 +2112,7 @@ async function importSettings(file) {
     render();
     loadNames();
   } catch (e) {
-    setStatus("Couldn't import: " + e.message, "bad");
+    toast("Couldn't import: " + e.message, "bad", 10000);
   }
 }
 
