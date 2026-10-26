@@ -67,6 +67,14 @@ Flea styles change everything at once. **Balanced** is the default: live-like, w
 - Ban the items another server mod adds: all of them, or just some types (only its guns, say).
 - Item unlock levels (off by default; the Live progression flea style turns them on, or the Bans tab): some items can only be bought and sold from a certain level (the M4A1 from 25, a graphics card from 40). Items show the level they unlock at when inspected and flea categories show a lock, like live. Uses the real game's levels. A modded item unlocks with the real items of its kind that are worth about the same, so a strong modded stim needs the level the strongest real stims need. With Advanced settings on, you can set your own level for any item or whole category.
 
+![Item unlock level in the inspect window](imageExamples/levelinspect.jpg)
+
+*An item's inspect window says the level it unlocks on the Flea Market.*
+
+![Locked categories and offers](imageExamples/levellock.jpg)
+
+*Flea categories show the level they open at, and offers you can't buy yet show locked. Shown on a low-level profile.*
+
 ## 2. Offers
 
 ### How many offers
