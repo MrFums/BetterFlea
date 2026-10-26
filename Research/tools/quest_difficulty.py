@@ -34,6 +34,10 @@ LOCALE = load("locales/global/en.json")
 PRICE = {e["Id"]: e["Price"] for e in load("templates/handbook.json")["Items"]}
 FENCE = "579dc571d53a0658a154fbec"
 LIGHTKEEPER = "638f541a29ffd1183d187f57"
+BTR = "656f0f98d80a697f855d34b1"
+# Hidden traders no quest reward unlocks: the quest that leads to them. The BTR Driver is met through Skier's
+# A Helping Hand (level 20), then in raid.
+TRADER_GATE = {BTR: "6752f6d83038f7df520c83e8"}
 TRADERS = {}
 for trader_id in os.listdir(os.path.join(DB, "traders")):
     base = os.path.join(DB, "traders", trader_id, "base.json")
@@ -131,6 +135,9 @@ def own_difficulty(quest):
     if quest.get("traderId") == LIGHTKEEPER:
         points += 2
         notes.append("Lightkeeper quest")
+    if quest.get("traderId") in TRADER_GATE:
+        points += 1
+        notes.append(f"hidden trader ({trader_name(quest['traderId'])}), met in raid")
 
     for cond in quest["conditions"].get("AvailableForFinish", []):
         kind = cond["conditionType"]
@@ -161,6 +168,10 @@ def own_difficulty(quest):
             if one_raid and not any(c["conditionType"] == "Kills" for c in inner):
                 points += 1
                 notes.append("in one raid")
+        elif kind == "HandoverItem" and any(ITEMS.get(t, {}).get("_props", {}).get("QuestItem") for t in cond.get("target", [])):
+            # A quest item: a raid to its one spot to fetch it.
+            points += 1
+            notes.append(f"fetch {name(cond['target'][0])} in raid")
         elif kind == "HandoverItem":
             count = cond.get("value") or 1
             value = sum(PRICE.get(t, 0) for t in cond.get("target", [])) / max(1, len(cond.get("target", []))) * count
@@ -184,6 +195,14 @@ def own_difficulty(quest):
 
     if quest["conditions"].get("Fail"):
         points += 0.5
+    # Taking this quest fails another one: a choice that closes the other route, so fewer players go this way.
+    for other in QUESTS.values():
+        if other is quest:
+            continue
+        for cond in other["conditions"].get("Fail", []):
+            if cond["conditionType"] == "Quest" and cond.get("target") == quest["_id"]:
+                points += 1
+                notes.append(f"fails {trader_name(other['traderId'])}'s {name(other['_id'])}")
     map_points = max((p for _, p in maps), default=0)
     points += map_points
     hard_maps = sorted(n for n, p in maps if p >= 2)
@@ -217,6 +236,9 @@ def chain(qid, memo={}):
         return memo[qid]
     memo[qid] = (set(), 0, 0, (None, 0))  # breaks cycles
     level, prereqs, loyalty = START[qid]
+    gate_quest = TRADER_GATE.get(QUESTS[qid]["traderId"])
+    if gate_quest and gate_quest != qid and gate_quest not in prereqs:
+        prereqs = prereqs + [gate_quest]
     ancestors = set()
     depth = 0
     gate = max(loyalty, key=lambda g: g[1] or 0, default=(None, 0))
@@ -253,6 +275,9 @@ def difficulty(qid):
     score = max(score, level / 75)
     if lightkeeper:
         score = max(score, 0.9)
+    # A hidden trader met in raid (the BTR Driver): most players never get him, so at least "hard".
+    if QUESTS[qid].get("traderId") in TRADER_GATE:
+        score = max(score, 0.6)
     event = event_kind(qid)
     if event == "event (never given)":
         score = 1.0
@@ -327,6 +352,8 @@ def main():
         "- **This quest, 20%:** its own work. 12 points counts in full.",
         "- A level lock is worth at least level / 75 by itself (level 45 = 0.6).",
         "- Anything in the Lightkeeper chain is at least 0.9.",
+        "- BTR Driver quests are at least 0.6: he's a hidden trader no quest unlocks. You reach him through Skier's",
+        "  A Helping Hand (level 20) and meet him in raid, and his quests fail some of Skier's and Lightkeeper's.",
         "- Seasonal event quests are at least 0.8. Non-seasonal event quests are 1.0: SPT never gives them",
         "  (`showNonSeasonalEventQuests` is off), so what they unlock can't be bought from a trader at all.",
         "",
@@ -335,6 +362,7 @@ def main():
         "of day. Map: Labs/Labyrinth 3, Lighthouse/Reserve/Streets 2, Shoreline/Interchange/night Factory 1.",
         "Hand-ins: roubles / 100k found in raid (/300k otherwise), at most 5. Skill 0.4 per level, loyalty",
         "requirement 1 per level over 1, Lightkeeper's own quests +2. Needing trader LL3/LL4 to start the chain: 4/6.",
+        "Fetching a quest item in raid +1, a quest that fails another quest (a choice of route) +1, hidden trader +1.",
         "",
         "Tiers: very hard 0.75+, hard 0.55+, medium 0.35+, easy below.",
         "",
@@ -364,32 +392,38 @@ def main():
     lines[2:2] = [f"{len(order)} quests unlock {len(rows)} trader items. Very hard {counts['very hard']}, hard {counts['hard']}, "
                   f"medium {counts['medium']}, easy {counts['easy']}.", ""]
 
-    # What gun pricing actually sees: guns and parts, by the easiest way to buy each from a trader.
-    easiest = {}
+    # Guns and attachments: every quest that unlocks one, and where else it can be bought without a quest.
+    unlocked_by = defaultdict(list)
     for trader_id, loyalty, qid, tpl in rows:
-        if kind(tpl) not in ("Weapon", "Mod"):
-            continue
-        s = stats[qid]["score"]
-        if tpl not in easiest or s < easiest[tpl][0]:
-            easiest[tpl] = (s, qid, trader_id, loyalty)
-    open_too = set()
+        if kind(tpl) in ("Weapon", "Mod") and not any(name(q) == name(qid) for _, q, *_ in unlocked_by[tpl]):
+            unlocked_by[tpl].append((stats[qid]["score"], qid, trader_id, loyalty))
+    open_sale = defaultdict(set)
     for trader_id in TRADERS:
-        if trader_id == FENCE:
+        folder = os.path.join(DB, "traders", trader_id)
+        if trader_id == FENCE or not os.path.exists(os.path.join(folder, "assort.json")):
             continue
-        locked = set(load(f"traders/{trader_id}/questassort.json").get("success", {})) if os.path.exists(
-            os.path.join(DB, "traders", trader_id, "questassort.json")) else set()
-        for item in load(f"traders/{trader_id}/assort.json").get("items", []) if os.path.exists(
-                os.path.join(DB, "traders", trader_id, "assort.json")) else []:
+        qa = load(f"traders/{trader_id}/questassort.json") if os.path.exists(os.path.join(folder, "questassort.json")) else {}
+        locked = {assort_id for group in qa.values() for assort_id in group}
+        assort = load(f"traders/{trader_id}/assort.json")
+        loyalty = assort.get("loyal_level_items", {})
+        for item in assort.get("items", []):
             if item.get("parentId") == "hideout" and item["_id"] not in locked:
-                open_too.add(item["_tpl"])
-    lines += ["", "## Guns and gun parts", "",
-              "Each gun or part a quest unlocks, by its easiest quest. Ones another trader also sells without a quest are left",
-              "out: gun pricing goes by the easiest way to buy a part, so the quest doesn't matter for them.", "",
-              "| Score | Tier | Item | Quest | Trader | LL |", "|---|---|---|---|---|---|"]
-    for tpl, (s, qid, trader_id, loyalty) in sorted(easiest.items(), key=lambda e: -e[1][0]):
-        if tpl in open_too:
-            continue
-        lines.append(f"| {s:.2f} | {tier(s)} | {name(tpl)} | {name(qid)} | {trader_name(trader_id)} | {loyalty} |")
+                open_sale[item["_tpl"]].add((loyalty.get(item["_id"], 1), trader_name(trader_id)))
+
+    lines += ["", "## Guns and attachments", "",
+              "Every gun and attachment a quest unlocks, hardest quest first. \"Also sold\" is where a trader sells it without",
+              "any quest. Gun pricing goes by the easiest way to buy a part, so a part that's also sold at a low loyalty",
+              "level is priced by that, however hard the quest is.", "",
+              "| Score | Tier | Item | Unlocked by | Sold by (LL) | Also sold without a quest |", "|---|---|---|---|---|---|"]
+
+    def hardest(tpl):
+        return max(s for s, *_ in unlocked_by[tpl])
+
+    for tpl in sorted(unlocked_by, key=lambda t: (-hardest(t), name(t))):
+        for s, qid, trader_id, loyalty in sorted(unlocked_by[tpl], key=lambda u: -u[0]):
+            extra = f" ({stats[qid]['event']})" if stats[qid]["event"] else ""
+            also = ", ".join(f"{n} LL{lv}" for lv, n in sorted(open_sale.get(tpl, set()))) or "no"
+            lines.append(f"| {s:.2f} | {tier(s)} | {name(tpl)} | {name(qid)}{extra} | {trader_name(trader_id)} ({loyalty}) | {also} |")
 
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
