@@ -38,6 +38,83 @@ public class ConfigManager(
         Validate();
         DebugLog.BindSummaries(this, message => logger.Info(message));
         DataFiles.Bind(ModPath, jsonUtil, message => logger.Warning(message));
+        if (MoveOldDefaults())
+        {
+            Mod = LoadSplit();
+            Validate();
+        }
+    }
+
+    // Defaults a version changed, as (update, file, setting, old default, new default). A setting still at its old
+    // default takes the new one once; one the user changed is left alone.
+    private static readonly (string Update, string File, string[] Path, double Old, double New)[] ChangedDefaults =
+    [
+        ("2.3.0", "prices.jsonc", ["sellers", "quickSellChance"], 0.03, 0.004),
+        ("2.3.0", "prices.jsonc", ["sellers", "quickSellMinPercent"], 15, 10),
+        ("2.3.0", "prices.jsonc", ["sellers", "quickSellMaxPercent"], 35, 25),
+        ("2.3.0", "weapons.jsonc", ["presets", "buildDealChance"], 0.1, 0.02),
+        ("2.3.0", "market.jsonc", ["simulatedSales", "dealSpeedup"], 8, 20),
+        ("2.3.0", "selling.jsonc", ["saleDelay", "expensivePercent"], 30, 15),
+        ("2.3.0b", "weapons.jsonc", ["playerGuns", "savedBuildChance"], 0.05, 0.003),
+        ("2.3.0c", "market.jsonc", ["sellerRating", "min"], 0.2, 2),
+        ("2.3.0c", "market.jsonc", ["sellerRating", "everydayMax"], 50, 100),
+        ("2.3.0c", "market.jsonc", ["sellerRating", "regularChance"], 0.08, 0.25)
+    ];
+
+    private const string UpdatesFile = "applied-updates.json";
+
+    private bool MoveOldDefaults()
+    {
+        var applied = DataFiles.Read<List<string>>(UpdatesFile) ?? [];
+        var pending = ChangedDefaults.Where(change => !applied.Contains(change.Update)).ToList();
+        if (pending.Count == 0)
+        {
+            return false;
+        }
+
+        var moved = 0;
+        foreach (var group in pending.GroupBy(change => change.File))
+        {
+            try
+            {
+                if (FileValues(group.Key) is not JsonObject values)
+                {
+                    continue;
+                }
+
+                foreach (var change in group)
+                {
+                    var section = change.Path[..^1].Aggregate((JsonNode?)values, (node, key) => node?[key]) as JsonObject;
+                    var key = change.Path[^1];
+                    if (section?[key] is JsonValue value && value.TryGetValue<double>(out var current) && Math.Abs(current - change.Old) < 1e-9)
+                    {
+                        section[key] = change.New;
+                        moved++;
+                    }
+                }
+
+                var path = Path.Combine(ModPath, ConfigFolder, group.Key);
+                var text = File.ReadAllText(path);
+                var updated = JsoncPort.Apply(text, values, FileDefaults(group.Key));
+                if (updated != text)
+                {
+                    File.WriteAllText(path, updated);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Warning($"[BetterFlea] Could not update {ConfigFolder}/{group.Key} to this version's defaults ({ex.Message})");
+            }
+        }
+
+        applied.AddRange(pending.Select(change => change.Update).Distinct());
+        DataFiles.Write(UpdatesFile, applied);
+        if (moved > 0)
+        {
+            logger.Info($"[BetterFlea] {moved} setting(s) still at an old default were moved to this version's default.");
+        }
+
+        return moved > 0;
     }
 
     private ModConfig LoadSplit()
@@ -411,11 +488,21 @@ public class ConfigManager(
         sellers.OverpriceChance = Math.Clamp(sellers.OverpriceChance, 0.0, 1.0);
         sellers.WornOverpriceChance = Math.Clamp(sellers.WornOverpriceChance, 0.0, 1.0);
         sellers.QuickSellChance = Math.Clamp(sellers.QuickSellChance, 0.0, 1.0);
+        sellers.RoundPriceChance = Math.Clamp(sellers.RoundPriceChance, 0.0, 1.0);
         sellers.OverpriceMinPercent = Math.Clamp(sellers.OverpriceMinPercent, 0.0, 80.0);
         sellers.OverpriceMaxPercent = Math.Clamp(sellers.OverpriceMaxPercent, sellers.OverpriceMinPercent, 80.0);
         sellers.QuickSellMinPercent = Math.Clamp(sellers.QuickSellMinPercent, 0.0, 90.0);
         sellers.QuickSellMaxPercent = Math.Clamp(sellers.QuickSellMaxPercent, sellers.QuickSellMinPercent, 90.0);
-        Mod.Prices.Guns.TraderPricePercent = Math.Clamp(Mod.Prices.Guns.TraderPricePercent, 10.0, 200.0);
+        var guns = Mod.Prices.Guns;
+        guns.TraderPricePercent = Math.Clamp(guns.TraderPricePercent, 10.0, 200.0);
+        guns.PriceAtHalfDurabilityPercent = Math.Clamp(guns.PriceAtHalfDurabilityPercent, 1.0, 100.0);
+        foreach (var shares in new[] { guns.FleaShareByLoyalty, guns.FleaShareByDifficulty })
+        {
+            foreach (var key in shares.Keys.ToList())
+            {
+                shares[key] = Math.Clamp(shares[key], 0.0, 1.0);
+            }
+        }
 
         var drift = Mod.Prices.Drift;
         drift.MaxDriftPercent = Math.Clamp(drift.MaxDriftPercent, 0.0, 90.0);

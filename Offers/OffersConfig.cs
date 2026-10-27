@@ -103,7 +103,7 @@ public record ListingsConfig
 public record PlayerGunsConfig
 {
     [JsonPropertyName("savedBuildChance")]
-    public double SavedBuildChance { get; set; } = 0.05;
+    public double SavedBuildChance { get; set; } = 0.003;
 
     [JsonPropertyName("lostGunChance")]
     public double LostGunChance { get; set; } = 0.35;
@@ -341,13 +341,24 @@ public record PresetOffersConfig
     public double LootedBuildChance { get; set; } = 0.2;
 
     [JsonPropertyName("buildDealChance")]
-    public double BuildDealChance { get; set; } = 0.1;
+    public double BuildDealChance { get; set; } = 0.02;
 
     [JsonPropertyName("buildDealMinDiscount")]
     public double BuildDealMinDiscount { get; set; } = 0.15;
 
     [JsonPropertyName("buildDealMaxDiscount")]
     public double BuildDealMaxDiscount { get; set; } = 0.3;
+
+    // Near-stock offers on top of a gun's others: the factory gun, now and then with a cheap sight or no magazine.
+    [JsonPropertyName("nearStockMin")]
+    public int NearStockMin { get; set; } = 5;
+
+    [JsonPropertyName("nearStockMax")]
+    public int NearStockMax { get; set; } = 15;
+
+    // A seller who forgot the scope was on it: the build priced as if it weren't.
+    [JsonPropertyName("forgotScopeChance")]
+    public double ForgotScopeChance { get; set; } = 0.007;
 
     [JsonPropertyName("buildStyles")]
     public BuildStylesConfig BuildStyles { get; set; } = new();
@@ -440,16 +451,16 @@ public record SellerRatingConfig
     public bool Enabled { get; set; } = true;
 
     [JsonPropertyName("min")]
-    public double Min { get; set; } = 0.2;
+    public double Min { get; set; } = 2;
 
     [JsonPropertyName("max")]
     public double Max { get; set; } = 300;
 
     [JsonPropertyName("everydayMax")]
-    public double EverydayMax { get; set; } = 50;
+    public double EverydayMax { get; set; } = 100;
 
     [JsonPropertyName("regularChance")]
-    public double RegularChance { get; set; } = 0.08;
+    public double RegularChance { get; set; } = 0.25;
 
     [JsonPropertyName("flipperChance")]
     public double FlipperChance { get; set; } = 0.65;
@@ -485,7 +496,14 @@ public record SimulatedSalesConfig
     public double NormalSellChancePerHour { get; set; } = 0.04;
 
     [JsonPropertyName("dealSpeedup")]
-    public double DealSpeedup { get; set; } = 8;
+    public double DealSpeedup { get; set; } = 20;
+
+    // An offer 10% or more under normal is bought by someone else this long after it appears (random between).
+    [JsonPropertyName("dealGoneMinMinutes")]
+    public double DealGoneMinMinutes { get; set; } = 1;
+
+    [JsonPropertyName("dealGoneMaxMinutes")]
+    public double DealGoneMaxMinutes { get; set; } = 6;
 }
 
 public record OfferCurrencyConfig

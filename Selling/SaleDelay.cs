@@ -62,6 +62,14 @@ internal static class SaleDelayGate
     [ThreadStatic] private static double? _gunValue;
     [ThreadStatic] private static double? _contentsValue;
     [ThreadStatic] private static int _packUnits;
+    [ThreadStatic] private static double? _cheapest;
+    [ThreadStatic] private static bool _lowest;
+    [ThreadStatic] private static MongoId? _listedTpl;
+    [ThreadStatic] private static bool _plain;
+    [ThreadStatic] private static double? _normalUsed;
+
+    // How the listing went: its price against normal, and whether no other seller was cheaper. Null ratio = not judged.
+    public static (double? Ratio, bool Lowest) Outcome => (_priceRatio, _lowest);
 
     // packUnits: how many of the item a pack offer sells at once (its price is for all of them). 1 otherwise.
     public static void BeginListing(List<Item>? listed, ItemHelper itemHelper, int packUnits)
@@ -73,14 +81,41 @@ internal static class SaleDelayGate
             return;
         }
 
+        _listedTpl = listed[0].Template;
+        _plain = listed.Count == 1 && _packUnits == 1;
+
+        // One plain item (not a gun, not a pack) is up against the same item from other sellers.
+        if (listed.Count == 1 && _packUnits == 1 && !itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON))
+        {
+            var quality = BetterFlea.Offers.UsedListingsGate.IgnoresCondition(listed[0].Template) ? 1 : Math.Clamp(itemHelper.GetItemQualityModifier(listed[0]), 0.01, 1);
+            _cheapest = Undercuts.Cheapest(listed[0].Template, quality);
+        }
+
         // A gun goes by the trader-based value the flea's guns use; with that off, by its parts like anything else.
         if (BetterFlea.Prices.GunPricing.Applies(listed))
         {
-            _gunValue = BetterFlea.Prices.GunPricing.Value(listed);
+            _gunValue = BetterFlea.Prices.GunPricing.Value(listed) * BetterFlea.Prices.GunPricing.Condition(listed);
             return;
         }
 
         _contentsValue = ContentsValue(listed);
+    }
+
+    // What one of this item (with everything in it) normally sells for in roubles: the price SellChance measures a
+    // listing against. Price Check shows it. Null when there's nothing to go by.
+    public static double? NormalPrice(List<Item> listed)
+    {
+        if (listed is not { Count: > 0 } || _itemHelper is null)
+        {
+            return null;
+        }
+
+        if (BetterFlea.Prices.GunPricing.Applies(listed))
+        {
+            return BetterFlea.Prices.GunPricing.Value(listed) * BetterFlea.Prices.GunPricing.Condition(listed);
+        }
+
+        return ContentsValue(listed);
     }
 
     public static void EndListing()
@@ -89,6 +124,112 @@ internal static class SaleDelayGate
         _gunValue = null;
         _contentsValue = null;
         _packUnits = 1;
+        _cheapest = null;
+        _lowest = false;
+        _listedTpl = null;
+        _plain = false;
+        _normalUsed = null;
+    }
+
+    // Chance a buyer takes an offer at this price against normal: certain up to normal, falling to 1 in 20 at
+    // expensivePercent over, never past that.
+    public static double BuyerTakes(double ratio)
+    {
+        var over = ratio - 1;
+        var limit = Math.Max(0.01, (_config?.Mod.PlayerSelling.SaleDelay.ExpensivePercent ?? 15) / 100.0);
+        return over <= 0 ? 1 : over > limit ? 0 : Math.Exp(-Math.Log(20) / limit * over);
+    }
+
+    public static int LotFor(MongoId tpl, int left)
+    {
+        var ammo = _itemHelper?.IsOfBaseclass(tpl, BaseClasses.AMMO) == true;
+        var stackMax = Math.Max(1, _itemHelper?.GetItem(tpl).Value?.Properties?.StackMaxSize ?? 1);
+        return Lot(Math.Max(1, left), ammo, stackMax);
+    }
+
+    // Buyers come one at a time, each taking what people buy at once: a round lot of ammo, one or two of anything
+    // else. Every buyer after the first is less likely, so a pile of one item often only partly sells. The wait
+    // between buyers is SPT's. Null leaves it to SPT (packs sell in one go). A plain offer of one item gets no roll
+    // at all: the order book's buyers sell it when they get to it.
+    public static List<SellResult>? RollForSale(double? sellChancePercent, int count, bool oneGo)
+    {
+        var settings = _config?.Mod.PlayerSelling.SaleDelay;
+        if (settings is null || !settings.Enabled || oneGo || count < 1 || _listedTpl is not { } tpl
+            || _itemHelper is null || _ragfairConfig is null)
+        {
+            return null;
+        }
+
+        if (_plain && OrderBook.On)
+        {
+            return [];
+        }
+
+        var chance = Math.Clamp((sellChancePercent ?? 0) / 100, 0, 1);
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var end = OfferEndsAt() ?? now + 24 * 3600;
+        var ammo = _itemHelper.IsOfBaseclass(tpl, BaseClasses.AMMO);
+        var stackMax = Math.Max(1, _itemHelper.GetItem(tpl).Value?.Properties?.StackMaxSize ?? 1);
+        var shortest = _ragfairConfig.Sell.Time.Min * 60;
+        var longest = (1 - chance) * _ragfairConfig.Sell.Time.Max * 60;
+        if (longest < shortest)
+        {
+            longest = shortest + 5;
+        }
+
+        var sales = new List<SellResult>();
+        var at = now + SlowSaleSeconds(chance, settings.SlowSaleMaxHours);
+        var left = count;
+        var interest = chance;
+        while (left > 0 && at < end && Random.Shared.NextDouble() < interest)
+        {
+            var lot = Lot(left, ammo, stackMax);
+            at += Math.Max(1, (long)(shortest + Random.Shared.NextDouble() * (longest - shortest)));
+            sales.Add(new SellResult { SellTime = at, Amount = lot });
+            left -= lot;
+            interest *= ammo || stackMax > 1 ? 0.85 : 0.45;
+        }
+
+        DebugLog.Write(() => $"Sale roll: {count} listed, buyers for {count - left} ({string.Join(", ", sales.Select(sale => sale.Amount))})");
+        return sales;
+    }
+
+    // A buyer who might come at any time over slowSaleMaxHours, as often as the chance says: a sure sale comes now,
+    // a 50% one mostly in the first part, a 15% one about anywhere in it.
+    private static long SlowSaleSeconds(double chance, double maxHours)
+    {
+        if (chance >= 0.999 || chance <= 0 || maxHours <= 0)
+        {
+            return 0;
+        }
+
+        var hours = -Math.Log(1 - Random.Shared.NextDouble() * chance) / -Math.Log(1 - chance) * maxHours;
+        return (long)Math.Round(hours * 3600);
+    }
+
+    private static int Lot(int left, bool ammo, int stackMax)
+    {
+        (int Size, double Weight)[] options = ammo
+            ? left <= 30 ? [(left, 1)] : [(30, 3), (60, 3), (90, 1), (120, 2), (200, 2), (left, 3)]
+            : stackMax > 1 ? [(stackMax, 2), (Math.Max(1, stackMax / 2), 2), (Math.Min(5, stackMax), 1), (left, 1)]
+            : [(1, 7), (2, 2), (3, 1)];
+        var fitting = options.Where(option => option.Size <= left).ToList();
+        if (fitting.Count == 0)
+        {
+            return left;
+        }
+
+        var roll = Random.Shared.NextDouble() * fitting.Sum(option => option.Weight);
+        foreach (var (size, weight) in fitting)
+        {
+            roll -= weight;
+            if (roll <= 0)
+            {
+                return size;
+            }
+        }
+
+        return fitting[^1].Size;
     }
 
     // One of the listed item with everything in it (plates, inserts, rounds in a mag), each part priced like on a
@@ -114,12 +255,7 @@ internal static class SaleDelayGate
                 continue;
             }
 
-            var price = _prices.GetFleaPriceForItem(item.Template);
-            if (dynamic.ItemPriceMultiplier?.TryGetValue(item.Template, out var multiplier) == true)
-            {
-                price *= multiplier;
-            }
-
+            var price = BetterFlea.Prices.BookPrice.Of(item.Template);
             if (dynamic.IgnoreQualityPriceVarianceBlacklist?.Contains(item.Template) != true)
             {
                 price *= _itemHelper.GetItemQualityModifier(item);
@@ -145,7 +281,7 @@ internal static class SaleDelayGate
 
         // SPT sums a gun's flea part prices; use the same trader-based value the flea's guns use. Anything else goes
         // by what's in it (condition included already).
-        var normal = _gunValue is { } gun ? gun * quality : _contentsValue is { } contents ? contents * _packUnits : normalPrice;
+        var normal = _gunValue is { } gun ? gun : _contentsValue is { } contents ? contents * _packUnits : normalPrice;
         if (normal <= 0)
         {
             return null;
@@ -153,22 +289,24 @@ internal static class SaleDelayGate
 
         var ratio = listedPrice / normal;
         _priceRatio = ratio;
+        _normalUsed = normal / Math.Max(1, _packUnits);
         DebugLog.Write(() => $"Sale check: listed {listedPrice:0} RUB against a normal {normal:0} (SPT's average says {normalPrice:0}), x{ratio:0.00}");
 
-        // Falls from 100% at 5% over to 5% at expensivePercent over. Past that nobody buys it.
-        var over = ratio - 1.05;
-        if (over <= 0)
-        {
-            return 100;
-        }
-
-        var limit = settings.ExpensivePercent / 100.0 - 0.05;
-        if (over > limit)
+        var chance = 100 * BuyerTakes(ratio);
+        if (chance <= 0)
         {
             return 0;
         }
 
-        var chance = 100 * Math.Exp(-Math.Log(20) / Math.Max(0.01, limit) * over);
+        // Buyers take a cheaper offer of the same item first, unless this one is well under normal.
+        _lowest = _cheapest is not { } cheapest || listedPrice <= cheapest;
+        var safe = 1 - Math.Clamp(_config!.Mod.PlayerSelling.Undercut.SafeBelowPercent, 0, 90) / 100;
+        if (!_lowest && ratio > safe)
+        {
+            chance *= Math.Clamp(settings.CheaperOfferShare, 0, 1);
+            DebugLog.Write(() => $"Sale check: another seller has it for {_cheapest:0} RUB, cheaper than {listedPrice:0}");
+        }
+
         return chance < 1 ? 0 : Math.Round(chance);
     }
 
@@ -182,6 +320,10 @@ internal static class SaleDelayGate
         _ragfairConfig = ragfairConfig;
     }
 
+    // How much longer a dear unique item takes than a cheap one: 1 at 100,000 roubles, with the root of the price.
+    private static double Dearness() =>
+        Math.Clamp(Math.Sqrt(Math.Max(1, _normalUsed ?? 100000) / 100000), 0.5, 3);
+
     public static void Delay(List<SellResult> sales)
     {
         var settings = _config?.Mod.PlayerSelling.SaleDelay;
@@ -192,7 +334,11 @@ internal static class SaleDelayGate
 
         var flipMinutes = FlipPenaltyGate.ExtraWaitMinutes();
         var ratio = _priceRatio ?? 1.0;
-        if (flipMinutes <= 0 && ratio <= 1.0 && Random.Shared.NextDouble() < settings.NoDelayChance)
+
+        // A gun, armour or anything with durability is its own thing: at the normal price someone takes a while to
+        // want that one, longer the dearer it is. Never straight away.
+        var unique = !_plain;
+        if (!unique && flipMinutes <= 0 && ratio <= 1.0 && Random.Shared.NextDouble() < settings.NoDelayChance)
         {
             return;
         }
@@ -200,7 +346,10 @@ internal static class SaleDelayGate
         // 1 at the normal price; about a tenth of that 10% under, and 4x at 15% over.
         var past = (ratio - 0.85) / 0.15;
         var scale = past <= 0 ? 0.03 : Math.Max(0.03, past * past);
-        var waitMinutes = (settings.MinMinutes + Random.Shared.NextDouble() * (settings.MaxMinutes - settings.MinMinutes)) * scale + flipMinutes;
+        var (low, high) = unique
+            ? (settings.UniqueMinMinutes * Dearness(), settings.UniqueMaxMinutes * Dearness())
+            : (settings.MinMinutes, settings.MaxMinutes);
+        var waitMinutes = (low + Random.Shared.NextDouble() * Math.Max(0, high - low)) * scale + flipMinutes;
         var waitSeconds = (long)Math.Round(waitMinutes * 60.0);
         if (waitSeconds <= 0)
         {
@@ -260,6 +409,18 @@ public class SaleDelayPatch : AbstractPatch
         return typeof(RagfairSellHelper).GetMethod(
             nameof(RagfairSellHelper.RollForSale),
             BindingFlags.Instance | BindingFlags.Public)!;
+    }
+
+    [PatchPrefix]
+    public static bool Prefix(double? sellChancePercent, int itemSellCount, bool sellInOneGo, ref List<SellResult> __result)
+    {
+        if (SaleDelayGate.RollForSale(sellChancePercent, itemSellCount, sellInOneGo) is not { } sales)
+        {
+            return true;
+        }
+
+        __result = sales;
+        return false;
     }
 
     [PatchPostfix]
@@ -539,8 +700,16 @@ public class ListingContextPatch : AbstractPatch
     }
 
     [PatchPostfix]
-    public static void Postfix()
+    public static void Postfix(PmcData pmcData, MongoId sessionID, ItemEventRouterResponse __result)
     {
-        FlipPenaltyGate.EndListing();
+        try
+        {
+            var (ratio, lowest) = SaleDelayGate.Outcome;
+            Undercuts.AfterListing(sessionID, pmcData.RagfairInfo?.Offers, __result, ratio, lowest);
+        }
+        finally
+        {
+            FlipPenaltyGate.EndListing();
+        }
     }
 }

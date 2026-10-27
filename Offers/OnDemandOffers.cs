@@ -244,7 +244,7 @@ internal static class OnDemandOffers
                 continue;
             }
 
-            var missing = full - FakeOffers(tpl);
+            var missing = full - FakeOffers(tpl) - Gaps(tpl);
             if (missing <= 0 || !Filling.TryAdd(tpl, 0))
             {
                 continue;
@@ -271,6 +271,48 @@ internal static class OnDemandOffers
         MakeRoom(work.Sum(job => job.Count), items);
         var fill = Task.Run(() => Fill(work, filling));
         fill.Wait(FillWait);
+    }
+
+    // An offer someone bought leaves a gap until a new seller lists one, a while later, not the moment the list is
+    // opened again. Per item, when each gap fills.
+    private static readonly ConcurrentDictionary<MongoId, List<long>> SoldGaps = new();
+
+    public static void Sold(MongoId tpl, double minMinutes, double maxMinutes)
+    {
+        var low = Math.Max(0, minMinutes);
+        var fills = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (long)((low + Random.Shared.NextDouble() * Math.Max(0, maxMinutes - low)) * 60);
+        var gaps = SoldGaps.GetOrAdd(tpl, _ => new List<long>());
+        lock (gaps)
+        {
+            gaps.Add(fills);
+        }
+    }
+
+    private static int Gaps(MongoId tpl)
+    {
+        if (!SoldGaps.TryGetValue(tpl, out var gaps))
+        {
+            return 0;
+        }
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        lock (gaps)
+        {
+            gaps.RemoveAll(fills => fills <= now);
+            return gaps.Count;
+        }
+    }
+
+    // The items on the last list opened, when it's a short one (a single item, not a whole category) and was looked
+    // at in the last few minutes.
+    public static IReadOnlyCollection<MongoId> Watched(int most, double seconds)
+    {
+        lock (TrimLock)
+        {
+            return RecentPages.First?.Value is { } page && page.Count <= most
+                && page.Any(tpl => LastLooked.TryGetValue(tpl, out var looked) && Stopwatch.GetElapsedTime(looked).TotalSeconds < seconds)
+                ? page.ToList() : [];
+        }
     }
 
     // Newest first. Only touched under TrimLock.

@@ -134,14 +134,18 @@ I would personally recommend setting the marked key price to 1.5 as I feel marke
 
 - An offer is never cheaper than what a trader pays for the item. No buying on the flea to sell to a trader.
 - Prices go up and down over time.
-- Some sellers ask too much, and now and then someone sells one cheap.
+- Supply and demand: buy up an item and its next offers get dearer for a while. Sell a lot of one item and now and then its price drops a little.
+- Good deals are rare. Ordinary offers sit from a little under to a bit over the normal price, so there's no buying the top offer and selling it on for a profit. Some sellers ask too much, and now and then someone sells one cheap (it goes fast).
 - Guns are priced against what traders sell them for, so a stock gun isn't 3 times the trader's price.
 - Want the whole flea dearer or cheaper? One setting does every offer from other sellers. Trader prices don't change.
 
 ## 6. Player selling
 I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. The trader item lock is off by default - turn it on and any item bought from a trader cannot be sold on the flea. Purchases are remembered while it's off too, so turning it on mid-wipe also locks what was bought before.
 
-- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced rarely sells, and more than 30% over never does. "Normal" goes by what's in your item: armour with one plate is priced as armour with one plate.
+- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced rarely sells, and more than 15% over never does. "Normal" goes by what's in your item: armour with one plate is priced as armour with one plate.
+- Price against the market. If another seller already has the item cheaper, most buyers go to them, and their offers sell before yours.
+- A pile of one item often only partly sells: buyers take one or two, or a round lot of ammo.
+- Undercutting: list the cheapest offer and now and then someone lists a rouble (or a round number) under you a few minutes later and takes most of your buyers. List well under the normal price and it sells before anyone bothers.
 - Found in raid only is off by default, like live.
 
 Well whats the difference between the flip penalty and the trader item lock?
@@ -178,17 +182,66 @@ Better Flea works from what an item is (its type, stats and price), not from lis
 
 ## Other mods
 - **Mods that show prices or colour banned items** see Better Flea's bans correctly.
+- **Price Index** shows Better Flea's prices with Better Flea 2.3.0 or newer. With an older version it shows the base game's prices.
 - **Quicksell mods** should work with the BepInEx plugin. I have only tested with ShowMeTheMoney so please let me know of any issues for others.
 - **All Quests Checkmarks** will still work. Better Flea adds its own icon and does not change or mess with it's icon.
 - **Other mods that change the Flea Market** (number of offers, prices, items in one offer) can do the same thing as Better Flea. The mod that loads last usually wins. Turn off the same feature in one of the 2 mods.
+
+## For mod developers
+Your client mod can ask the server for Better Flea's data. The routes below are on the SPT server, need no login and are plain JSON (not zlib). From a BepInEx plugin, use SPT's `RequestHandler`, which sends the player's session for you. These routes and their shapes won't change without a note in the changelog.
+
+If a route isn't there (an older Better Flea, or Better Flea not installed), the server answers with an error. Fall back to your own prices or data when that happens.
+
+### Item price (Better Flea 2.3.0 or newer)
+`POST /betterflea/item-price`
+
+What Better Flea would sell one of the item for on the flea, in roubles, with every setting applied: the price multiplier, marked key multiplier, drift, Wipe Cycle, price floor, the item's condition and key uses, and gun pricing. It's the same price a player's own listing is measured against.
+
+Send the item and everything in it (a gun's parts, a mag's rounds, an armour's plates) as a JSON list, the way the game stores them: root item first, with `_id`, `_tpl` and, for the parts, `parentId` and `slotId`. Add `upd` for condition, key uses or stack size. The item doesn't have to be in the player's stash.
+
+```json
+[{ "_id": "6720aaaaaaaaaaaaaaaaaaaa", "_tpl": "5780cf7f2459777de4559322" }]
+```
+
+Reply:
+
+```json
+{ "Price": 9444527 }
+```
+
+`Price` is 0 when there's no price: an empty list, an unknown item or more than 300 items. Send `[]` once at startup to check the route is there.
+
+```csharp
+var price = JsonConvert.DeserializeObject<JObject>(RequestHandler.PostJson("/betterflea/item-price", JsonConvert.SerializeObject(items)))?["Price"]?.Value<double>() ?? 0;
+```
+
+### Flea status
+`GET /betterflea/client-data`
+
+For the player making the request:
+
+| Field | What it is |
+|---|---|
+| `FleaBanned` | Template ids that can't be sold on the flea |
+| `BoughtFromTrader` | Item ids this player bought from a trader that the trader item lock keeps off the flea |
+| `PurchaseLockOn` | The trader item lock is on |
+| `SellingOff` | Players can't sell on the flea at all |
+| `LevelLockOn` | Item unlock levels are on |
+| `LevelLockSelling` | Unlock levels also stop players selling the item |
+| `LevelsVersion` | Changes when the unlock levels change. Get `/betterflea/item-levels` again when it does |
+| `PlayerLevel` | The player's level |
+
+### Item unlock levels
+`GET /betterflea/item-levels`
+
+The level each item unlocks at on the flea, by template id, for example `{ "5780cf7f2459777de4559322": 40 }`. Items with no unlock level aren't listed, and the list is empty when item unlock levels are off.
 
 ## Reporting issues
 Please report issues in my Discord channel on the SPT server, in this mod's comments, or on [GitHub issues](https://github.com/MrFums/BetterFlea/issues).
 
 ## Roadmap
 No dates, just ideas I'd like to get to:
-- **Prices that react to buying.** Buy up the cheapest offers of an item and its price goes up for a while.
-- **Real competition.** Other sellers undercutting your listings.
+- **Quick sell.** A companion mod that lists an item at a price that sells straight away, without throwing money away.
 
 ## AI use
 Claude / Gemini helped with Better Flea development. The original server aspects of the mod I had for myself on SPT 3.10 and 3.11 but did not release as I made changes directly to the database as I didn't have that included in the mod.

@@ -416,12 +416,63 @@ const LABELS = {
   "prices.jsonc:sellers": "Seller pricing",
   "prices.jsonc:guns": "Gun prices",
   "prices.jsonc:guns.traderPricePercent": "Share of trader price",
+  "prices.jsonc:guns.partsAtFleaPrice": "Parts at their flea price",
+  "prices.jsonc:guns.fleaShareByLoyalty": "Flea value by loyalty level",
+  "prices.jsonc:guns.fleaShareByLoyalty.1": "Loyalty 1",
+  "prices.jsonc:guns.fleaShareByLoyalty.2": "Loyalty 2",
+  "prices.jsonc:guns.fleaShareByLoyalty.3": "Loyalty 3",
+  "prices.jsonc:guns.fleaShareByLoyalty.4": "Loyalty 4",
+  "prices.jsonc:guns.fleaShareByDifficulty": "Flea value by unlock difficulty",
+  "prices.jsonc:guns.fleaShareByDifficulty.easy": "Easy",
+  "prices.jsonc:guns.fleaShareByDifficulty.medium": "Medium",
+  "prices.jsonc:guns.fleaShareByDifficulty.hard": "Hard",
+  "prices.jsonc:guns.fleaShareByDifficulty.veryHard": "Very hard",
+  "prices.jsonc:guns.priceAtHalfDurabilityPercent": "Value at half durability",
+  "prices.jsonc:guns.offerMinPercent": "Gun offers, cheapest (% from value)",
+  "prices.jsonc:guns.stockOfferMinPercent": "Near-stock guns, cheapest (% from value)",
+  "prices.jsonc:guns.stockOfferMaxPercent": "Near-stock guns, dearest (% from value)",
+  "weapons.jsonc:presets.nearStockMin": "Near-stock offers per gun, fewest",
+  "weapons.jsonc:presets.nearStockMax": "Near-stock offers per gun, most",
+  "prices.jsonc:guns.offerMaxPercent": "Gun offers, dearest (% from value)",
   "selling.jsonc:enabled": "Players can sell",
   "selling.jsonc:foundInRaidOnly": "Found in raid only",
   "selling.jsonc:saleDelay": "Sale speed",
   "selling.jsonc:flipPenalty": "Flip penalty",
   "selling.jsonc:purchaseLock": "Trader item lock",
   "selling.jsonc:purchaseLock.includeFleaPurchases": "Lock flea purchases too",
+  "selling.jsonc:saleDelay.cheaperOfferShare": "Buyers left when someone is cheaper",
+  "selling.jsonc:saleDelay.uniqueMinMinutes": "Guns and armour: shortest wait (minutes)",
+  "selling.jsonc:saleDelay.uniqueMaxMinutes": "Guns and armour: longest wait (minutes)",
+  "selling.jsonc:saleDelay.slowSaleMaxHours": "Slow sales: up to (hours)",
+  "prices.jsonc:sellers.roundPriceChance": "Easy round prices",
+  "selling.jsonc:undercut": "Undercutting sellers",
+  "selling.jsonc:buyers": "Buyers (order book)",
+  "weapons.jsonc:presets.forgotScopeChance": "Forgot-the-scope deal chance",
+  "market.jsonc:simulatedSales.dealGoneMinMinutes": "Deal gone after at least (minutes)",
+  "market.jsonc:simulatedSales.dealGoneMaxMinutes": "And at most (minutes)",
+  "selling.jsonc:buyers.minMinutes": "Shortest wait for a buyer (minutes)",
+  "selling.jsonc:buyers.maxMinutes": "Longest wait for a buyer (minutes)",
+  "selling.jsonc:buyers.slowdown": "Slower after each sale (x)",
+  "selling.jsonc:buyers.wholeOfferChance": "Chance a buyer takes a whole offer",
+  "selling.jsonc:buyers.recoverMinutes": "Back to normal pace in (minutes)",
+  "selling.jsonc:buyers.relistMinMinutes": "Sold offer replaced after at least (minutes)",
+  "selling.jsonc:buyers.relistMaxMinutes": "And at most (minutes)",
+  "selling.jsonc:undercut.chanceAtNormal": "Chance at the normal price",
+  "selling.jsonc:undercut.chanceWhenDear": "Chance when overpriced",
+  "selling.jsonc:undercut.safeBelowPercent": "Safe this far under normal (%)",
+  "selling.jsonc:undercut.minMinutes": "Soonest (minutes)",
+  "selling.jsonc:undercut.maxMinutes": "Latest (minutes)",
+  "selling.jsonc:undercut.buyersLeft": "Buyers left after an undercut",
+  "prices.jsonc:spread": "Price spread",
+  "prices.jsonc:spread.minPercent": "Cheapest (% from normal)",
+  "prices.jsonc:spread.maxPercent": "Dearest (% from normal)",
+  "prices.jsonc:demand": "Supply and demand",
+  "prices.jsonc:demand.buyRisePercent": "Rise per offer bought (%)",
+  "prices.jsonc:demand.maxRisePercent": "Biggest rise (%)",
+  "prices.jsonc:demand.floodChance": "Chance a lot sold lowers it",
+  "prices.jsonc:demand.floodDropPercent": "Drop from a lot sold (%)",
+  "prices.jsonc:demand.maxDropPercent": "Biggest drop (%)",
+  "prices.jsonc:demand.recoverMinutes": "Half back to normal in (minutes)",
   "economy.jsonc:livePrices": "Live prices (tarkov.dev)",
   "economy.jsonc:livePrices.gameMode": "Game mode",
   "economy.jsonc:livePrices.refreshHours": "Refresh every (hours)",
@@ -614,8 +665,26 @@ const DESC = {
   "prices.jsonc:sellers.quickSellChance": "Chance an offer is a quick sell, listed cheap.",
   "prices.jsonc:sellers.quickSellMinPercent": "Smallest quick sell discount.",
   "prices.jsonc:sellers.quickSellMaxPercent": "Biggest quick sell discount.",
+  "prices.jsonc:sellers.roundPriceChance": "Chance a seller types an easy number like 80,000, 79,999 or 81,111 instead of an exact price.",
   "prices.jsonc:guns": "Guns are priced against what traders sell the parts for.",
+  "weapons.jsonc:presets.nearStockMin": "Extra offers of each gun as it comes from the factory, on top of the rest. Now and then one has a cheap red dot or holo added, or no magazine; nothing else. Listed a bit cheaper than other guns.",
+  "prices.jsonc:guns.offerMinPercent": "Other sellers list guns from this far under what they are worth...",
+  "prices.jsonc:guns.offerMaxPercent": "...to this far over. A little under as a rule, so a bought gun relisted at its value earns about what the listing fee takes.",
+  "prices.jsonc:spread": "How far an ordinary offer's price strays from normal. SPT's own is -20% to +20%, which puts a 20% deal on nearly every item, ready to buy and sell on.",
+  "prices.jsonc:spread.minPercent": "The cheapest an ordinary offer gets, in % from normal.",
+  "prices.jsonc:spread.maxPercent": "The dearest an ordinary offer gets, in % from normal.",
+  "prices.jsonc:demand": "Buy up an item and its next offers get dearer for a while. Sell a lot of one item and now and then its price drops a little (only what actually sells counts). A rise never raises what your own listing is judged against, so buying up and selling on doesn't pay.",
+  "prices.jsonc:demand.buyRisePercent": "How much each offer bought raises the price, in %. Part of a stack raises it less.",
+  "prices.jsonc:demand.maxRisePercent": "The most buying can raise it, in %.",
+  "prices.jsonc:demand.floodChance": "Chance that selling 5 or more full stacks of one item within half an hour lowers its price.",
+  "prices.jsonc:demand.floodDropPercent": "About how much it drops, in %.",
+  "prices.jsonc:demand.maxDropPercent": "The most selling can lower it, in %.",
+  "prices.jsonc:demand.recoverMinutes": "Half of a rise or drop wears off in this many minutes.",
   "prices.jsonc:guns.traderPricePercent": "A part a trader sells is worth this much of the trader's price.",
+  "prices.jsonc:guns.partsAtFleaPrice": "On: a gun's parts are worth what they sell for on their own, and only the gun itself goes by trader prices, so taking a gun apart and selling the parts makes no money. Off: the parts go by trader prices too.",
+  "prices.jsonc:guns.fleaShareByLoyalty": "How much of its flea price a part keeps, by the loyalty level a trader needs to sell it. 0 = trader price, 1 = flea price.",
+  "prices.jsonc:guns.fleaShareByDifficulty": "How much of its flea price a part keeps, by how hard its unlock is: the quest it's behind (level lock, the quests before it, kills, bosses, maps, hand-ins) or a hidden trader like the BTR Driver or Lightkeeper. Modded quests and traders count too. 0 = trader price, 1 = flea price.",
+  "prices.jsonc:guns.priceAtHalfDurabilityPercent": "What a gun at half durability is worth, in % of a new one. Counts for the whole gun, parts included. 50 = straight line (70% durability = 70% of the price), 100 = durability doesn't count. SPT's own is about 71.",
 
   // Selling
   "selling.jsonc:enabled": "Let players list their own items on the flea.",
@@ -624,6 +693,8 @@ const DESC = {
   "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes.",
   "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes.",
   "selling.jsonc:saleDelay.noDelayChance": "Chance of no wait at all for offers at or under the normal price.",
+  "selling.jsonc:saleDelay.uniqueMinMinutes": "A gun, armour or anything with durability at the normal price waits this long for a buyer (between this and the longest), for an item of about 100,000 roubles. Dearer ones wait longer; cheaper than normal, much less.",
+  "selling.jsonc:saleDelay.slowSaleMaxHours": "An offer priced over normal has a lower chance to sell. When it does sell, the buyer can come any time up to this many hours after listing: the lower the chance, the later on average. Offers at or under normal aren't affected.",
   "selling.jsonc:saleDelay.expensivePercent": "This far over the normal price, only 1 in 20 buyers is interested. Any dearer never sells.",
   "selling.jsonc:flipPenalty": "Buy lots of one item and list it straight away, and buyers take longer to turn up. Needs Sale speed on.",
   "selling.jsonc:flipPenalty.windowMinutes": "How long a purchase counts, in minutes.",
@@ -634,6 +705,19 @@ const DESC = {
   "selling.jsonc:flipPenalty.fenceMultiplier": "Each Fence purchase counts as this many.",
   "selling.jsonc:purchaseLock": "Items bought from traders (Fence too) can never be listed. Ammo and stacks aren't locked. Purchases are remembered while this is off too, so turning it on also locks what was bought before.",
   "selling.jsonc:purchaseLock.includeFleaPurchases": "Also lock items bought from other players on the flea.",
+  "selling.jsonc:saleDelay.cheaperOfferShare": "Another seller already has the item cheaper: this share of buyers is left for your offer. Offers well under the normal price are not affected.",
+  "selling.jsonc:undercut": "Your offer is the cheapest up? Now and then another seller lists just under it a few minutes later and takes most of its buyers. The dearer your offer, the likelier. Well under the normal price, it sells before anyone bothers.",
+  "selling.jsonc:buyers": "Buyers go down the list. For the item you have open and every item you have listed, a buyer turns up every 15 seconds to a minute and takes the cheapest single offer (not packs or barters) if the price is one people pay. Your offer sells when the buyers get to it, so cheaper offers go first. Each buyer takes one or two, or a round lot of ammo, and buyers come less often after each sale, so a pile sells a bit at a time. A bought offer is replaced by a new seller a few minutes later. The game's average price when you list is Better Flea's normal price, so listing at the average is fair.",
+  "weapons.jsonc:presets.forgotScopeChance": "Chance a scoped build is listed as if the scope were not on it, as if the seller forgot it. Never below the price floor.",
+  "market.jsonc:simulatedSales.dealGoneMinMinutes": "An offer 10% or more under normal is bought by someone else within this many minutes of appearing (between this and the next setting), so deals have to be spotted quickly.",
+  "selling.jsonc:buyers.slowdown": "After each sale the wait for the next buyer is this many times longer.",
+  "selling.jsonc:buyers.recoverMinutes": "Half of that slowdown wears off in this many minutes.",
+  "selling.jsonc:undercut.chanceAtNormal": "Chance of an undercut for an offer at the normal price.",
+  "selling.jsonc:undercut.chanceWhenDear": "Chance for an offer at the most a buyer will pay (Sale speed, expensive percent).",
+  "selling.jsonc:undercut.safeBelowPercent": "An offer this far under the normal price is hardly ever undercut.",
+  "selling.jsonc:undercut.minMinutes": "Soonest the undercut comes after listing, in minutes.",
+  "selling.jsonc:undercut.maxMinutes": "Latest, in minutes.",
+  "selling.jsonc:undercut.buyersLeft": "Share of your buyers who still buy yours afterwards.",
 
   // Economy
   "economy.jsonc:livePrices": "Every item starts from its real flea price: the 24 hour average on tarkov.dev. All of Better Flea's pricing goes on top. Prices are saved, so if tarkov.dev is down the last ones are used.",
@@ -663,13 +747,13 @@ const ADVANCED = [
   "weapons.jsonc:presets.showCustomBuilds", "weapons.jsonc:presets.customBuildChance",
   "weapons.jsonc:presets.stripped", "weapons.jsonc:presets.stock", "weapons.jsonc:presets.found", "weapons.jsonc:presets.modded",
   "weapons.jsonc:presets.broken", "weapons.jsonc:presets.gutted", "weapons.jsonc:presets.budget", "weapons.jsonc:presets.ground",
-  "weapons.jsonc:presets.buildDealMinDiscount", "weapons.jsonc:presets.buildDealMaxDiscount", "weapons.jsonc:presets.buildStyles",
+  "weapons.jsonc:presets.buildDealMinDiscount", "weapons.jsonc:presets.forgotScopeChance", "market.jsonc:simulatedSales.dealGoneMinMinutes", "market.jsonc:simulatedSales.dealGoneMaxMinutes", "weapons.jsonc:presets.buildDealMaxDiscount", "weapons.jsonc:presets.buildStyles",
   "weapons.jsonc:presets.brokenMaxParts", "weapons.jsonc:presets.brokenPriceBias", "weapons.jsonc:presets.maxTacticalDevices",
   "weapons.jsonc:presets.comboTacticalWeight", "weapons.jsonc:presets.laserLightChance", "weapons.jsonc:presets.extraTacticalChance",
   "weapons.jsonc:presets.emptyMountChance", "weapons.jsonc:presets.emptyRingsChance", "weapons.jsonc:presets.maxAttachmentDepth",
   "weapons.jsonc:presets.backupSightChance",
-  "armor.jsonc:conditionByRarity", "flea.jsonc:levelLock.levels",
-  "market.jsonc:simulatedSales.everyMinutes", "market.jsonc:simulatedSales.dealSpeedup",
+  "armor.jsonc:conditionByRarity", "flea.jsonc:levelLock.levels", "prices.jsonc:guns.priceAtHalfDurabilityPercent", "prices.jsonc:guns.offerMinPercent", "prices.jsonc:guns.offerMaxPercent", "prices.jsonc:guns.stockOfferMinPercent", "prices.jsonc:guns.stockOfferMaxPercent", "weapons.jsonc:presets.nearStockMax",
+  "market.jsonc:simulatedSales.everyMinutes", "market.jsonc:simulatedSales.dealSpeedup", "prices.jsonc:spread", "prices.jsonc:demand.floodDropPercent", "prices.jsonc:demand.maxDropPercent", "prices.jsonc:demand.maxRisePercent", "selling.jsonc:undercut.minMinutes", "selling.jsonc:undercut.maxMinutes", "selling.jsonc:undercut.buyersLeft", "selling.jsonc:saleDelay.cheaperOfferShare", "selling.jsonc:buyers.slowdown", "selling.jsonc:buyers.recoverMinutes", "selling.jsonc:buyers.relistMinMinutes", "selling.jsonc:buyers.relistMaxMinutes",
   "market.jsonc:barterOffers.valueMin", "market.jsonc:barterOffers.valueMax",
   "market.jsonc:sellerRating.min", "market.jsonc:sellerRating.max", "market.jsonc:sellerRating.everydayMax",
   "market.jsonc:packs.min", "market.jsonc:packs.max", "market.jsonc:packs.hugeMin", "market.jsonc:packs.hugeMax",
@@ -717,8 +801,8 @@ const OFF = {
   "armor.jsonc": { enabled: false },
   "market.jsonc": { offerExpiry: { minMinutes: 6, maxMinutes: 60 }, simulatedSales: { enabled: false }, soldBeforeYouChance: 0,
     barterOffers: { chance: 0 }, sellerRating: { enabled: false }, packs: { enabled: false } },
-  "prices.jsonc": { priceMultiplier: 1, markedKeyMultiplier: 1, floor: { enabled: false }, drift: { enabled: false }, sellers: { enabled: false }, guns: { enabled: false } },
-  "selling.jsonc": { foundInRaidOnly: false, saleDelay: { enabled: false }, flipPenalty: { enabled: false }, purchaseLock: { enabled: false } }
+  "prices.jsonc": { priceMultiplier: 1, markedKeyMultiplier: 1, floor: { enabled: false }, drift: { enabled: false }, sellers: { enabled: false }, guns: { enabled: false }, spread: { enabled: false }, demand: { enabled: false } },
+  "selling.jsonc": { foundInRaidOnly: false, saleDelay: { enabled: false }, flipPenalty: { enabled: false }, purchaseLock: { enabled: false }, undercut: { enabled: false }, buyers: { enabled: false } }
 };
 
 const BAD_CONDITION ={ mint: 0.1, worn: 0.5, destroyed: 0.25, obliterated: 0.15 };
@@ -1878,15 +1962,25 @@ function itemLookup(e, d) {
   look.appendChild(finder);
 
   if (e.item && d.curve) {
-    look.appendChild(make("div", "k econ-item", e.item.name));
+    const head = make("div", "econ-head econ-item");
+    const refresh = make("button", "btn small", "Refresh");
+    refresh.onclick = () => { refresh.disabled = true; loadEconomy(); };
+    head.append(make("div", "k", e.item.name), refresh);
+    look.appendChild(head);
     const estimates = state.guest ? state.overview && state.overview.livePrices.estimateModdedItems
       : getAt(state.byFile["economy.jsonc"].values, ["livePrices", "estimateModdedItems"]);
     const liveText = d.livePrice ? count(d.livePrice) + " ₽"
       : d.baseGame ? "the real flea doesn't sell it, so it keeps its own price"
       : "not in the real game (modded), " + (estimates ? "estimated from similar items" : "keeps SPT's price");
     const facts = make("div", "facts econ-facts");
-    facts.append(make("div", "", "Base price now: " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + (d.sptPrice ? count(d.sptPrice) + " ₽" : "none")),
-      make("div", "", "Live price: " + liveText));
+    // SPT's own price only when live prices changed it.
+    if (d.sptPrice && d.sptPrice !== d.basePrice) {
+      facts.append(make("div", "", "Base price now: " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + count(d.sptPrice) + " ₽"));
+    } else {
+      facts.append(make("div", "", "Base price: " + count(d.basePrice) + " ₽"));
+    }
+    facts.append(make("div", "", "Live price: " + liveText),
+      make("div", "", "Actual value: " + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
     look.appendChild(facts);
     look.appendChild(make("div", "s", "Through a wipe (with the Wipe Cycle on):"));
     const chart = make("div", "chart");
@@ -1952,6 +2046,7 @@ function input(f, path, value, def) {
   if (typeof value === "number") {
     const sample = typeof def === "number" ? def : value;
     if (/percent/i.test(key)) return slider(f, path, value, Math.max(100, value, sample * 2), 1);
+    if (key === "slowSaleMaxHours") return slider(f, path, value, Math.max(12, value), 1, "h");
     if ((/(chance|share)$/i.test(key) || /chance/i.test(parent)) && sample >= 0 && sample <= 1 && value <= 1) return slider(f, path, value, 1, 100);
     return stepper(f, path, value, stepFor(key, parent, sample, value));
   }
@@ -2011,7 +2106,7 @@ function stepper(f, path, value, step) {
 }
 
 // Shown as a percent either way: scale is 100 for 0-1 chances, 1 for settings already in percent.
-function slider(f, path, value, max, scale) {
+function slider(f, path, value, max, scale, unit = "%") {
   const wrap = document.createElement("div");
   wrap.className = "slider";
   const shown = (v) => Math.round(v * scale * 10) / 10;
@@ -2033,7 +2128,7 @@ function slider(f, path, value, max, scale) {
   };
   range.oninput = () => { el.value = shown(parseFloat(range.value)); };
   range.onchange = () => change(f, path, parseFloat(range.value));
-  box.append(el, "%");
+  box.append(el, unit);
   wrap.append(range, box);
   return wrap;
 }

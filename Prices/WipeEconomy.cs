@@ -174,6 +174,9 @@ internal static class WipeEconomy
 
     public static bool On => Settings.Enabled;
 
+    // How many hideout stages and quests want the item. Known even with the Wipe Cycle off.
+    public static int Uses(MongoId tpl) => _demand.TryGetValue(tpl, out var demand) ? demand.Uses.Count : 0;
+
     // The level prices follow now, the level they're heading for, and when it can next change.
     public static int Level => _level;
     public static int Target => _target;

@@ -82,6 +82,7 @@ public class FleaCategoryFilter(
     {
         ApplyOfferCurrency();
         ApplyOfferExpiry();
+        ApplySpread();
         ApplyPacks();
         ragfairConfig.Dynamic.ShowDefaultPresetsOnly = !configManager.Mod.GeneratedOffers.Presets.ShowCustomBuilds;
     }
@@ -92,6 +93,25 @@ public class FleaCategoryFilter(
         var min = Math.Max(1, expiry.MinMinutes);
         var max = Math.Max(min, expiry.MaxMinutes);
         ragfairConfig.Dynamic.EndTimeSeconds = new MinMax<int>(min * 60, max * 60);
+    }
+
+    private MinMax<double>? _sptSpread;
+
+    // How far an ordinary offer strays from normal. Before ApplyPacks: packs are priced from the same range.
+    private void ApplySpread()
+    {
+        var spread = configManager.Mod.Prices.Spread;
+        var ranges = ragfairConfig.Dynamic.PriceRanges;
+        _sptSpread ??= ranges.Default;
+        if (!spread.Enabled)
+        {
+            ranges.Default = _sptSpread;
+            return;
+        }
+
+        var low = 1 + Math.Clamp(spread.MinPercent, -50, 0) / 100;
+        var high = Math.Max(low, 1 + Math.Clamp(spread.MaxPercent, 0, 100) / 100);
+        ranges.Default = new MinMax<double>(low, high);
     }
 
     // SPT's own pack settings, put back when ours are switched off.

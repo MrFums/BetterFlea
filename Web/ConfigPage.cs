@@ -92,7 +92,8 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         var path = context.Request.Path.Value ?? "";
         return (path.Equals(Root, StringComparison.OrdinalIgnoreCase) || path.StartsWith(Root + "/", StringComparison.OrdinalIgnoreCase))
             && !path.Equals(ClientDataRoute.Path, StringComparison.OrdinalIgnoreCase)
-            && !path.Equals(ClientDataRoute.LevelsPath, StringComparison.OrdinalIgnoreCase);
+            && !path.Equals(ClientDataRoute.LevelsPath, StringComparison.OrdinalIgnoreCase)
+            && !path.Equals(ItemPriceRoute.Path, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task HandleAsync(MongoId sessionId, HttpContext context, CancellationToken cancellationToken)
@@ -255,6 +256,10 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         {
             result["curve"] = new JsonArray(Enumerable.Range(1, 70).Select(l => (JsonNode)Math.Round(WipeEconomy.FactorAt(new MongoId(id), l), 3)).ToArray());
             result["basePrice"] = Math.Round(templates.Prices.GetValueOrDefault(new MongoId(id)));
+            // One new item on its own, priced like the flea's offers: every multiplier, drift, the Wipe Cycle and the floor.
+            var fleaPrice = BetterFlea.Selling.SaleDelayGate.NormalPrice(
+                [new SPTarkov.Server.Core.Models.Eft.Common.Tables.Item { Id = new MongoId(), Template = new MongoId(id) }]);
+            result["fleaPrice"] = fleaPrice is { } f ? Math.Round(f) : null;
             var (spt, livePrice, baseGame) = LivePrices.Lookup(new MongoId(id));
             result["sptPrice"] = spt is { } s ? Math.Round(s) : null;
             result["livePrice"] = livePrice;

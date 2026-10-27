@@ -114,8 +114,26 @@ internal static class ListingCountGate
         var scaled = multiplier == 1.0 ? count : (int)Math.Round(count * multiplier);
         var floored = AtLeastMinimum(scaled, MinimumCache.GetOrAdd(tpl, MinimumFor));
         var group = GroupMultiplierCache.GetOrAdd(tpl, GroupMultiplierFor);
-        return group == 1.0 ? floored : (int)Math.Round(floored * group);
+        var total = group == 1.0 ? floored : (int)Math.Round(floored * group);
+
+        // Guns get some near-stock offers on top: the factory gun, cheap.
+        if (_itemHelper!.IsOfBaseclass(tpl, BaseClasses.WEAPON) && total > 0)
+        {
+            var presets = _config.Mod.GeneratedOffers.Presets;
+            var low = Math.Max(0, presets.NearStockMin);
+            var extra = NearStockExtra.GetOrAdd(tpl, _ => Random.Shared.Next(low, Math.Max(low, presets.NearStockMax) + 1));
+            total += extra;
+            NearStockShares[tpl] = extra / (double)total;
+        }
+
+        return total;
     }
+
+    private static readonly ConcurrentDictionary<MongoId, int> NearStockExtra = new();
+    private static readonly ConcurrentDictionary<MongoId, double> NearStockShares = new();
+
+    // Share of a gun's offers that are near-stock.
+    public static double NearStockShare(MongoId tpl) => NearStockShares.GetValueOrDefault(tpl);
 
     private static readonly ConcurrentDictionary<MongoId, double> GroupMultiplierCache = new();
 

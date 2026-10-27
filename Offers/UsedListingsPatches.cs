@@ -131,6 +131,17 @@ internal static class UsedListingsGate
                 return;
             }
 
+            // A near-stock gun is one someone got from a drop, a reward or a raid and is selling on: mostly as new.
+            if (buildKind == "nearstock")
+            {
+                var full = props.MaxDurability ?? repairable.MaxDurability ?? 100.0;
+                repairable.MaxDurability = full;
+                repairable.Durability = Random.Shared.NextDouble() < 0.6
+                    ? full
+                    : full - Math.Round(1 + Math.Pow(Random.Shared.NextDouble(), 2.5) * 14);
+                return;
+            }
+
             var wearFactor = buildKind is not null && gun.WearByBuild.TryGetValue(buildKind, out var byBuild) ? Math.Max(0, byBuild) : 1;
 
             // Factor 2 turns 50% into 75%, 0.4 turns it into 24%.

@@ -90,11 +90,14 @@ internal static class OfferLifecycle
             return 1;
         }
 
-        var normal = BetterFlea.Prices.GunPricing.Applies(items) ? BetterFlea.Prices.GunPricing.Value(items) : items.Sum(item => _prices!.GetFleaPriceForItem(item.Template));
-        var quality = items.Min(item => UsedListingsGate.IgnoresCondition(item.Template) ? 1.0 : Math.Clamp(_itemHelper!.GetItemQualityModifier(item), 0.01, 1));
+        var gun = BetterFlea.Prices.GunPricing.Applies(items);
+        var normal = gun ? BetterFlea.Prices.GunPricing.Value(items)
+            : items.Where(item => !_itemHelper!.IsOfBaseclass(item.Template, BaseClasses.BUILT_IN_INSERTS)).Sum(item => BetterFlea.Prices.BookPrice.Of(item.Template));
+        var quality = gun ? BetterFlea.Prices.GunPricing.Condition(items)
+            : items.Min(item => UsedListingsGate.IgnoresCondition(item.Template) ? 1.0 : Math.Clamp(_itemHelper!.GetItemQualityModifier(item), 0.01, 1));
 
-        // Where the wipe has moved an item's price, that price is normal for buyers too.
-        normal *= BetterFlea.Prices.WipeEconomy.Factor(items[0].Template);
+        // Where the wipe, drift or demand has moved an item's price, that price is normal for buyers too.
+        normal *= BetterFlea.Prices.WipeEconomy.Factor(items[0].Template) * BetterFlea.Prices.PriceGate.MarketFactor(items[0].Template);
         return normal <= 0 ? 1 : price / (normal * quality);
     }
 
@@ -116,6 +119,62 @@ internal static class OfferLifecycle
         var age = (long)Math.Clamp(through * duration, 60 + Random.Shared.Next(240), Math.Max(60, duration - 300));
         offer.StartTime = now - age;
         offer.EndTime = offer.StartTime + duration;
+    }
+
+    // A real deal doesn't sit there: someone else buys it within a few minutes of it going up.
+    // Guns are listed a little under their value as a rule (Gun prices), so only past the cheapest of that is a deal.
+    private static double DealBelow(RagfairOffer offer)
+    {
+        if (offer.Items is not { Count: > 0 } items || !BetterFlea.Prices.GunPricing.Applies(items))
+        {
+            return 0.9;
+        }
+
+        var guns = _config!.Mod.Prices.Guns;
+        return Math.Min(0.9, 1 + Math.Min(guns.OfferMinPercent, guns.StockOfferMinPercent) / 100 - 0.01);
+    }
+
+    public static void DealGoesSoon(RagfairOffer offer)
+    {
+        var settings = _config!.Mod.GeneratedOffers.SimulatedSales;
+        if (!settings.Enabled || offer.SellInOnePiece == true || DealRatio(offer) > DealBelow(offer))
+        {
+            return;
+        }
+
+        var low = Math.Max(0.1, settings.DealGoneMinMinutes);
+        var wait = TimeSpan.FromMinutes(low + Random.Shared.NextDouble() * Math.Max(0, settings.DealGoneMaxMinutes - low));
+        var id = offer.Id;
+        var tpl = offer.Items?.FirstOrDefault()?.Template;
+        _ = Task.Delay(wait).ContinueWith(_ =>
+        {
+            try
+            {
+                if (_offers?.GetOfferByOfferId(id) is null)
+                {
+                    return;
+                }
+
+                if (OnDemandOffers.Enabled)
+                {
+                    _offers.RemoveOfferById(id);
+                }
+                else
+                {
+                    _holder?.FlagOfferAsExpired(id);
+                }
+
+                if (tpl is { } sold)
+                {
+                    BetterFlea.Selling.OrderBook.Gone(sold);
+                }
+
+                Interlocked.Increment(ref _dealsSold);
+            }
+            catch (Exception)
+            {
+            }
+        }, TaskScheduler.Default);
     }
 
     // One seller per name: the same name shows the same rating and badge on every offer. Rolled from the name, so
@@ -197,7 +256,7 @@ internal static class OfferLifecycle
         var (newRoll, regularRoll, shareRoll) = (roll.NextDouble(), roll.NextDouble(), roll.NextDouble());
         if (quantity == 1 && newRoll < settings.NewSellerChance * (1 - 0.85 * grown))
         {
-            return Math.Round(-2 + shareRoll * (Math.Max(settings.Min, -2) + 2), 2);
+            return Math.Round(-2 + shareRoll * (Math.Min(Math.Max(settings.Min, -2), 1) + 2), 2);
         }
 
         // Someone with several of one item is usually a flipper with a long flea history. Not always.
@@ -207,8 +266,8 @@ internal static class OfferLifecycle
         var everydayMax = Math.Max(settings.Min, Math.Min(settings.EverydayMax * (1 + grown), settings.Max));
         var everydayMin = settings.Min + (Math.Min(5, everydayMax) - settings.Min) * grown;
         var (low, high, bias) = regular
-            ? (Math.Min(20, settings.Max), settings.Max, 1.5 - 0.4 * grown)
-            : (everydayMin, everydayMax, 1.3 - 0.5 * grown);
+            ? (Math.Min(20, settings.Max), settings.Max, 1.2 - 0.3 * grown)
+            : (everydayMin, everydayMax, 1.0 - 0.3 * grown);
         low = Math.Max(0.01, low);
         high = Math.Max(low, high);
         var share = Math.Pow(shareRoll, bias);
@@ -258,6 +317,10 @@ internal static class OfferLifecycle
                 if (onDemand)
                 {
                     _offers.RemoveOfferById(offer.Id);
+                    if (offer.Items?.FirstOrDefault() is { } boughtRoot)
+                    {
+                        BetterFlea.Selling.OrderBook.Gone(boughtRoot.Template);
+                    }
                 }
                 else
                 {
@@ -266,6 +329,11 @@ internal static class OfferLifecycle
 
                 sold++;
                 deals += lean < -0.25 ? 1 : 0;
+                if (lean < -0.25 && deals <= 5)
+                {
+                    var (name, ratio, cost) = (offer.Items?.FirstOrDefault() is { } dealRoot ? _itemHelper!.GetItem(dealRoot.Template).Value?.Name : "?", DealRatio(offer), offer.RequirementsCost);
+                    DebugLog.Write(() => $"Buyers: deal sold: {name} at {cost:0} RUB, x{ratio:0.00} of normal, {offer.Items?.Count} item(s)");
+                }
             }
 
             Interlocked.Add(ref _sold, sold);
@@ -296,6 +364,7 @@ public class OfferListedTimePatch : AbstractPatch
         {
             OfferLifecycle.SetListedTime(__result, justListed: ListingCountGate.NoCap);
             OfferLifecycle.SetSeller(__result);
+            OfferLifecycle.DealGoesSoon(__result);
         }
     }
 }
@@ -534,6 +603,7 @@ internal static class SoldBeforeYou
             }
 
             _offers.RemoveOfferById(offerId);
+            BetterFlea.Selling.OrderBook.Gone(root.Template);
             var count = Interlocked.Increment(ref _sniped);
             DebugLog.Summary(() => $"Sold before you: {_itemHelper.GetItem(root.Template).Value?.Name} offer {offerId} went to someone else ({count} so far).");
             // Not the OfferSold code: the client kicks to the menu on that one.

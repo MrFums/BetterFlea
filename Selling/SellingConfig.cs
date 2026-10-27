@@ -20,6 +20,12 @@ public record PlayerSellingConfig
     [JsonPropertyName("purchaseLock")]
     public PurchaseLockConfig PurchaseLock { get; set; } = new();
 
+    [JsonPropertyName("undercut")]
+    public UndercutConfig Undercut { get; set; } = new();
+
+    [JsonPropertyName("buyers")]
+    public BuyersConfig Buyers { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }
@@ -38,8 +44,77 @@ public record SaleDelayConfig
     [JsonPropertyName("noDelayChance")]
     public double NoDelayChance { get; set; } = 0.1;
 
+    // A gun, armour or anything with durability at the normal price: this many minutes (random between) for an item
+    // of about 100,000 roubles, longer for dearer ones.
+    [JsonPropertyName("uniqueMinMinutes")]
+    public double UniqueMinMinutes { get; set; } = 5;
+
+    [JsonPropertyName("uniqueMaxMinutes")]
+    public double UniqueMaxMinutes { get; set; } = 20;
+
+    [JsonPropertyName("slowSaleMaxHours")]
+    public double SlowSaleMaxHours { get; set; } = 4;
+
     [JsonPropertyName("expensivePercent")]
-    public double ExpensivePercent { get; set; } = 30;
+    public double ExpensivePercent { get; set; } = 15;
+
+    // Share of buyers left when a cheaper offer of the same item is already on the market.
+    [JsonPropertyName("cheaperOfferShare")]
+    public double CheaperOfferShare { get; set; } = 0.35;
+}
+
+// Buyers for the item on screen and for items players have listed: each takes the cheapest offer.
+public record BuyersConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("minMinutes")]
+    public double MinMinutes { get; set; } = 0.05;
+
+    [JsonPropertyName("maxMinutes")]
+    public double MaxMinutes { get; set; } = 0.2;
+
+    [JsonPropertyName("slowdown")]
+    public double Slowdown { get; set; } = 1.1;
+
+    [JsonPropertyName("recoverMinutes")]
+    public double RecoverMinutes { get; set; } = 10;
+
+    [JsonPropertyName("wholeOfferChance")]
+    public double WholeOfferChance { get; set; } = 0.08;
+
+    [JsonPropertyName("relistMinMinutes")]
+    public double RelistMinMinutes { get; set; } = 1;
+
+    [JsonPropertyName("relistMaxMinutes")]
+    public double RelistMaxMinutes { get; set; } = 5;
+}
+
+// Another seller listing just under a player's offer, taking its buyers.
+public record UndercutConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("chanceAtNormal")]
+    public double ChanceAtNormal { get; set; } = 0.35;
+
+    [JsonPropertyName("chanceWhenDear")]
+    public double ChanceWhenDear { get; set; } = 0.8;
+
+    [JsonPropertyName("safeBelowPercent")]
+    public double SafeBelowPercent { get; set; } = 10;
+
+    [JsonPropertyName("minMinutes")]
+    public double MinMinutes { get; set; } = 1;
+
+    [JsonPropertyName("maxMinutes")]
+    public double MaxMinutes { get; set; } = 10;
+
+    // Share of the offer's buyers who still buy it after the undercut.
+    [JsonPropertyName("buyersLeft")]
+    public double BuyersLeft { get; set; } = 0.15;
 }
 
 public record FlipPenaltyConfig

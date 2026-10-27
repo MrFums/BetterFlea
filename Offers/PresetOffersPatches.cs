@@ -114,9 +114,82 @@ internal static partial class PresetOfferGate
             return;
         }
 
-        var factor = 0.82 + Random.Shared.NextDouble() * 0.4;
+        var factor = 0.92 + Random.Shared.NextDouble() * 0.14;
         var floor = BetterFlea.Prices.PriceGate.FloorForItems(items, scheme[0].Template);
         scheme[0].Count = Math.Max(Math.Round(count * factor), Math.Ceiling(floor));
+    }
+
+    private static readonly ConcurrentDictionary<string, long> RecentCopies = new();
+
+    private static bool Fresh(MongoId gun, List<Item> built)
+    {
+        var key = gun + ":" + string.Join(",", built.Skip(1).Select(item => item.Template.ToString()).Order());
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (RecentCopies.TryGetValue(key, out var at) && now - at < 1800)
+        {
+            return false;
+        }
+
+        RecentCopies[key] = now;
+        return true;
+    }
+
+    // The factory gun as it comes, now and then with one thing different: a cheap red dot or holo on a free rail, or
+    // no magazine. Nothing else.
+    private static void NearStock(List<Item> items)
+    {
+        var gun = items[0];
+        if (gun.Upd is not null)
+        {
+            gun.Upd.SptPresetId = null;
+        }
+
+        var roll = Random.Shared.NextDouble();
+        if (roll < 0.12 && items.FirstOrDefault(item => item.SlotId == "mod_magazine") is { } magazine)
+        {
+            var gone = new HashSet<MongoId> { magazine.Id };
+            foreach (var item in items.Where(item => item.ParentId is { } parent && gone.Contains(parent)).ToList())
+            {
+                gone.Add(item.Id);
+            }
+
+            items.RemoveAll(item => gone.Contains(item.Id));
+        }
+        else if (roll < 0.27)
+        {
+            AddCheapSight(items);
+        }
+
+        _lastBuildKind = "nearstock";
+    }
+
+    private static void AddCheapSight(List<Item> items)
+    {
+        foreach (var owner in items.ToList())
+        {
+            foreach (var slot in _itemHelper!.GetItem(owner.Template).Value?.Properties?.Slots ?? [])
+            {
+                if (slot.Name is not { } slotName || !slotName.StartsWith("mod_scope", StringComparison.Ordinal)
+                    || items.Any(item => item.ParentId == owner.Id && item.SlotId == slotName))
+                {
+                    continue;
+                }
+
+                var sights = (slot.Properties?.Filters?.FirstOrDefault()?.Filter ?? [])
+                    .Where(tpl => _itemHelper.IsOfBaseclasses(tpl, [BaseClasses.COLLIMATOR, BaseClasses.COMPACT_COLLIMATOR])
+                        && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper.GetItem(tpl)))
+                    .OrderBy(tpl => _prices!.GetFleaPriceForItem(tpl))
+                    .Take(4)
+                    .ToList();
+                if (sights.Count == 0)
+                {
+                    continue;
+                }
+
+                items.Add(new Item { Id = new MongoId(), Template = sights[Random.Shared.Next(sights.Count)], ParentId = owner.Id, SlotId = slotName });
+                return;
+            }
+        }
     }
 
     // SPT prices a plain gun by its parts, so the price follows whatever build it gets here.
@@ -133,6 +206,12 @@ internal static partial class PresetOfferGate
         var template = _itemHelper.GetItem(gun.Template).Value;
         if (template?.Properties?.Slots is null)
         {
+            return;
+        }
+
+        if (Random.Shared.NextDouble() < ListingCountGate.NearStockShare(gun.Template))
+        {
+            NearStock(items);
             return;
         }
 
@@ -169,6 +248,14 @@ internal static partial class PresetOfferGate
         {
             (built, origin) = looted;
             kind = "looted";
+        }
+
+        // A copied build (a player's saved one, a meta or a looted one) isn't listed again for a while: four of the
+        // same build on one list gives it away.
+        if (built is not null && !Fresh(gun.Template, built))
+        {
+            (built, origin, kind) = (null, null, tierName == "player" ? "modded" : tierName);
+            tierName = kind;
         }
 
         built ??= GenerateBuild(gun, template, settings, tierName, tier, style);
@@ -1758,18 +1845,24 @@ public class OfferPricingPatch : AbstractPatch
     [PatchPrefix]
     public static void Prefix(CreateFleaOfferDetails details)
     {
+        if (BetterFlea.Selling.Undercuts.Creating)
+        {
+            return;
+        }
+
         if (!BarterOffers.MaybeInsteadOfMoney(details))
         {
             BetterFlea.Prices.GunPricing.Apply(details);
             PresetOfferGate.PriceLoadedAmmo(details);
             PresetOfferGate.MaybeLoadLooseMagazine(details);
             PresetOfferGate.ScatterPlainGunPrice(details);
-            if (!BetterFlea.Prices.EmptyFuelPricing.Apply(details) && !PresetOfferGate.MaybeDeal(details))
+            if (!BetterFlea.Prices.EmptyFuelPricing.Apply(details) && !PresetOfferGate.MaybeForgotScope(details) && !PresetOfferGate.MaybeDeal(details))
             {
                 BetterFlea.Prices.SellerPricing.Apply(details);
             }
 
             BetterFlea.Prices.SellerPricing.ApplyMultiplier(details);
+            BetterFlea.Prices.SellerPricing.Humanise(details);
         }
 
         OfferQuantityGate.MatchCondition(details);

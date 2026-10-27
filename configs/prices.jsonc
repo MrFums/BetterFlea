@@ -35,16 +35,61 @@
     "wornOverpriceChance": 0.3,      // extra chance for worn items: all of it at 0% left, half at 50% left
     "overpriceMinPercent": 10,       // how much too much. A worn item asks up to about half its missing condition more on top
     "overpriceMaxPercent": 30,
-    "quickSellChance": 0.03,         // chance an offer is a quick sell. Keep it rare: you're the only buyer
-    "quickSellMinPercent": 15,       // how far under the normal price. Never under the price floor above
-    "quickSellMaxPercent": 35
+    "quickSellChance": 0.004,        // chance an offer is a quick sell. Keep it rare: with dozens of offers per item, 0.004 puts one on about 1 item in 5
+    "quickSellMinPercent": 10,       // how far under the normal price. Never under the price floor above
+    "quickSellMaxPercent": 25,
+    "roundPriceChance": 0.2          // chance a seller types an easy number (80000, 79999, 81111, 8250) instead of an exact price
+  },
+
+  // How far an ordinary offer's price strays from normal, in percent (before drift and the sellers above). SPT's own is
+  // -20 to +20, which puts an offer 20% under normal at the top of nearly every item's list, ready to buy and sell on.
+  "spread": {
+    "enabled": true,
+    "minPercent": -4,
+    "maxPercent": 15
+  },
+
+  // The market reacts to players. Buying up other sellers' offers of an item makes its next offers dearer; a player
+  // selling a lot of one item (5 full stacks or more within half an hour) now and then makes it a little cheaper.
+  // Only what actually sells counts: listing and pulling offers again does nothing.
+  // Either wears off over time. A rise from buying never raises what a player's own listing is measured against, so
+  // buying an item up and selling it at the raised price doesn't work.
+  "demand": {
+    "enabled": true,
+    "buyRisePercent": 2,             // each offer bought raises the price this much (part of a stack: less)
+    "maxRisePercent": 30,            // the most buying can raise it
+    "floodChance": 0.15,             // chance a lot sold brings the price down
+    "floodDropPercent": 3,           // about how much (half to one and a half times this)
+    "maxDropPercent": 15,            // the most selling can lower it
+    "recoverMinutes": 60             // half of the change wears off in this long
   },
 
   // Guns. SPT adds up the flea prices of a gun's parts, which comes out well above what traders sell the same gun for.
   // With this on, each part is worth at most what a trader sells it for (any loyalty level). Parts no trader sells keep
   // their flea price. Never under the price floor above.
+  // Parts (and guns) that are hard to unlock at a trader keep some of their flea price, since few players can buy
+  // them there. 0 = the trader's price, 1 = the full flea price. The easiest trader that sells the part counts, and
+  // the higher of its loyalty level and its unlock difficulty. A part only an event quest SPT never gives unlocks
+  // keeps its full flea price.
   "guns": {
     "enabled": true,
-    "traderPricePercent": 95        // a part a trader sells is worth this % of the trader's price. 100 = the same as the trader
+    "traderPricePercent": 95,       // a part a trader sells is worth this % of the trader's price. 100 = the same as the trader
+    // true = a gun's parts are worth what they sell for on their own (their flea price), and only the gun itself goes by
+    // trader prices. So buying a gun and selling its parts one by one makes no money. false = parts go by trader prices too.
+    "partsAtFleaPrice": true,
+    "fleaShareByLoyalty": { "1": 0, "2": 0, "3": 0.2, "4": 0.5 }, // by the trader loyalty level the part needs
+    // By how hard its unlock is: the quest it's locked behind (level lock, the quests before it, kills, bosses, maps,
+    // hand-ins), or a hidden trader like the BTR Driver or Lightkeeper. Works out modded quests and traders too.
+    "fleaShareByDifficulty": { "easy": 0, "medium": 0.2, "hard": 0.5, "veryHard": 0.9 },
+    // A worn gun is worth less, all of it, not just the receiver. What a gun at half durability is worth, in % of a
+    // new one: 50 = straight line (70% durability = 70% of the price), 100 = durability doesn't count.
+    // SPT's own is about 71 (70% durability = 84% of the price).
+    "priceAtHalfDurabilityPercent": 50,
+    // Where other sellers list guns against what they're worth, in percent: a little under as a rule, so a buyer gets
+    // a bit off and relisting at the value earns about what the listing fee takes. Guns drift with the market at 40%.
+    "offerMinPercent": -12,
+    "offerMaxPercent": 0,
+    "stockOfferMinPercent": -15,    // near-stock guns (the factory gun), a bit cheaper again
+    "stockOfferMaxPercent": -3
   }
 }

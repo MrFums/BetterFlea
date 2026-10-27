@@ -559,6 +559,40 @@ internal static partial class PresetOfferGate
         return chances.TryGetValue(baseName, out chance) ? chance : 50;
     }
 
+    private static readonly MongoId[] Scopes =
+        [BaseClasses.ASSAULT_SCOPE, BaseClasses.OPTIC_SCOPE, BaseClasses.SPECIAL_SCOPE, BaseClasses.COLLIMATOR, BaseClasses.COMPACT_COLLIMATOR];
+
+    // Now and then someone lists a scoped build as if the scope weren't on it. Never below the price floor.
+    public static bool MaybeForgotScope(CreateFleaOfferDetails details)
+    {
+        var items = details.Items;
+        if (details.Creator != OfferCreator.FakePlayer || items is null || items.Count < 2 || Settings.ForgotScopeChance <= 0
+            || !_itemHelper!.IsOfBaseclass(items[0].Template, GunBase) || details.BarterScheme is not { Count: 1 } scheme
+            || scheme[0].Count is not { } price || price <= 0 || !_itemHelper.IsOfBaseclass(scheme[0].Template, BaseClasses.MONEY)
+            || Random.Shared.NextDouble() >= Settings.ForgotScopeChance)
+        {
+            return false;
+        }
+
+        var scopes = items.Skip(1).Where(item => _itemHelper.IsOfBaseclasses(item.Template, Scopes)).Sum(item => BookPrice.Of(item.Template));
+        var whole = GunPricing.Applies(items) ? GunPricing.Value(items) : items.Sum(item => BookPrice.Of(item.Template));
+        if (scopes <= 0 || whole <= 0)
+        {
+            return false;
+        }
+
+        var floor = PriceGate.FloorForItems(items, scheme[0].Template);
+        var ratio = Math.Max(1 - Math.Min(0.9, scopes / whole), floor / price);
+        if (ratio >= 0.97)
+        {
+            return false;
+        }
+
+        scheme[0].Count = Math.Max(1, Math.Round(price * ratio));
+        DebugLog.Summary(() => $"Deal: {_itemHelper.GetItem(items[0].Template).Value?.Name} listed as if its scope weren't on it, at {ratio:P0} of its value");
+        return true;
+    }
+
     // Never below the price floor (what traders pay for the parts plus the margin), so a deal can't be flipped.
     public static bool MaybeDeal(CreateFleaOfferDetails details)
     {

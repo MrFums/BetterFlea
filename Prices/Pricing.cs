@@ -25,8 +25,11 @@ public class DynamicPricePatchesLoad(
     ItemHelper itemHelper,
     HandbookHelper handbookHelper,
     TradersTable tradersTable,
+    TemplateTable templateTable,
     RagfairConfig ragfairConfig,
-    RagfairPriceService ragfairPriceService) : IOnLoad
+    QuestConfig questConfig,
+    RagfairPriceService ragfairPriceService,
+    RagfairOfferService ragfairOfferService) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -36,11 +39,69 @@ public class DynamicPricePatchesLoad(
         }
 
         PriceGate.Bind(configManager, itemHelper, handbookHelper, tradersTable, ragfairConfig);
-        SellerPricing.Bind(configManager, itemHelper);
+        BookPrice.Bind(itemHelper, handbookHelper, ragfairConfig, ragfairPriceService);
+        SellerPricing.Bind(configManager, itemHelper, ragfairOfferService);
+        QuestDifficulty.Bind(templateTable, tradersTable, questConfig, handbookHelper, itemHelper);
         GunPricing.Bind(configManager, itemHelper, handbookHelper, tradersTable, ragfairPriceService);
         EmptyFuelPricing.Bind(configManager, itemHelper, handbookHelper, ragfairPriceService);
         new DynamicPricePatch().Enable();
         return Task.CompletedTask;
+    }
+}
+
+// One of an item's normal flea price the way SPT prices an offer of it, before condition, drift and its random
+// spread: never under what a trader pays, SPT's own multiplier for it (marked keys), and a mod or electronic whose
+// flea price is silly next to its handbook price capped the way SPT caps it. Without the cap a modded muzzle with a
+// 1.4M flea price and 42k offers looked like a 97% off deal, and could be listed for a fortune as "normal".
+internal static class BookPrice
+{
+    private static ItemHelper? _itemHelper;
+    private static HandbookHelper? _handbook;
+    private static RagfairConfig? _ragfairConfig;
+    private static RagfairPriceService? _prices;
+
+    public static ItemHelper? Helper => _itemHelper;
+
+    public static void Bind(ItemHelper itemHelper, HandbookHelper handbook, RagfairConfig ragfairConfig, RagfairPriceService prices)
+    {
+        _itemHelper = itemHelper;
+        _handbook = handbook;
+        _ragfairConfig = ragfairConfig;
+        _prices = prices;
+    }
+
+    public static double Of(MongoId tpl)
+    {
+        if (_prices is null)
+        {
+            return 0;
+        }
+
+        var price = _prices.GetFleaPriceForItem(tpl);
+        var dynamic = _ragfairConfig?.Dynamic;
+        if (dynamic?.UseTraderPriceForOffersIfHigher == true)
+        {
+            price = Math.Max(price, PriceGate.BestTraderBuyPrice(tpl));
+        }
+
+        if (dynamic?.ItemPriceMultiplier?.TryGetValue(tpl, out var multiplier) == true)
+        {
+            price *= multiplier;
+        }
+
+        foreach (var (baseClass, cap) in dynamic?.UnreasonableModPrices ?? [])
+        {
+            if (cap.Enabled && price > 1 && _itemHelper!.IsOfBaseclass(tpl, baseClass))
+            {
+                var handbook = _handbook!.GetTemplatePrice(tpl);
+                if (price > handbook * cap.HandbookPriceOverMultiplier)
+                {
+                    price = handbook * cap.NewPriceHandbookMultiplier;
+                }
+            }
+        }
+
+        return price;
     }
 }
 
@@ -104,7 +165,7 @@ internal static class PriceGate
     public static double Adjust(MongoId tpl, MongoId currency, Item? item, double price, bool counted = true)
     {
         price *= UsedListingsGate.KeyPriceFactor(tpl, item);
-        price *= DriftFactor(tpl);
+        price *= DriftFactor(tpl) * (counted ? Demand.Factor(tpl) : Demand.SellerFactor(tpl));
 
         var floor = FloorFor(tpl, item, currency);
         if (price < floor && !counted)
@@ -178,6 +239,11 @@ internal static class PriceGate
     }
 
     public static void ForgetTraderPrices() => BestBuyPrices.Clear();
+
+    // Where the market has an item right now: drift and demand. 1 = normal.
+    public static double MarketFactor(MongoId tpl) => DriftFactor(tpl) * Demand.Factor(tpl);
+
+    public static double DriftOf(MongoId tpl) => DriftFactor(tpl);
 
     private static bool Buys(TraderBase trader, MongoId tpl)
     {
@@ -325,15 +391,95 @@ internal static class SellerPricing
 {
     private static ConfigManager? _config;
     private static ItemHelper? _itemHelper;
+    private static RagfairOfferService? _offers;
     private static int _logged;
 
     private const double MostOverprice = 1.8;
     private static int _packsLogged;
 
-    public static void Bind(ConfigManager configManager, ItemHelper itemHelper)
+    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, RagfairOfferService offers)
     {
         _config = configManager;
         _itemHelper = itemHelper;
+        _offers = offers;
+    }
+
+    // SPT's random spread comes in whole percent steps, so a list of one item had a dozen offers at exactly the same
+    // price. People price to the rouble: each offer moves a little, and now and then a seller lists a rouble under one
+    // already up, the way people undercut. Never below the floor. Last, after every other change to the price.
+    public static void Humanise(CreateFleaOfferDetails details)
+    {
+        if (details.Creator != OfferCreator.FakePlayer || _itemHelper is null || details.Items is not { Count: > 0 } items
+            || details.BarterScheme is not { Count: 1 } scheme || scheme[0].Count is not { } price || price <= 1
+            || !_itemHelper.IsOfBaseclass(scheme[0].Template, BaseClasses.MONEY))
+        {
+            return;
+        }
+
+        var units = details.SellInOnePiece ? Math.Max(1, details.Quantity) : 1;
+        var floor = Math.Ceiling(PriceGate.FloorForItems(items, scheme[0].Template) * units);
+        var wanted = price * (1 + (Random.Shared.NextDouble() - 0.5) * 0.016);
+
+        // Some sellers type an easy number instead.
+        if (Random.Shared.NextDouble() < (_config?.Mod.Prices.Sellers.RoundPriceChance ?? 0) && EasyNumber(wanted) is { } easy && easy >= floor)
+        {
+            scheme[0].Count = easy;
+            return;
+        }
+
+        // A rouble under an offer near this price (same money, single offers only).
+        if (!details.SellInOnePiece && items.Count == 1 && Random.Shared.NextDouble() < 0.3 && _offers is not null)
+        {
+            var near = new List<double>();
+            foreach (var offer in _offers.GetOffersOfType(items[0].Template) ?? [])
+            {
+                if (offer.CreatedBy == OfferCreator.FakePlayer && offer.SellInOnePiece != true
+                    && offer.Requirements?.ToList() is [{ } only] && only.TemplateId == scheme[0].Template
+                    && only.Count is { } count && Math.Abs(count / price - 1) < 0.04)
+                {
+                    near.Add(count);
+                }
+            }
+            if (near.Count > 0)
+            {
+                wanted = near[Random.Shared.Next(near.Count)] - 1;
+            }
+        }
+
+        scheme[0].Count = Math.Max(Math.Max(1, floor), Math.Round(wanted));
+    }
+
+    // 79412 as 79000, 79500 or 79999; 81372 as 81111; 8247 as 8250. Null when nothing easy is within 4%.
+    private static double? EasyNumber(double wanted)
+    {
+        if (wanted < 1000)
+        {
+            return null;
+        }
+
+        var step = Math.Pow(10, Math.Floor(Math.Log10(wanted)) - 1);
+        var roll = Random.Shared.NextDouble();
+        double easy;
+        if (roll < 0.45)
+        {
+            easy = Math.Round(wanted / step) * step;
+        }
+        else if (roll < 0.7)
+        {
+            easy = Math.Round(wanted / (step / 2)) * (step / 2);
+        }
+        else if (roll < 0.85)
+        {
+            easy = Math.Ceiling(wanted / step) * step - 1;
+        }
+        else
+        {
+            var head = Math.Floor(wanted / step);
+            var digit = head % 10;
+            easy = head * step + digit * (step - 1) / 9;
+        }
+
+        return Math.Abs(easy / wanted - 1) <= 0.04 ? easy : null;
     }
 
     // The whole market dearer or cheaper. Last, so deals and overpriced offers move with it. Never below the floor.
@@ -388,16 +534,16 @@ internal static class SellerPricing
         if (details.SellInOnePiece)
         {
             // Mostly scams, a little dearer than buying singly so they sit mid-list. The rest are a fair bundle
-            // near the top.
+            // near the top, never cheap enough to split and sell on for a profit.
             var packs = _config!.Mod.GeneratedOffers.Packs;
             var scam = Random.Shared.NextDouble() < packs.ScamChance;
-            factor = AboveFloor(scam ? Between(1.02, 1.25) : Between(0.8, 0.92));
+            factor = AboveFloor(scam ? Between(1.02, 1.25) : Between(0.9, 0.97));
 
             // Rarely a silly one (60 golden eggs), priced like a fair pack.
             if (Random.Shared.NextDouble() < packs.HugeChance && details.Quantity > 0)
             {
                 var huge = Random.Shared.Next(Math.Max(details.Quantity, packs.HugeMin), Math.Max(packs.HugeMin, packs.HugeMax) + 1);
-                factor = Between(0.8, 0.92) * huge / details.Quantity;
+                factor = Between(0.9, 0.97) * huge / details.Quantity;
                 details.Quantity = huge;
                 units = huge;
                 floor = PriceGate.FloorForItems(items, scheme[0].Template) * units;
@@ -441,8 +587,9 @@ internal static class SellerPricing
     }
 }
 
-// SPT sums the parts' flea prices, which ends up well over what traders sell the gun for. A part is
-// worth at most a trader's price for it (any loyalty level, not Fence). Never under the floor.
+// SPT sums the parts' flea prices, which ends up well over what traders sell the gun for. A part (the gun itself
+// too) is worth at most a trader's price for it (any loyalty level, not Fence), plus some of the gap to its flea
+// price when it's a hard unlock: high loyalty, a hard quest (QuestDifficulty), a hidden trader. Never under the floor.
 internal static class GunPricing
 {
     private static ConfigManager? _config;
@@ -450,7 +597,7 @@ internal static class GunPricing
     private static HandbookHelper? _handbook;
     private static TradersTable? _traders;
     private static RagfairPriceService? _prices;
-    private static Lazy<Dictionary<MongoId, double>> _traderValues = new(LoadTraderValues);
+    private static Lazy<Dictionary<MongoId, List<TraderOffer>>> _traderValues = new(LoadTraderValues);
     private static int _logged;
 
     private static readonly MongoId Fence = new("579dc571d53a0658a154fbec");
@@ -465,22 +612,73 @@ internal static class GunPricing
     }
 
     // Trader mods can still change assorts after the startup offers exist.
-    public static void ForgetTraderPrices() => _traderValues = new(LoadTraderValues);
+    public static void ForgetTraderPrices()
+    {
+        QuestDifficulty.Forget();
+        _traderValues = new(LoadTraderValues);
+    }
 
     private static GunPricingConfig? Settings => _config?.Mod.Prices.Guns;
 
     public static bool Applies(List<Item> items) =>
         Settings is { Enabled: true } && _prices is not null && items.Count > 0 && _itemHelper!.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON);
 
+    // A part from a hard trader unlock keeps some of its flea price: few players can buy it there. The easiest
+    // trader offer of it (the cheapest value) counts. With partsAtFleaPrice on, only the gun itself is valued this
+    // way and its parts are worth what they sell for on their own, so taking a gun apart makes no money.
     public static double Value(IEnumerable<Item> items)
     {
-        var share = Settings!.TraderPricePercent / 100;
+        var settings = Settings!;
+        var share = settings.TraderPricePercent / 100;
         var values = _traderValues.Value;
-        return items.Sum(item =>
+        var list = items as IList<Item> ?? items.ToList();
+        var worth = list.Select((item, index) => (item, index)).Sum(entry =>
         {
-            var flea = _prices!.GetFleaPriceForItem(item.Template);
-            return values.TryGetValue(item.Template, out var trader) ? Math.Min(flea, trader * share) : flea;
+            var item = entry.item;
+            var flea = BookPrice.Of(item.Template);
+            if ((entry.index > 0 && settings.PartsAtFleaPrice) || !values.TryGetValue(item.Template, out var offers))
+            {
+                return flea;
+            }
+
+            return offers.Min(offer =>
+            {
+                var trader = offer.Roubles * share;
+                return trader >= flea ? flea : trader + (flea - trader) * FleaShare(offer.Unlock);
+            });
         });
+
+        // Guns drift with the market too, but less than loose items: the gun's own drift at 40%.
+        return list.Count > 0 ? worth * (1 + (PriceGate.DriftOf(list[0].Template) - 1) * 0.4) : worth;
+    }
+
+    // The higher of what its loyalty level and how hard its unlock is say.
+    private static double FleaShare(Unlock unlock)
+    {
+        var settings = Settings!;
+        var share = Math.Max(settings.FleaShareByLoyalty.GetValueOrDefault(unlock.Loyalty.ToString(), 0),
+            settings.FleaShareByDifficulty.GetValueOrDefault(QuestDifficulty.Tier(unlock.Difficulty), 0));
+        return Math.Clamp(share, 0, 1);
+    }
+
+    // How much a gun's durability leaves of its value, for the whole gun. SPT takes the square root of it off the
+    // receiver alone, so a worn gun with costly parts was barely cheaper.
+    public static double Condition(List<Item> items)
+    {
+        var root = items[0];
+        if (root.Upd?.Repairable is not { Durability: { } durability } repairable)
+        {
+            return 1;
+        }
+
+        var max = _itemHelper!.GetItem(root.Template).Value?.Properties?.MaxDurability ?? repairable.MaxDurability ?? 0;
+        if (max <= 0)
+        {
+            return 1;
+        }
+
+        var half = Math.Clamp(Settings!.PriceAtHalfDurabilityPercent / 100, 0.01, 1);
+        return Math.Pow(Math.Clamp(durability / max, 0.01, 1), Math.Log(half) / Math.Log(0.5));
     }
 
     public static void Apply(CreateFleaOfferDetails details)
@@ -492,32 +690,64 @@ internal static class GunPricing
             return;
         }
 
-        var flea = items.Sum(item => _prices!.GetFleaPriceForItem(item.Template));
+        var flea = items.Sum(item => BookPrice.Of(item.Template));
+        // SPT's price has its own condition cut on the receiver only; take that back out first.
+        var sptFlea = flea - BookPrice.Of(items[0].Template) * (1 - _itemHelper.GetItemQualityModifier(items[0]));
         var value = Value(items);
-        if (flea <= 0 || value >= flea)
+        var condition = Condition(items);
+        if (sptFlea <= 0 || value <= 0)
         {
             return;
         }
 
+        // Every gun goes by its value and condition, listed a little under it as a rule (offerMinPercent to
+        // offerMaxPercent): a buyer gets a bit off, and relisting at the value earns about what the listing fee takes.
+        // SPT's own price for a build could come out a third over what its parts are worth, or next to nothing.
+        var settingsGuns = Settings!;
+        var nearStock = BetterFlea.Offers.PresetOfferGate.TakeBuildKind() == "nearstock";
+        var low = 1 + Math.Clamp(nearStock ? settingsGuns.StockOfferMinPercent : settingsGuns.OfferMinPercent, -50, 50) / 100;
+        var high = 1 + Math.Clamp(nearStock ? settingsGuns.StockOfferMaxPercent : settingsGuns.OfferMaxPercent, -50, 50) / 100;
+        var own = low + Random.Shared.NextDouble() * Math.Max(0, high - low);
         var floor = PriceGate.FloorForItems(items, scheme[0].Template);
-        var price = Math.Max(Math.Round(count * value / flea), Math.Ceiling(floor));
+        var price = Math.Max(Math.Round(BetterFlea.Offers.BuildQuality.FromRoubles(value * condition * own, scheme[0].Template)), Math.Ceiling(floor));
         if (Interlocked.Increment(ref _logged) <= 10)
         {
-            DebugLog.Summary(() => $"Gun price: {_itemHelper.GetItem(items[0].Template).Value?.Name} {count:0} -> {price:0} (trader prices for its parts)");
+            DebugLog.Summary(() => $"Gun price: {_itemHelper.GetItem(items[0].Template).Value?.Name} {count:0} -> {price:0} (trader prices for its parts, {condition:P0} for condition)");
         }
 
         scheme[0].Count = price;
     }
 
-    // Each trader offer's price split over its items by flea price; the cheapest share per item is kept.
-    private static Dictionary<MongoId, double> LoadTraderValues()
+    // Difficulty: of the trader and any quest the offer is locked behind, 0 to 1 (QuestDifficulty).
+    private readonly record struct Unlock(int Loyalty, double Difficulty);
+
+    private readonly record struct TraderOffer(double Roubles, Unlock Unlock);
+
+    // Each trader offer's price split over its items by flea price, with what it takes to buy it there. The cheapest
+    // share per item and unlock is kept.
+    private static Dictionary<MongoId, List<TraderOffer>> LoadTraderValues()
     {
-        var values = new Dictionary<MongoId, double>();
+        var values = new Dictionary<MongoId, List<TraderOffer>>();
         foreach (var (traderId, trader) in _traders ?? [])
         {
             if (traderId == Fence || trader.Assort?.Items is not { Count: > 0 } assortItems || trader.Assort.BarterScheme is not { } schemes)
             {
                 continue;
+            }
+
+            if (QuestDifficulty.OfTrader(traderId) is not { } traderDifficulty)
+            {
+                continue;
+            }
+
+            // Offer -> how hard its quest lock is. "started": buyable once the quest is taken, so its quests before.
+            var questLocks = new Dictionary<MongoId, double?>();
+            foreach (var (group, locks) in trader.QuestAssort ?? [])
+            {
+                foreach (var (assortId, questId) in locks)
+                {
+                    questLocks[assortId] = group == "started" ? QuestDifficulty.OfStart(questId) : QuestDifficulty.Of(questId);
+                }
             }
 
             var children = assortItems.Where(item => item.ParentId is not null).ToLookup(item => item.ParentId!);
@@ -536,18 +766,47 @@ internal static class GunPricing
                     tree.AddRange(children[tree[i].Id.ToString()]);
                 }
 
-                var fleaTotal = tree.Sum(item => _prices!.GetFleaPriceForItem(item.Template));
+                var fleaTotal = tree.Sum(item => BookPrice.Of(item.Template));
                 if (fleaTotal <= 0)
                 {
                     continue;
                 }
 
+                var difficulty = traderDifficulty;
+                if (questLocks.TryGetValue(root.Id, out var questDifficulty))
+                {
+                    // Behind a quest SPT never gives: nobody can buy it there.
+                    if (questDifficulty is not { } quest)
+                    {
+                        continue;
+                    }
+
+                    difficulty = Math.Max(difficulty, quest);
+                }
+
+                var loyalty = trader.Assort.LoyalLevelItems is not null && trader.Assort.LoyalLevelItems.TryGetValue(root.Id, out var level) ? level : 1;
+                var unlock = new Unlock(loyalty, difficulty);
+                if (difficulty > 0 && _itemHelper!.IsOfBaseclasses(root.Template, [BaseClasses.WEAPON, BaseClasses.MOD]))
+                {
+                    DebugLog.Summary(() => $"Unlock: {_itemHelper.GetItem(root.Template).Value?.Name} at {trader.Base?.Nickname} LL{loyalty}, {QuestDifficulty.Tier(difficulty)} ({difficulty:0.00})");
+                }
                 foreach (var item in tree)
                 {
-                    var share = roubles * _prices!.GetFleaPriceForItem(item.Template) / fleaTotal;
-                    if (share > 0 && (!values.TryGetValue(item.Template, out var old) || share < old))
+                    var share = roubles * BookPrice.Of(item.Template) / fleaTotal;
+                    if (share <= 0)
                     {
-                        values[item.Template] = share;
+                        continue;
+                    }
+
+                    var offers = values.TryGetValue(item.Template, out var known) ? known : values[item.Template] = [];
+                    var same = offers.FindIndex(offer => offer.Unlock == unlock);
+                    if (same < 0)
+                    {
+                        offers.Add(new TraderOffer(share, unlock));
+                    }
+                    else if (share < offers[same].Roubles)
+                    {
+                        offers[same] = new TraderOffer(share, unlock);
                     }
                 }
             }
