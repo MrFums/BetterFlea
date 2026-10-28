@@ -58,6 +58,8 @@ Forgot the password? Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` a
 
 Flea styles change everything at once. **Balanced** is the default: live-like, without item unlock levels or the Wipe Cycle. **Live progression** is Balanced plus item unlock levels and the Wipe Cycle (prices follow the wipe, experimental), as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
 
+![Settings page tour](imageExamples/web-ui.gif)
+
 ![Home tab](imageExamples/web-home.png)
 
 ![Bans tab](imageExamples/web-bans.png)
@@ -95,6 +97,8 @@ I personally hate seeing marked keys listed with full durability. I then also di
 - Used items are one per offer. Full ones sometimes come a few at a time.
 - Some fuel cans are empty. Most are cheap, some are priced like a full one.
 
+![Marked keys with uses left](imageExamples/flea-marked-keys.gif)
+
 ## 3. Guns and armour
 
 ### Gun builds
@@ -115,6 +119,8 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 - Want an exact build to show up (a streamer's, say)? Save it in the game's Builds screen with a name starting with "Meta".
 - Some guns and magazines have rounds in them.
 
+![Gun builds](imageExamples/flea-gun-builds.gif)
+
 ### Players' own guns
 - Builds you save in the Builds screen can turn up on the flea.
 - Die in a raid and your gun might turn up a while later, sold by whoever killed you.
@@ -122,6 +128,8 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 ### Armour
 - Armour and rigs come with both plates, one, or none, in every condition from mint to wrecked. Helmets and face shields too.
 - Face shields, visors and night vision on helmets are sometimes listed flipped down.
+
+![Plate carriers](imageExamples/flea-armour-plates.gif)
 
 ## 4. Market
 - Offers last up to 24 hours, like live. Good deals don't last long, overpriced ones sit there.
