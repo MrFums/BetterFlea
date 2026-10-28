@@ -61,7 +61,8 @@ public class ConfigManager(
         ("2.3.0c", "market.jsonc", ["sellerRating", "regularChance"], 0.08, 0.25),
         ("2.3.0d", "weapons.jsonc", ["presets", "buildDealChance"], 0.02, 0.05),
         ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMinDiscount"], 0.15, 0.2),
-        ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMaxDiscount"], 0.3, 0.35)
+        ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMaxDiscount"], 0.3, 0.35),
+        ("2.3.1", "selling.jsonc", ["flipPenalty", "maxExtraMinutes"], 90, 30)
     ];
 
     private const string UpdatesFile = "applied-updates.json";

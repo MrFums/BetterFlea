@@ -210,7 +210,7 @@ internal static class SaleDelayGate
     private static int Lot(int left, bool ammo, int stackMax)
     {
         (int Size, double Weight)[] options = ammo
-            ? left <= 30 ? [(left, 1)] : [(30, 3), (60, 3), (90, 1), (120, 2), (200, 2), (left, 3)]
+            ? left <= 30 ? [(left, 1)] : [(30, 3), (60, 3), (90, 1), (120, 2), (150, 1), (180, 2), (200, 1), (left, 3)]
             : stackMax > 1 ? [(stackMax, 2), (Math.Max(1, stackMax / 2), 2), (Math.Min(5, stackMax), 1), (left, 1)]
             : [(1, 7), (2, 2), (3, 1)];
         var fitting = options.Where(option => option.Size <= left).ToList();
@@ -466,15 +466,24 @@ internal static class FlipPenaltyGate
 
     private static readonly ConcurrentDictionary<MongoId, ConcurrentDictionary<MongoId, List<Purchase>>> History = new();
 
+    // Player -> item id -> when it was bought, so only the bought items wait, not ones of the same kind the player
+    // already had. Items that stack aren't kept: a stack can be split or merged, so those go by item type.
+    private static readonly ConcurrentDictionary<MongoId, ConcurrentDictionary<string, long>> BoughtItems = new();
+
+    private static readonly MongoId AmmoBox = new("543be5cb4bdc2deb348b4568");
+
     [ThreadStatic] private static Purchase? _pendingPurchase;
+    [ThreadStatic] private static HashSet<string>? _ownedBefore;
     [ThreadStatic] private static (MongoId Player, MongoId Tpl)? _listing;
 
     private sealed record Purchase(MongoId Tpl, double Count, long At);
 
-    // Player -> item -> [count, when] per purchase.
+    // Player -> item -> [count, when] per purchase. Items: player -> bought item id -> when.
     public sealed class PurchaseFile
     {
         public Dictionary<string, Dictionary<string, List<double[]>>> Players { get; set; } = new();
+
+        public Dictionary<string, Dictionary<string, long>> Items { get; set; } = new();
     }
 
     private static int _dirty;
@@ -493,6 +502,15 @@ internal static class FlipPenaltyGate
             {
                 var list = History.GetOrAdd(new MongoId(player), _ => new()).GetOrAdd(new MongoId(tpl), _ => new());
                 list.AddRange(purchases.Where(entry => entry.Length == 2).Select(entry => new Purchase(new MongoId(tpl), entry[0], (long)entry[1])));
+            }
+        }
+
+        foreach (var (player, items) in DataFiles.Read<PurchaseFile>(FileName)?.Items ?? [])
+        {
+            var bought = BoughtItems.GetOrAdd(new MongoId(player), _ => new());
+            foreach (var (id, at) in items)
+            {
+                bought[id] = at;
             }
         }
 
@@ -539,6 +557,22 @@ internal static class FlipPenaltyGate
             }
         }
 
+        foreach (var (player, bought) in BoughtItems)
+        {
+            foreach (var (id, at) in bought)
+            {
+                if (now - at >= window)
+                {
+                    bought.TryRemove(id, out _);
+                }
+            }
+
+            if (!bought.IsEmpty)
+            {
+                file.Items[player.ToString()] = new Dictionary<string, long>(bought);
+            }
+        }
+
         DataFiles.Write(FileName, file);
     }
 
@@ -546,9 +580,10 @@ internal static class FlipPenaltyGate
         _config?.Mod.PlayerSelling.FlipPenalty is { Enabled: true } settings ? settings : null;
 
     // Before SPT runs the trade: a sold-out offer is gone afterwards.
-    public static void BeforePurchase(ProcessBuyTradeRequestData request)
+    public static void BeforePurchase(PmcData pmcData, ProcessBuyTradeRequestData request)
     {
         _pendingPurchase = null;
+        _ownedBefore = null;
         if (Settings is not { } settings)
         {
             return;
@@ -569,13 +604,16 @@ internal static class FlipPenaltyGate
         {
             var weight = !fromFlea && request.TransactionId == Traders.FENCE ? settings.FenceMultiplier : 1.0;
             _pendingPurchase = new Purchase(found, request.Count.Value * weight, Now());
+            _ownedBefore = pmcData.Inventory?.Items?.Select(item => item.Id.ToString()).ToHashSet();
         }
     }
 
-    public static void AfterPurchase(MongoId player, ItemEventRouterResponse output)
+    public static void AfterPurchase(PmcData pmcData, MongoId player, ItemEventRouterResponse output)
     {
         var purchase = _pendingPurchase;
+        var before = _ownedBefore;
         _pendingPurchase = null;
+        _ownedBefore = null;
         if (purchase is null || output.Warnings is { Count: > 0 })
         {
             return;
@@ -585,6 +623,19 @@ internal static class FlipPenaltyGate
         lock (list)
         {
             list.Add(purchase);
+        }
+
+        // Attachments too, so parts stripped off a bought gun wait like the gun.
+        if (before is not null)
+        {
+            var bought = BoughtItems.GetOrAdd(player, _ => new());
+            foreach (var item in pmcData.Inventory?.Items ?? [])
+            {
+                if (!before.Contains(item.Id.ToString()) && !Stacks(item.Template))
+                {
+                    bought[item.Id.ToString()] = purchase.At;
+                }
+            }
         }
 
         Interlocked.Exchange(ref _dirty, 1);
@@ -597,7 +648,8 @@ internal static class FlipPenaltyGate
         _listing = null;
         var firstId = offerRequest.Items?.FirstOrDefault();
         var item = firstId is { } id ? pmcData.Inventory?.Items?.FirstOrDefault(i => i.Id == id) : null;
-        if (item is not null)
+        var listed = (offerRequest.Items ?? []).Select(listedId => pmcData.Inventory?.Items?.FirstOrDefault(i => i.Id == listedId)).OfType<Item>();
+        if (item is not null && listed.Any(listedItem => RecentlyBought(player, listedItem)))
         {
             _listing = (player, item.Template);
         }
@@ -651,6 +703,24 @@ internal static class FlipPenaltyGate
         }
     }
 
+    // A stack can't be told apart from one bought, so it counts as bought.
+    private static bool RecentlyBought(MongoId player, Item item)
+    {
+        if (Stacks(item.Template))
+        {
+            return true;
+        }
+
+        var window = (Settings?.WindowMinutes ?? 0) * 60.0;
+        return BoughtItems.TryGetValue(player, out var bought)
+            && bought.TryGetValue(item.Id.ToString(), out var at)
+            && Now() - at < window;
+    }
+
+    private static bool Stacks(MongoId tpl) =>
+        _itemHelper is not null
+        && ((_itemHelper.GetItem(tpl).Value?.Properties?.StackMaxSize ?? 1) > 1 || _itemHelper.IsOfBaseclass(tpl, AmmoBox));
+
     private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
     private static string Name(MongoId tpl) => _itemHelper?.GetItem(tpl).Value?.Name ?? tpl.ToString();
@@ -672,15 +742,15 @@ public class RecordPurchasePatch : AbstractPatch
     }
 
     [PatchPrefix]
-    public static void Prefix(ProcessBuyTradeRequestData buyRequestData)
+    public static void Prefix(PmcData pmcData, ProcessBuyTradeRequestData buyRequestData)
     {
-        FlipPenaltyGate.BeforePurchase(buyRequestData);
+        FlipPenaltyGate.BeforePurchase(pmcData, buyRequestData);
     }
 
     [PatchPostfix]
-    public static void Postfix(MongoId sessionId, ItemEventRouterResponse output)
+    public static void Postfix(PmcData pmcData, MongoId sessionId, ItemEventRouterResponse output)
     {
-        FlipPenaltyGate.AfterPurchase(sessionId, output);
+        FlipPenaltyGate.AfterPurchase(pmcData, sessionId, output);
     }
 }
 

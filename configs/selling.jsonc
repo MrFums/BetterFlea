@@ -24,7 +24,7 @@
   // Buyers go down the list. For the item you have open and every item a player has listed (one item per offer, not
   // packs), a buyer turns up every 15 seconds to a minute and takes the cheapest single offer, if the price is one people pay
   // (see saleDelay.expensivePercent). Your offer sells when the buyers get to it, so cheaper offers go first. Each
-  // buyer takes what people buy at once: one or two of most things, a round lot of ammo (30, 60, 120, 200 or the lot).
+  // buyer takes what people buy at once: one or two of most things, a round lot of ammo (30, 60, 120, 180, 200 or the lot).
   // After each sale buyers come less often, so a pile of one item sells a bit at a time. An offer someone buys is
   // replaced by a new seller a while later, not straight away.
   "buyers": {
@@ -52,13 +52,14 @@
   },
 
   // A player who buys many of one item, then sells it on the Flea Market, waits longer for a buyer.
+  // Only the items bought wait, not ones of the same kind the player already had. Items that stack (ammo) go by type.
   // This only works when saleDelay is on. Recent purchases are saved in data\recent-purchases.json, so a restart doesn't wipe them.
   "flipPenalty": {
     "enabled": true,
     "windowMinutes": 60,             // purchases older than this do not count
     "freePurchases": 2,              // a player can buy this many of one item with no extra wait
     "purchasesForMaxPenalty": 10,    // at this many purchases, the extra wait is the longest
-    "maxExtraMinutes": 90,           // the longest extra wait, in minutes
+    "maxExtraMinutes": 30,          // the longest extra wait, in minutes
     "countFleaPurchases": true,      // true = purchases from the Flea Market also count, not only from traders
     "fenceMultiplier": 3             // 1 item bought from Fence counts as this many
   },

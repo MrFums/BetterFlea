@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.1
+
+**Changes**
+- Flip penalty: the longest extra wait after buying lots of one item is 30 minutes (was 90). Left at 90 it moves to 30 once; a value you changed is kept.
+- Ammo buyers also take 150 or 180 rounds at once (enough for a raid's worth of mags), not only 30, 60, 90, 120, 200 or the whole stack.
+
+**Fixes**
+- Flip penalty: only the items you bought wait now. Before, buying 11 wires held up every wire you listed, even ones you had for days. Items that stack, like ammo, still go by type, since a stack can be split or merged.
+
 ## 2.3.0
 
 **New**

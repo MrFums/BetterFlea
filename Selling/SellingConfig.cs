@@ -132,7 +132,7 @@ public record FlipPenaltyConfig
     public double PurchasesForMaxPenalty { get; set; } = 10;
 
     [JsonPropertyName("maxExtraMinutes")]
-    public double MaxExtraMinutes { get; set; } = 90;
+    public double MaxExtraMinutes { get; set; } = 30;
 
     [JsonPropertyName("countFleaPurchases")]
     public bool CountFleaPurchases { get; set; } = true;
