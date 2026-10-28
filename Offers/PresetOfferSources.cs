@@ -531,7 +531,7 @@ internal static partial class PresetOfferGate
             }
 
             var fitting = options.Where(tpl => SlotAccepts(slot, tpl)
-                && CanGoOnBuild(tpl)
+                && CanGoOnBuild(tpl, slot)
                 && !_botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slotName).Incompatible.GetValueOrDefault(false)).ToList();
             if (fitting.Count == 0)
             {

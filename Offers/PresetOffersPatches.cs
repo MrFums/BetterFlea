@@ -670,16 +670,21 @@ internal static partial class PresetOfferGate
     // parts go by CanGoOnBuild.
     internal static bool HasUnlistablePart(List<Item> items) =>
         items.Count > 1 && _itemHelper!.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON)
-        && items.Skip(1).Any(item => !CanGoOnBuild(item.Template));
+        && items.Skip(1).Any(item => !CanGoOnBuild(item.Template, SlotIn(items, item)));
 
     internal static void DropUnlistableParts(List<Item> items)
     {
         if (HasUnlistablePart(items))
         {
             var root = items[0].Id;
-            DropBranches(items, item => item.Id != root && !CanGoOnBuild(item.Template));
+            var unlistable = items.Where(item => item.Id != root && !CanGoOnBuild(item.Template, SlotIn(items, item))).Select(item => item.Id).ToHashSet();
+            DropBranches(items, item => unlistable.Contains(item.Id));
         }
     }
+
+    // The slot a part sits in, from its parent in the same list.
+    private static Slot? SlotIn(List<Item> items, Item item) =>
+        items.FirstOrDefault(parent => parent.Id.ToString() == item.ParentId) is { } parent ? SlotOn(parent.Template, item.SlotId) : null;
 
     private static void DropBranches(List<Item> items, Func<Item, bool> drop)
     {
@@ -723,6 +728,15 @@ internal static partial class PresetOfferGate
             && !(blacklist.EnableCustomItemCategoryList && blacklist.CustomItemCategoryList.Contains(item.Value.Parent))
             && !(blacklist.EnableQuestList && SPTarkov.Server.Core.Extensions.TemplateItemExtensions.IsQuestItem(item.Value));
     }
+
+    // A part a gun needs (its slot is required) still goes on when nothing that fits can be on the flea, or the gun
+    // couldn't fire: Eco's Kochevnik only takes flea-banned grips. Bans from the Bans tab still count.
+    internal static bool CanGoOnBuild(MongoId tpl, Slot? slot) =>
+        CanGoOnBuild(tpl) || slot?.Required == true && _itemHelper!.GetItem(tpl).Key && !OnBansTab(tpl) && !Parts(slot).Any(CanGoOnBuild);
+
+    private static bool OnBansTab(MongoId tpl) =>
+        _ragfairConfig?.Dynamic.Blacklist is { } blacklist && (blacklist.Custom.Contains(tpl)
+            || blacklist.EnableCustomItemCategoryList && _itemHelper!.GetItem(tpl).Value?.Parent is { } parent && blacklist.CustomItemCategoryList.Contains(parent));
 
     // What a slot takes, leaving out parts that aren't installed (mods sometimes list another mod's parts), and
     // modded parts that are turned off (Weapons tab, Modded attachments). Those still go where the gun needs a part
@@ -839,7 +853,7 @@ internal static partial class PresetOfferGate
 
         var slotDef = SlotOn(parent.Template, can.SlotId);
         bool Fits(MongoId tpl) => SlotAccepts(slotDef, tpl) && !_itemHelper.IsOfBaseclass(tpl, SilencerBase)
-            && CanGoOnBuild(tpl)
+            && CanGoOnBuild(tpl, slotDef)
             && !_botGenerator!.IsItemIncompatibleWithCurrentItems(state.Built, tpl, can.SlotId).Incompatible.GetValueOrDefault(false);
 
         var allowed = Parts(_itemHelper.GetItem(parent.Template).Value?.Properties?.Slots?.FirstOrDefault(slot => slot.Name == can.SlotId));
@@ -890,7 +904,7 @@ internal static partial class PresetOfferGate
             }
 
             var others = built.Where(item => item.Id != part.Id).ToList();
-            bool Fits(MongoId tpl) => SlotAccepts(slot, tpl) && CanGoOnBuild(tpl)
+            bool Fits(MongoId tpl) => SlotAccepts(slot, tpl) && CanGoOnBuild(tpl, slot)
                 && _itemHelper.GetItem(tpl).Value?.Properties?.Slots?.Any(s => s.Required == true) != true
                 && !_botGenerator!.IsItemIncompatibleWithCurrentItems(others, tpl, part.SlotId!).Incompatible.GetValueOrDefault(false);
 
@@ -1354,7 +1368,7 @@ internal static partial class PresetOfferGate
             var slot = SlotOn(parent.Template, slotName);
             if (built.Any(child => child.ParentId == parent.Id && child.SlotId == slotName)
                 || !SlotAccepts(slot, tpl)
-                || !CanGoOnBuild(tpl)
+                || !CanGoOnBuild(tpl, slot)
                 || _botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slotName).Incompatible.GetValueOrDefault(false))
             {
                 built.RemoveAll(placed.Contains);
@@ -1378,7 +1392,7 @@ internal static partial class PresetOfferGate
                 }
 
                 var fill = Parts(slot).FirstOrDefault(tpl => SlotAccepts(slot, tpl) && !IsOptic(tpl)
-                    && CanGoOnBuild(tpl)
+                    && CanGoOnBuild(tpl, slot)
                     && !_botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slotName).Incompatible.GetValueOrDefault(false));
                 if (fill.IsEmpty)
                 {
@@ -1699,7 +1713,7 @@ internal static partial class PresetOfferGate
 
             // Bot lists have parts filed under the wrong slot, so the slot check comes first.
             bool Fits(MongoId tpl) => SlotAccepts(slot, tpl) && OpticAllowed(tpl)
-                && CanGoOnBuild(tpl)
+                && CanGoOnBuild(tpl, slot)
                 && !_botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slot.Name).Incompatible.GetValueOrDefault(false);
 
             // Someone who swapped the barrel swapped the handguard too. The factory muzzle only stays if it suits the
@@ -1725,7 +1739,7 @@ internal static partial class PresetOfferGate
                 var curatedSet = curatedForSlot.ToHashSet();
                 var wide = isBarrel || tier.StatFocus >= 1 || curatedForSlot.Count == 0;
                 var candidates = wide ? allowedBySlot : curatedForSlot;
-                usable = candidates.Where(tpl => !tpl.IsEmpty && CanGoOnBuild(tpl)).ToList();
+                usable = candidates.Where(tpl => !tpl.IsEmpty && CanGoOnBuild(tpl, slot)).ToList();
                 var fitting = usable.Where(Fits).ToList();
 
                 // Everything in the pool can clash; a required slot then takes anything that fits.
