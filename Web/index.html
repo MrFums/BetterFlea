@@ -189,12 +189,6 @@
   .btn.small { font-size: 12px; padding: 3px 10px; }
   .econ-facts { border-top: 0; margin-top: 4px; padding-top: 0; }
   .econ .finder { margin-top: 14px; }
-  nav .badge { font-size: 10px; font-weight: 600; color: var(--bg); background: var(--green); border-radius: 99px; padding: 0 6px; }
-  nav .new-tab { position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(125, 194, 74, 0.35); }
-  nav .new-tab::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(125, 194, 74, 0.18) 50%, transparent 70%);
-    transform: translateX(-100%); animation: shimmer 9s ease-in-out 2s infinite; pointer-events: none; }
-  @keyframes shimmer { 0%, 80% { transform: translateX(-100%); } 92%, 100% { transform: translateX(100%); } }
-  @media (prefers-reduced-motion: reduce) { nav .new-tab::after { animation: none; } }
   .mods { display: grid; gap: 10px; }
   .mod { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
   .mod-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -497,6 +491,11 @@ const LABELS = {
   "economy.jsonc:wipeCycle.endLevel": "End of wipe level",
   "economy.jsonc:wipeCycle.prestige": "Prestiged players",
   "economy.jsonc:wipeCycle.level": "Test level",
+  "economy.jsonc:priceOverrides": "Your prices",
+  "weapons.jsonc:moddedParts": "Modded attachments",
+  "weapons.jsonc:moddedParts.percent": "How often (%)",
+  "weapons.jsonc:moddedParts.disabledMods": "By mod",
+  "weapons.jsonc:moddedParts.allowFleaBannedParts": "Allow flea-banned modded parts",
   "debug.jsonc:debugLogging": "Debug logging"
 };
 
@@ -707,8 +706,8 @@ const DESC = {
   "selling.jsonc:enabled": "Let players list their own items on the flea.",
   "selling.jsonc:foundInRaidOnly": "Only found in raid items can be listed.",
   "selling.jsonc:saleDelay": "How fast your offers sell depends on your price: cheap in under a minute, normal in a few minutes, overpriced hardly ever.",
-  "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes.",
-  "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes.",
+  "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
+  "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
   "selling.jsonc:saleDelay.noDelayChance": "Chance of no wait at all for offers at or under the normal price.",
   "selling.jsonc:saleDelay.uniqueMinMinutes": "A gun, armour or anything with durability at the normal price waits this long for a buyer (between this and the longest), for an item of about 100,000 roubles. Dearer ones wait longer; cheaper than normal, much less.",
   "selling.jsonc:saleDelay.slowSaleMaxHours": "An offer priced over normal has a lower chance to sell. When it does sell, the buyer can come any time up to this many hours after listing: the lower the chance, the later on average. Offers at or under normal aren't affected.",
@@ -752,6 +751,11 @@ const DESC = {
   "economy.jsonc:wipeCycle.endLevel": "About the level where a wipe ends. Lower it for a shorter wipe.",
   "economy.jsonc:wipeCycle.prestige": "Late wipe: a prestiged player counts as end of wipe. Start over: they count as a fresh wipe from their new level.",
   "economy.jsonc:wipeCycle.level": "For testing: pretend the players are this level. 0 = the highest level of the players online.",
+  "weapons.jsonc:moddedParts": "Attachments from server mods (Eco's, WTT Armory, JSOC...) on other sellers' gun builds.",
+  "weapons.jsonc:moddedParts.percent": "How often a modded attachment is picked, compared with a base-game one that fits as well. 100 = the same, 50 = half as often, 0 = never (unless a gun needs one and nothing else fits).",
+  "weapons.jsonc:moddedParts.allowFleaBannedParts": "Let modded parts their mod marks as not sellable on the flea go on other sellers' guns. Some mods mark parts a gun needs (WTT's F2000 top rail: no rail, no scope), so this gives those guns more builds. Off: they never go on a build, like base-game flea-banned parts. They still can't be listed on their own either way.",
+  "weapons.jsonc:moddedParts.disabledMods": "Turn a mod's attachments off on gun builds. They're still used where a gun needs a part and nothing else fits, so a mod that depends on another (JSOC needs Epic's All in One) still gets built. Its own guns can still be listed as they come.",
+  "economy.jsonc:priceOverrides": "Set an item's base price yourself, in roubles, in place of Better Flea's, the live or SPT's. Mainly for a modded item its mod prices oddly. This is the base price, before multipliers, drift and the Wipe Cycle, not what the item ends up listed at. Not sure what to put? Look up a similar base-game item in Item lookup on this tab, use its Base price and tweak it from there. A gun's price is the gun on its own: its parts are priced separately. Traders don't change. New offers get the new price.",
 
   // Debug
   "debug.jsonc:debugLogging": "Write lots of extra lines in the server log. Only for testing."
@@ -808,6 +812,7 @@ const CHOICES = {
 const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems"];
 // Item or category ids, each with a level.
 const LEVEL_TABLES = ["flea.jsonc:levelLock.levels"];
+const PRICE_TABLES = ["economy.jsonc:priceOverrides"];
 // Tables you can add entries to.
 const OPEN_TABLES = ["listings.jsonc:listings.categoryMultipliers", "listings.jsonc:listings.minimumOffers", "listings.jsonc:listings.superrareMinimumOffers"];
 
@@ -1149,7 +1154,7 @@ async function loadNames() {
     const [file, path] = key.split(":");
     for (const id of getAt(state.byFile[file].values, path.split(".")) || []) if (!state.names[id]) ids.add(id);
   }
-  for (const key of LEVEL_TABLES) {
+  for (const key of LEVEL_TABLES.concat(PRICE_TABLES)) {
     const [file, path] = key.split(":");
     for (const id of Object.keys(getAt(state.byFile[file].values, path.split(".")) || {})) if (!state.names[id]) ids.add(id);
   }
@@ -1225,7 +1230,6 @@ function render() {
     else if (!same(f.values, f.defaults)) { const d = document.createElement("span"); d.className = "dot"; d.title = "Changed from default"; marks.appendChild(d); }
     b.append(t, marks);
     if (f.file === state.current) b.className = "active";
-    if (f.file === "economy.jsonc") { b.classList.add("new-tab"); const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "New"; marks.prepend(badge); }
     b.onclick = () => { state.current = f.file; store("bf.tab", f.file); render(); window.scrollTo(0, 0); };
     nav.appendChild(b);
   }
@@ -1320,7 +1324,9 @@ function buildNode(f, path) {
   const def = getAt(f.defaults, path);
   if (inList(ITEM_LISTS, f.file, path)) return itemList(f, path, value || [], def);
   if (f.file === "flea.jsonc" && path.join(".") === "bannedModItems") return modBans(f, path, value || {}, def);
+  if (f.file === "weapons.jsonc" && path.join(".") === "moddedParts.disabledMods") return moddedPartMods(f, path, value || [], def);
   if (inList(LEVEL_TABLES, f.file, path)) return levelTable(f, path, value || {}, def);
+  if (inList(PRICE_TABLES, f.file, path)) return priceTable(f, path, value || {}, def);
   if (isObject(value)) return group(f, path, value, def);
 
   const row = document.createElement("div");
@@ -1527,6 +1533,38 @@ function levelTable(f, path, value, def) {
     if (item.id in value) return;
     const copy = clone(value);
     copy[item.id] = 15;
+    change(f, path, copy);
+  }));
+  row.appendChild(control);
+  return row;
+}
+
+// Your own base prices: an item and its price in roubles. A new one starts at the item's base price now.
+function priceTable(f, path, value, def) {
+  const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
+  row.append(label(f, path, true), resetButton(f, path, value, def));
+  const control = make("div", "control levels");
+  const ids = Object.keys(value);
+  if (!ids.length) control.appendChild(make("span", "none", "None yet. Every item keeps its usual price."));
+  for (const id of ids) {
+    const known = state.names[id];
+    const entry = make("div", "level-row");
+    entry.title = id;
+    const remove = make("button", "remove", "×");
+    remove.title = "Remove";
+    remove.onclick = () => { const copy = clone(value); delete copy[id]; change(f, path, copy); };
+    entry.append(make("span", "level-name", known ? known.name : id), stepper(f, path.concat(id), value[id], 1000), remove);
+    control.appendChild(entry);
+  }
+  control.appendChild(itemFinder("find-" + path.join("-"), async (item) => {
+    if (item.category || item.id in value) return;
+    let price = 10000;
+    try {
+      const d = await (await fetch(API + "/economy?id=" + encodeURIComponent(item.id))).json();
+      if (d.basePrice > 0) price = Math.round(d.basePrice);
+    } catch (e) { /* start from 10,000 */ }
+    const copy = clone(getAt(f.values, path) || {});
+    copy[item.id] = price;
     change(f, path, copy);
   }));
   row.appendChild(control);
@@ -1817,7 +1855,7 @@ function settingsIndex() {
         const v = value[key];
         // A section's own on/off switch sits on the section's row, so the section stands for it.
         if (inList(HIDDEN, f.file, p) || (key === "enabled" && path.length && typeof v === "boolean")) continue;
-        const special = inList(ITEM_LISTS, f.file, p) || inList(LEVEL_TABLES, f.file, p) || (f.file === "flea.jsonc" && p.join(".") === "bannedModItems");
+        const special = inList(ITEM_LISTS, f.file, p) || inList(LEVEL_TABLES, f.file, p) || inList(PRICE_TABLES, f.file, p) || (f.file === "flea.jsonc" && p.join(".") === "bannedModItems") || (f.file === "weapons.jsonc" && p.join(".") === "moddedParts.disabledMods");
         out.push({ f, path: p, label: labelFor(f.file, p), desc: lookup(DESC, f.file, p) || "" });
         if (isObject(v) && !special && !inList(OPEN_TABLES, f.file, p)) walk(p, v);
       }
@@ -2062,6 +2100,7 @@ function itemLookup(e, d) {
     } else {
       facts.append(make("div", "", "Base price: " + count(d.basePrice) + " ₽"));
     }
+    if (d.ownPrice) facts.append(make("div", "", "Your price: " + count(d.ownPrice) + " ₽ (set under Your prices)"));
     facts.append(make("div", "", "Better Flea price: " + indexText), make("div", "", "Live price: " + liveText),
       make("div", "", (d.stockBuild ? "Actual value (default build): " : "Actual value: ") + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
     look.appendChild(facts);
@@ -2081,10 +2120,36 @@ async function loadMods() {
     state.mods = answer.mods || [];
     state.skippedMods = answer.skipped || [];
   } catch (e) { state.mods = []; state.skippedMods = []; }
-  if (state.current === "flea.jsonc") render();
+  if (state.current === "flea.jsonc" || state.current === "weapons.jsonc") render();
 }
 
 const typeLabel = (name) => name === "uncategorised" ? "Other" : labelFor("flea.jsonc", ["bannedCategories"].concat(name.split(".")));
+
+// One switch per mod: its attachments on other sellers' gun builds.
+function moddedPartMods(f, path, value, def) {
+  const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
+  row.append(label(f, path, true), resetButton(f, path, value, def));
+  const control = make("div", "control mods");
+  // Only mods that add guns or weapon parts.
+  const gunMods = (state.mods || []).filter(mod => mod.types.some(type => type.name === "weapons.guns" || type.name.startsWith("weaponParts.")));
+  if (!state.mods) control.appendChild(make("span", "none", "Looking for mods…"));
+  else if (!gunMods.length) control.appendChild(make("span", "none", "No server mods that add guns or attachments are installed."));
+  for (const mod of gunMods) {
+    const off = value.some(name => name.toLowerCase() === mod.name.toLowerCase());
+    const card = make("div", "mod" + (off ? " banned" : ""));
+    const head = make("div", "mod-head");
+    const name = make("div");
+    name.append(make("b", "", mod.name), make("span", "n", count(mod.items) + " items"));
+    const pick = make("label", "pick");
+    pick.append("Attachments on guns", toggleSwitch(!off, (on) =>
+      change(f, path, on ? value.filter(n => n.toLowerCase() !== mod.name.toLowerCase()) : value.concat(mod.name))));
+    head.append(name, pick);
+    card.appendChild(head);
+    control.appendChild(card);
+  }
+  row.appendChild(control);
+  return row;
+}
 
 // One card per mod: a switch for everything it adds, and a toggle per type of item.
 function modBans(f, path, value, def) {
@@ -2150,8 +2215,12 @@ function input(f, path, value, def) {
   return text(f, path, value);
 }
 
+// Times can be part of a minute or hour: 0.5 minutes is 30 seconds.
+const isTime = (key) => /(minutes|hours)$/i.test(key);
+
 function stepFor(key, parent, sample, value) {
   if (/multiplier/i.test(key) || /multipliers$/i.test(parent)) return 0.25;
+  if (isTime(key) && Math.min(sample, value) < 1) return 0.1;
   if (Number.isInteger(sample) && Number.isInteger(value)) {
     const size = Math.max(Math.abs(sample), Math.abs(value));
     return size >= 10000 ? 1000 : size >= 1000 ? 100 : size >= 100 ? 10 : 1;
@@ -2184,17 +2253,18 @@ function stepper(f, path, value, step) {
   el.className = "num";
   el.step = "any";
   el.value = value;
-  el.onchange = () => { const v = parseFloat(el.value); if (!isNaN(v)) change(f, path, Math.max(0, Number.isInteger(step) ? Math.round(v) : v)); };
+  const whole = Number.isInteger(step) && !isTime(path[path.length - 1]);
+  el.onchange = () => { const v = parseFloat(el.value); if (!isNaN(v)) change(f, path, Math.max(0, whole ? Math.round(v) : v)); };
   const minus = document.createElement("button");
   minus.className = "step";
   minus.textContent = "−";
   minus.title = "−" + step;
-  minus.onclick = () => change(f, path, round(getAt(f.values, path) - step, step));
+  minus.onclick = () => change(f, path, whole ? round(getAt(f.values, path) - step, step) : Math.max(0, Math.round((getAt(f.values, path) - step) * 100) / 100));
   const plus = document.createElement("button");
   plus.className = "step";
   plus.textContent = "+";
   plus.title = "+" + step;
-  plus.onclick = () => change(f, path, round(getAt(f.values, path) + step, step));
+  plus.onclick = () => change(f, path, whole ? round(getAt(f.values, path) + step, step) : Math.round((getAt(f.values, path) + step) * 100) / 100);
   wrap.append(minus, el, plus);
   return wrap;
 }

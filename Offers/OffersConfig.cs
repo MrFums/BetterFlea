@@ -44,6 +44,9 @@ public record GeneratedOffersConfig
     [JsonPropertyName("playerGuns")]
     public PlayerGunsConfig PlayerGuns { get; set; } = new();
 
+    [JsonPropertyName("moddedParts")]
+    public ModdedPartsConfig ModdedParts { get; set; } = new();
+
     [JsonPropertyName("soldBeforeYouChance")]
     public double SoldBeforeYouChance { get; set; } = 0.05;
 
@@ -688,4 +691,25 @@ public record ResourceListingSettings
 
     [JsonPropertyName("emptyScamChance")]
     public double EmptyScamChance { get; set; } = 0.3;
+}
+
+// Attachments from server mods on other sellers' gun builds.
+public record ModdedPartsConfig
+{
+    // How often a modded part is picked, in % of a base-game part that fits as well. 0 = never.
+    [JsonPropertyName("percent")]
+    public double Percent { get; set; } = 100;
+
+    // Mods whose parts are left off builds (by the name on the Bans tab). A part one is still used where nothing else
+    // fits a part the gun needs, so a mod that depends on it (JSOC needs Epic's All in One) still gets built.
+    [JsonPropertyName("disabledMods")]
+    public List<string> DisabledMods { get; set; } = new();
+
+    // Modded parts their mod marks as not sellable on the flea can still go on builds. Some mods mark a part a gun
+    // needs (WTT's F2000 top rail, without which it can't take a scope), so this gives those guns more variety.
+    [JsonPropertyName("allowFleaBannedParts")]
+    public bool AllowFleaBannedParts { get; set; } = false;
+
+    [JsonExtensionData]
+    public Dictionary<string, System.Text.Json.JsonElement>? Unknown { get; set; }
 }

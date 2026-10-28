@@ -290,6 +290,12 @@ internal static class LivePrices
     {
         if (cache is null || (index ? !IndexWanted : !Settings.Enabled || IndexOn))
         {
+            lock (Gate)
+            {
+                ForgetOverrides();
+                UseOverrides();
+            }
+
             return;
         }
 
@@ -297,6 +303,7 @@ internal static class LivePrices
 
         lock (Gate)
         {
+            ForgetOverrides();
             var prices = _templates!.Prices;
             var live = new Dictionary<MongoId, double>();
             // ContentBackport's items keep their own price unless its option is on.
@@ -322,6 +329,7 @@ internal static class LivePrices
 
             var baseGame = cache.Known?.ToHashSet() ?? [];
             _estimated = (index ? IndexSettings.EstimateModdedItems : Settings.EstimateModdedItems) ? MatchModdedItems(live, baseGame) : 0;
+            UseOverrides();
             _applied = true;
             _indexApplied = index;
         }
@@ -359,36 +367,43 @@ internal static class LivePrices
     }
 
     // tarkov.dev only knows the base game's items, so the rest (modded items) would stay on SPT's price scale next
-    // to live-priced items. Move each onto the live scale by how far live prices sit from SPT's for the base-game
-    // items of the same kind.
+    // to live-priced items. Each is moved onto the live scale twice, by how far live prices sit from the flea price
+    // and from the handbook price for the base-game items of the same kind, and the one nearer what that kind of item
+    // costs is kept. A mod's flea price or its handbook price can be a guess: a gun on the flea at 10x its handbook
+    // price, parts at just their handbook price when the base game's sell for 6x, plate carriers with a 200 handbook
+    // price, or helmets at a sensible handbook price when the base game's sell for 15x theirs.
     private static int MatchModdedItems(Dictionary<MongoId, double> live, HashSet<string> baseGame)
     {
         var items = _templates!.Items;
-        var ratiosByKind = new Dictionary<MongoId, List<double>>();
-        var allRatios = new List<double>();
+        var handbook = Handbook.Value;
+        var byBook = new Medians();
+        var byFlea = new Medians();
+        var prices = new Medians();
         foreach (var (tpl, price) in live)
         {
-            if (_sptPrices!.GetValueOrDefault(tpl) is > 0 and var spt && items.GetValueOrDefault(tpl)?.Parent is { } kind)
+            if (items.GetValueOrDefault(tpl)?.Parent is not { } kind || price <= 0)
             {
-                var ratio = price / spt;
-                (ratiosByKind.TryGetValue(kind, out var list) ? list : ratiosByKind[kind] = new List<double>()).Add(ratio);
-                allRatios.Add(ratio);
+                continue;
+            }
+
+            prices.Add(kind, price);
+
+            if (handbook.GetValueOrDefault(tpl) is > 0 and var book)
+            {
+                byBook.Add(kind, price / book);
+            }
+
+            if (_sptPrices!.GetValueOrDefault(tpl) is > 0 and var spt)
+            {
+                byFlea.Add(kind, price / spt);
             }
         }
 
-        if (allRatios.Count == 0)
+        if (byBook.IsEmpty && byFlea.IsEmpty)
         {
             return 0;
         }
 
-        static double Median(List<double> values)
-        {
-            values.Sort();
-            return values[values.Count / 2];
-        }
-
-        var overall = Median(allRatios);
-        var byKind = ratiosByKind.Where(entry => entry.Value.Count >= 5).ToDictionary(entry => entry.Key, entry => Median(entry.Value));
         var count = 0;
         foreach (var (tpl, spt) in _sptPrices!)
         {
@@ -398,40 +413,142 @@ internal static class LivePrices
                 continue;
             }
 
-            var ratio = Math.Clamp(byKind.GetValueOrDefault(item.Parent, overall), 0.25, 4.0);
-            _templates.Prices[tpl] = Math.Round(spt * ratio);
+            // Armour sells for 15-18x its handbook price, so the handbook ratio is allowed far wider.
+            var fromFlea = spt * Math.Clamp(byFlea.For(item.Parent), 0.25, 4.0);
+            var estimate = fromFlea;
+            if (handbook.GetValueOrDefault(tpl) is > 0 and var book && !byBook.IsEmpty)
+            {
+                var fromBook = book * Math.Clamp(byBook.For(item.Parent), 0.1, 25.0);
+                var typical = prices.For(item.Parent);
+                estimate = Math.Abs(Math.Log(fromBook / typical)) < Math.Abs(Math.Log(fromFlea / typical)) ? fromBook : fromFlea;
+            }
+
+            // A mod can price both high (an upper receiver at 168k when 9 in 10 base-game ones are under 49k): kept
+            // under what 9 in 10 base-game items of its kind cost, so a premium part is dear but not 3x the dearest.
+            // No floor: mods price joke and decor items at a rouble or two on purpose.
+            if (prices.Ceiling(item.Parent) is { } ceiling)
+            {
+                estimate = Math.Min(estimate, ceiling);
+            }
+
+            _templates.Prices[tpl] = Math.Round(estimate);
             count++;
         }
 
         return count;
     }
 
+    // The median by item kind. A kind with fewer than 5 items uses the median of all of them.
+    private sealed class Medians
+    {
+        private readonly Dictionary<MongoId, List<double>> _byKind = new();
+        private readonly List<double> _all = new();
+        private Dictionary<MongoId, double>? _medians;
+        private double _overall;
+
+        public bool IsEmpty => _all.Count == 0;
+
+        // The 90th percentile of a kind with at least 10 items, or null.
+        public double? Ceiling(MongoId kind)
+        {
+            if (!_byKind.TryGetValue(kind, out var values) || values.Count < 10)
+            {
+                return null;
+            }
+
+            values.Sort();
+            return values[Math.Min(values.Count - 1, values.Count * 9 / 10)];
+        }
+
+        public void Add(MongoId kind, double value)
+        {
+            (_byKind.TryGetValue(kind, out var list) ? list : _byKind[kind] = new List<double>()).Add(value);
+            _all.Add(value);
+        }
+
+        public double For(MongoId kind)
+        {
+            if (_medians is null)
+            {
+                _overall = IsEmpty ? 1.0 : Median(_all);
+                _medians = _byKind.Where(entry => entry.Value.Count >= 5).ToDictionary(entry => entry.Key, entry => Median(entry.Value));
+            }
+
+            return _medians.GetValueOrDefault(kind, _overall);
+        }
+
+        private static double Median(List<double> values)
+        {
+            values.Sort();
+            return values[values.Count / 2];
+        }
+    }
+
     private static void PutBackSpt()
     {
         lock (Gate)
         {
-            if (!_applied || _sptPrices is null)
+            if (_sptPrices is null)
             {
                 return;
             }
 
-            foreach (var (tpl, price) in _sptPrices)
+            ForgetOverrides();
+            if (_applied)
             {
-                _templates!.Prices[tpl] = price;
+                foreach (var (tpl, price) in _sptPrices)
+                {
+                    _templates!.Prices[tpl] = price;
+                }
+
+                _applied = false;
+                _indexApplied = false;
             }
 
-            _applied = false;
-            _indexApplied = false;
+            UseOverrides();
         }
 
         UseTraderCuts(null);
         Flea.LevelLock.Forget();
     }
 
+    // Items with the admin's own base price (Economy tab, Your prices). Inside Gate, last, so nothing else changes them.
+    private static readonly HashSet<MongoId> Overridden = new();
+
+    private static void UseOverrides()
+    {
+        foreach (var (id, price) in _config!.Mod.Economy.PriceOverrides)
+        {
+            if (price > 0 && MongoId.IsValidMongoId(id) && new MongoId(id) is var tpl && _templates!.Items.ContainsKey(tpl))
+            {
+                _templates.Prices[tpl] = price;
+                Overridden.Add(tpl);
+            }
+        }
+    }
+
+    // Back to SPT's own price (or none), so a removed override doesn't stay.
+    private static void ForgetOverrides()
+    {
+        foreach (var tpl in Overridden)
+        {
+            if (_sptPrices!.TryGetValue(tpl, out var spt))
+            {
+                _templates!.Prices[tpl] = spt;
+            }
+            else
+            {
+                _templates!.Prices.Remove(tpl);
+            }
+        }
+
+        Overridden.Clear();
+    }
+
     // For the settings page: SPT's own price, the live price (null if the real flea doesn't sell it, or it was too
     // far from SPT's price and the handbook's to trust: LiveIgnored), Better Flea's price, and whether the real game
-    // has the item at all.
-    public record PriceLookup(double? Spt, double? Live, bool LiveIgnored, double? Index, bool BaseGame);
+    // has the item at all. Override: the admin's own base price, if set.
+    public record PriceLookup(double? Spt, double? Live, bool LiveIgnored, double? Index, bool BaseGame, double? Override);
 
     public static PriceLookup Lookup(MongoId tpl)
     {
@@ -443,7 +560,8 @@ internal static class LivePrices
         double? index = Index.Value?.Prices.TryGetValue(id, out var fixedPrice) == true
             && (IndexSettings.ContentBackport || Index.Value.Backport?.Contains(id) != true) ? fixedPrice : null;
         var baseGame = _cache?.Known?.Contains(id) == true || Index.Value?.Known?.Contains(id) == true;
-        return new PriceLookup(spt, ignored ? null : live, ignored, index, baseGame);
+        double? own = _config?.Mod.Economy.PriceOverrides.TryGetValue(id, out var set) == true && set > 0 ? set : null;
+        return new PriceLookup(spt, ignored ? null : live, ignored, index, baseGame, own);
     }
 
     // The items whose live price (or Better Flea's, with index) is furthest from SPT's, each way: (item, SPT price,
@@ -474,6 +592,11 @@ internal static class LivePrices
         var live = _applied && !_indexApplied;
         return (live, _cache?.Prices.Count ?? 0, _cache?.Fetched ?? 0, _cache?.Modes ?? [], _error, live ? _estimated : 0, _fallback);
     }
+
+    // In the real game (the price index knows it, content backports included), so not from a mod.
+    public static bool IsBaseGame(MongoId tpl) => BaseGameItems.Value.Contains(tpl.ToString());
+
+    private static readonly Lazy<HashSet<string>> BaseGameItems = new(() => Index.Value?.Known?.ToHashSet() ?? []);
 
     public static (bool On, int Prices, long Built, int Estimated) IndexStatus()
     {

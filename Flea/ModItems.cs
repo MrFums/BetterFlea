@@ -85,12 +85,13 @@ internal static class ModItems
         _modById = new Lazy<Dictionary<string, string>>(() => Index(others), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
-    // Every item-like id in each mod's folder. An id found in several mods goes to the one that has it in a json
-    // file, then to the one that mentions it most. A tie goes to no one: a dll that just names an id (SVM naming
-    // WTT's USEC customisation, say) mustn't take another mod's items.
+    // Every item-like id in each mod's folder. An id found in several mods goes to the one that defines it (the id as
+    // a json key: "<id>": {), so JSOC listing Eco's parts in its slots doesn't take them; then to the one that has it
+    // in a json file, then to the one that mentions it most. A tie goes to no one: a dll that just names an id (SVM
+    // naming WTT's USEC customisation, say) mustn't take another mod's items.
     private static Dictionary<string, string> Index(List<SptMod> mods)
     {
-        var counts = new Dictionary<string, Dictionary<string, (int Json, int All)>>();
+        var counts = new Dictionary<string, Dictionary<string, (int Json, int All, int Defined)>>();
         var total = Stopwatch.StartNew();
         var (readFiles, readBytes) = (0, 0L);
         foreach (var mod in mods)
@@ -103,7 +104,7 @@ internal static class ModItems
             }
 
             // Counted on their own first, so a mod skipped part way doesn't leave half its items behind.
-            var own = new Dictionary<string, (int Json, int All)>();
+            var own = new Dictionary<string, (int Json, int All, int Defined)>();
             var (files, bytes) = (0, 0L);
             var watch = Stopwatch.StartNew();
             string? problem = null;
@@ -121,10 +122,10 @@ internal static class ModItems
                     }
 
                     var json = !Path.GetExtension(file).Equals(".dll", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-                    foreach (var id in Ids(data))
+                    foreach (var (id, defined) in Ids(data))
                     {
                         var seen = own.GetValueOrDefault(id);
-                        own[id] = (seen.Json + json, seen.All + 1);
+                        own[id] = (seen.Json + json, seen.All + 1, seen.Defined + (defined ? 1 : 0));
                     }
                 }
             }
@@ -145,7 +146,7 @@ internal static class ModItems
             {
                 if (!counts.TryGetValue(id, out var byMod))
                 {
-                    counts[id] = byMod = new Dictionary<string, (int Json, int All)>();
+                    counts[id] = byMod = new Dictionary<string, (int Json, int All, int Defined)>();
                 }
 
                 byMod[name] = seen;
@@ -167,10 +168,18 @@ internal static class ModItems
         return owners;
     }
 
-    private static string? Owner(Dictionary<string, (int Json, int All)> byMod)
+    private static string? Owner(Dictionary<string, (int Json, int All, int Defined)> byMod)
     {
-        var ranked = byMod.OrderByDescending(entry => entry.Value.Json > 0).ThenByDescending(entry => entry.Value.All).Take(2).ToList();
-        if (ranked.Count == 2 && (ranked[0].Value.Json > 0) == (ranked[1].Value.Json > 0) && ranked[0].Value.All == ranked[1].Value.All)
+        var definers = byMod.Where(entry => entry.Value.Defined > 0).ToList();
+        if (definers.Count == 1)
+        {
+            return definers[0].Key;
+        }
+
+        var ranked = byMod.OrderByDescending(entry => entry.Value.Defined > 0).ThenByDescending(entry => entry.Value.Json > 0)
+            .ThenByDescending(entry => entry.Value.All).Take(2).ToList();
+        if (ranked.Count == 2 && (ranked[0].Value.Defined > 0) == (ranked[1].Value.Defined > 0)
+            && (ranked[0].Value.Json > 0) == (ranked[1].Value.Json > 0) && ranked[0].Value.All == ranked[1].Value.All)
         {
             return null;
         }
@@ -206,15 +215,44 @@ internal static class ModItems
             .Where(file => Scanned.Contains(Path.GetExtension(file)) && new FileInfo(file).Length <= MaxFileBytes);
     }
 
-    // 24 hex characters in a row, as plain text (json) or as UTF-16 (strings inside a dll).
-    private static IEnumerable<string> Ids(byte[] bytes)
+    // 24 hex characters in a row, as plain text (json) or as UTF-16 (strings inside a dll). Defined: a json key that
+    // opens an object ("<id>": {), the way mods add items.
+    private static IEnumerable<(string Id, bool Defined)> Ids(byte[] bytes)
     {
-        foreach (var id in Runs(bytes, 0, 1)) yield return id;
-        foreach (var id in Runs(bytes, 0, 2)) yield return id;
-        foreach (var id in Runs(bytes, 1, 2)) yield return id;
+        foreach (var (id, end) in Runs(bytes, 0, 1)) yield return (id, Defines(bytes, end));
+        foreach (var (id, _) in Runs(bytes, 0, 2)) yield return (id, false);
+        foreach (var (id, _) in Runs(bytes, 1, 2)) yield return (id, false);
     }
 
-    private static IEnumerable<string> Runs(byte[] bytes, int start, int stride)
+    private static bool Defines(byte[] bytes, int end)
+    {
+        if (end >= bytes.Length || bytes[end] != '"')
+        {
+            return false;
+        }
+
+        var i = end + 1;
+        while (i < bytes.Length && char.IsWhiteSpace((char)bytes[i]))
+        {
+            i++;
+        }
+
+        if (i >= bytes.Length || bytes[i] != ':')
+        {
+            return false;
+        }
+
+        i++;
+        while (i < bytes.Length && char.IsWhiteSpace((char)bytes[i]))
+        {
+            i++;
+        }
+
+        return i < bytes.Length && bytes[i] == '{';
+    }
+
+    // Each id with the index just past it.
+    private static IEnumerable<(string Id, int End)> Runs(byte[] bytes, int start, int stride)
     {
         var run = new char[IdLength];
         var length = 0;
@@ -235,7 +273,7 @@ internal static class ModItems
 
             if (length == IdLength)
             {
-                yield return new string(run);
+                yield return (new string(run), i);
             }
 
             length = 0;
@@ -243,7 +281,7 @@ internal static class ModItems
 
         if (length == IdLength)
         {
-            yield return new string(run);
+            yield return (new string(run), bytes.Length);
         }
     }
 }

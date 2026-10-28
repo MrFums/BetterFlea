@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.4.0 (beta)
+
+**New**
+- **Modded attachments** (Weapons tab): how often attachments from server mods turn up on other sellers' gun builds (100% = as often as a base-game part that fits as well), a switch per mod to keep its attachments off builds, and a switch to let modded parts marked as flea-banned go on builds. A switched-off mod's part is still used where a gun needs a part and nothing else fits, so a mod that depends on another (JSOC needs Epic's All in One) still gets built.
+- **Your prices** (Economy tab): set an item's base price yourself, in place of Better Flea's, the live or SPT's. Mainly for a modded item its mod prices oddly. Search for the item, and it's added at its current base price to change from there. It's the base price, before multipliers and drift; not sure what to use? Look up a similar base-game item's base price and tweak it from there. Multipliers, drift and the Wipe Cycle still go on top, and traders don't change. Item lookup shows the price you set.
+
+**Fixes**
+- Modded items' prices make more sense. Better Flea used to scale a modded item's own flea price, so a mod that set it too high or too low passed that straight on: the JSOC GFR-X (listed by its mod at 10 times its handbook price) came out at 279k on its own, an M249 at 564k, a pistol grip at 54k, while parts a mod priced at just their handbook price came out far too cheap. Now each modded item is estimated from both its flea price and its handbook price, the one nearer what that kind of item costs in the base game is used, and it's never dearer than 9 in 10 base-game items of its kind (a mod that prices both high, like JSOC's 168k GFR-X upper receiver, now 49k). Tested with Eco's Attachment Emporium, WTT Armory and WTT Artem: half their items keep their price, and the odd ones come into line (the M249 at 362k, the pistol grip at 5.6k, a 16M item case at 1.6M).
+- With a mod whose guns list parts from another mod that isn't installed (JSOC, for one), the server log filled with red "Could not add ... it does not exist in the item database!" errors at startup, and an offer could carry the missing part. Missing parts are now left off builds and offers.
+- Other sellers' guns could come with a part that can't be on the flea: SPT's "M4A1 2017 New year" build has a PMAG D-60. Such parts now come off, and a named build that has one isn't listed.
+- Modded attachments turned up on other sellers' gun builds about half as often as base-game ones that fit as well, because a part no trader sells counted as hard to get, and mods rarely add traders. They now count as easy to get. Modded scopes and dots also get the middle rating of base-game optics of their kind (a bit more if dearer, less if cheaper) instead of a low one. The usual rules still apply: zoom, the kind of gun, stats and price.
+- The settings page rounded times to whole minutes or hours when their default was a whole number, so a wait under a minute couldn't be set. Part of a minute works now (0.5 = 30 seconds).
+- Other sellers' guns could carry modded parts their mod marks as not sellable on the flea. They don't now. Some mods mark parts a gun needs (WTT's FN F2000 top rail, so it never gets a scope): **Allow flea-banned modded parts** (Weapons tab, Modded attachments) lets builds use them.
+- An item that one mod adds and another mod lists in its slots (JSOC listing Eco's parts) could be counted as the second mod's, so banning a mod's items on the Bans tab could miss some of them. An item now belongs to the mod that defines it.
+- Modded guns whose scope has to go on a rail or iron sight that its mod made by copying a red dot (Eco's Bushmaster M17S: rear sight, then a picatinny rail, then the scope) never got a scope: Better Flea took the rail for the optic itself. A modded "optic" the game's handbook files under Mounts or Iron sights is now treated as a mount, and a slot that takes one counts as a place for a scope. Modded rifles now get optics as often as base-game ones.
+
 ## 2.3.1
 
 **Changes**

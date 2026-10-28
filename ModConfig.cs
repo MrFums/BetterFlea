@@ -59,6 +59,9 @@ public record WeaponsFile
     [JsonPropertyName("playerGuns")]
     public PlayerGunsConfig PlayerGuns { get; set; } = new();
 
+    [JsonPropertyName("moddedParts")]
+    public ModdedPartsConfig ModdedParts { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }

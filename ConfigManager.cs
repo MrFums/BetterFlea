@@ -140,6 +140,7 @@ public class ConfigManager(
         WarnUnknown(condition.Unknown, InFolder("condition.jsonc"), "");
         WarnUnknown(weapons.Unknown, InFolder("weapons.jsonc"), "");
         WarnUnknown(weapons.Presets.Unknown, InFolder("weapons.jsonc"), "presets.");
+        WarnUnknown(weapons.ModdedParts.Unknown, InFolder("weapons.jsonc"), "moddedParts.");
         WarnUnknown(armor.Unknown, InFolder("armor.jsonc"), "");
         WarnUnknown(market.Unknown, InFolder("market.jsonc"), "");
         WarnUnknown(prices.Unknown, InFolder("prices.jsonc"), "");
@@ -159,6 +160,7 @@ public class ConfigManager(
                 UsedItems = condition,
                 Presets = weapons.Presets,
                 PlayerGuns = weapons.PlayerGuns,
+                ModdedParts = weapons.ModdedParts,
                 Armor = armor,
                 OfferExpiry = market.OfferExpiry,
                 SimulatedSales = market.SimulatedSales,
@@ -522,6 +524,10 @@ public class ConfigManager(
         Mod.Economy.LivePrices.RefreshHours = Math.Clamp(Mod.Economy.LivePrices.RefreshHours, 0.5, 168.0);
 
         var flip = Mod.PlayerSelling.FlipPenalty;
+        var modded = Mod.GeneratedOffers.ModdedParts;
+        modded.Percent = Math.Clamp(modded.Percent, 0.0, 1000.0);
+        modded.DisabledMods ??= new();
+
         flip.WindowMinutes = Math.Max(1.0, flip.WindowMinutes);
         flip.FreePurchases = Math.Max(0.0, flip.FreePurchases);
         flip.MaxExtraMinutes = Math.Max(0.0, flip.MaxExtraMinutes);

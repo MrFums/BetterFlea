@@ -404,7 +404,8 @@ internal static partial class PresetOfferGate
 
                 pending.Remove(item);
                 progress = true;
-                if (!_itemHelper!.IsOfBaseclass(item.Template, ModBase))
+                // A mod's preset can hold another mod's part that isn't installed: left off, with whatever was on it.
+                if (!_itemHelper!.GetItem(item.Template).Key || !_itemHelper.IsOfBaseclass(item.Template, ModBase))
                 {
                     continue;
                 }
@@ -530,7 +531,7 @@ internal static partial class PresetOfferGate
             }
 
             var fitting = options.Where(tpl => SlotAccepts(slot, tpl)
-                && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper!.GetItem(tpl))
+                && CanGoOnBuild(tpl)
                 && !_botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slotName).Incompatible.GetValueOrDefault(false)).ToList();
             if (fitting.Count == 0)
             {

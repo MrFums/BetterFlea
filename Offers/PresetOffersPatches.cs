@@ -31,6 +31,8 @@ public class PresetOffersPatchesLoad(
     LocaleService localeService,
     SaveServer saveServer,
     ItemHelper itemHelper,
+    TemplateTable templateTable,
+    SPTarkov.Server.Core.Models.Spt.Config.RagfairConfig ragfairConfig,
     SPTarkov.Server.Core.Helpers.Profile.HandbookHelper handbookHelper) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
@@ -41,7 +43,8 @@ public class PresetOffersPatchesLoad(
         }
 
         PresetOfferGate.Bind(configManager, presetHelper, ragfairPriceService, ragfairServerHelper, botGeneratorHelper, botTable, itemHelper);
-        BuildQuality.Bind(itemHelper, ragfairPriceService, tradersTable, handbookHelper);
+        PresetOfferGate.BindRagfairConfig(ragfairConfig);
+        BuildQuality.Bind(itemHelper, ragfairPriceService, tradersTable, handbookHelper, templateTable);
         BuildQuality.BindNames(() => localeService.GetLocaleDb("en"));
         PresetOfferGate.BindSaves(saveServer);
         new CustomBuildPatch().Enable();
@@ -175,9 +178,10 @@ internal static partial class PresetOfferGate
                     continue;
                 }
 
-                var sights = (slot.Properties?.Filters?.FirstOrDefault()?.Filter ?? [])
+                var sights = Parts(slot)
                     .Where(tpl => _itemHelper.IsOfBaseclasses(tpl, [BaseClasses.COLLIMATOR, BaseClasses.COMPACT_COLLIMATOR])
-                        && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper.GetItem(tpl)))
+                        && !BuildQuality.IsNotReallyOptic(tpl)
+                        && CanGoOnBuild(tpl))
                     .OrderBy(tpl => _prices!.GetFleaPriceForItem(tpl))
                     .Take(4)
                     .ToList();
@@ -632,12 +636,117 @@ internal static partial class PresetOfferGate
             return false;
         }
 
+        // A turned-off modded part only where the gun needs a part and nothing else fits.
+        var settings = ModdedParts;
+        if ((settings.Percent <= 0 || settings.DisabledMods.Count > 0) && IsTurnedOff(tpl, settings)
+            && !(slot!.Required == true && !Parts(slot).Any()))
+        {
+            return false;
+        }
+
         return filters.Any(filter => filter.Filter is { } ids && ids.Any(id => id == tpl || _itemHelper!.IsOfBaseclass(tpl, id)));
     }
 
-    // What a slot takes, leaving out parts that aren't installed (mods sometimes list another mod's parts).
-    internal static IEnumerable<MongoId> Parts(Slot? slot) =>
-        (slot?.Properties?.Filters?.FirstOrDefault()?.Filter ?? []).Where(tpl => !tpl.IsEmpty && _itemHelper!.GetItem(tpl).Key);
+    // A mod's preset can hold another mod's part that isn't installed. The game can't show it, so it comes off with
+    // whatever is on it. False when the item itself isn't there: no offer.
+    internal static bool DropMissingParts(List<Item> items)
+    {
+        if (items.Count == 0 || items.All(item => _itemHelper!.GetItem(item.Template).Key))
+        {
+            return items.Count > 0;
+        }
+
+        if (!_itemHelper!.GetItem(items[0].Template).Key)
+        {
+            return false;
+        }
+
+        DropBranches(items, item => !_itemHelper.GetItem(item.Template).Key);
+        return true;
+    }
+
+    // A part of another seller's gun that can't be on the flea (a PMAG D-60 in SPT's "M4A1 2017 New year" build,
+    // or a part banned on the Bans tab) comes off with whatever is on it. Guns only: armour keeps its plates. Modded
+    // parts go by CanGoOnBuild.
+    internal static bool HasUnlistablePart(List<Item> items) =>
+        items.Count > 1 && _itemHelper!.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON)
+        && items.Skip(1).Any(item => !CanGoOnBuild(item.Template));
+
+    internal static void DropUnlistableParts(List<Item> items)
+    {
+        if (HasUnlistablePart(items))
+        {
+            var root = items[0].Id;
+            DropBranches(items, item => item.Id != root && !CanGoOnBuild(item.Template));
+        }
+    }
+
+    private static void DropBranches(List<Item> items, Func<Item, bool> drop)
+    {
+        // ParentId is text: the root's is "hideout", not an ID.
+        var gone = items.Where(drop).Select(item => item.Id.ToString()).ToHashSet();
+        int before;
+        do
+        {
+            before = gone.Count;
+            gone.UnionWith(items.Where(item => item.ParentId is { } parent && gone.Contains(parent)).Select(item => item.Id.ToString()));
+        }
+        while (gone.Count != before);
+
+        items.RemoveAll(item => gone.Contains(item.Id.ToString()));
+    }
+
+    private static SPTarkov.Server.Core.Models.Spt.Config.RagfairConfig? _ragfairConfig;
+
+    public static void BindRagfairConfig(SPTarkov.Server.Core.Models.Spt.Config.RagfairConfig ragfairConfig) => _ragfairConfig = ragfairConfig;
+
+    // Fit for another seller's gun build: what can be on the flea. With allowFleaBannedParts on (Weapons tab), a
+    // modded part's "can't be sold on the flea" mark is ignored on a gun: some mods mark parts a gun needs (WTT's
+    // F2000 top rails, so it could never take a scope). Bans from the Bans tab, SPT's other checks and base-game
+    // parts' own bans still count.
+    internal static bool CanGoOnBuild(MongoId tpl)
+    {
+        var item = _itemHelper!.GetItem(tpl);
+        if (_ragfairServerHelper!.IsItemValidRagfairItem(item))
+        {
+            return true;
+        }
+
+        if (!ModdedParts.AllowFleaBannedParts || !item.Key || item.Value?.Properties?.CanSellOnRagfair != false
+            || BetterFlea.Prices.LivePrices.IsBaseGame(tpl)
+            || _ragfairConfig?.Dynamic.Blacklist is not { } blacklist)
+        {
+            return false;
+        }
+
+        return _itemHelper.IsValidItem(tpl) && !blacklist.Custom.Contains(tpl)
+            && !(blacklist.EnableCustomItemCategoryList && blacklist.CustomItemCategoryList.Contains(item.Value.Parent))
+            && !(blacklist.EnableQuestList && SPTarkov.Server.Core.Extensions.TemplateItemExtensions.IsQuestItem(item.Value));
+    }
+
+    // What a slot takes, leaving out parts that aren't installed (mods sometimes list another mod's parts), and
+    // modded parts that are turned off (Weapons tab, Modded attachments). Those still go where the gun needs a part
+    // and nothing else fits, so a mod that depends on another still gets built.
+    internal static IEnumerable<MongoId> Parts(Slot? slot)
+    {
+        var parts = (slot?.Properties?.Filters?.FirstOrDefault()?.Filter ?? []).Where(tpl => !tpl.IsEmpty && _itemHelper!.GetItem(tpl).Key);
+        var settings = ModdedParts;
+        if (settings.Percent > 0 && settings.DisabledMods.Count == 0)
+        {
+            return parts;
+        }
+
+        var all = parts.ToList();
+        var kept = all.Where(tpl => !IsTurnedOff(tpl, settings)).ToList();
+        return kept.Count == 0 && slot?.Required == true ? all : kept;
+    }
+
+    public static ModdedPartsConfig ModdedParts => _config!.Mod.GeneratedOffers.ModdedParts;
+
+    private static bool IsTurnedOff(MongoId tpl, ModdedPartsConfig settings) =>
+        !BetterFlea.Prices.LivePrices.IsBaseGame(tpl)
+        && (settings.Percent <= 0 || BetterFlea.Flea.ModItems.ModOf(tpl) is { } mod
+            && settings.DisabledMods.Contains(mod, StringComparer.OrdinalIgnoreCase));
 
     private static Slot? SlotOn(MongoId parentTpl, string? slotName) =>
         _itemHelper!.GetItem(parentTpl).Value?.Properties?.Slots?.FirstOrDefault(slot => slot.Name == slotName);
@@ -730,7 +839,7 @@ internal static partial class PresetOfferGate
 
         var slotDef = SlotOn(parent.Template, can.SlotId);
         bool Fits(MongoId tpl) => SlotAccepts(slotDef, tpl) && !_itemHelper.IsOfBaseclass(tpl, SilencerBase)
-            && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper.GetItem(tpl))
+            && CanGoOnBuild(tpl)
             && !_botGenerator!.IsItemIncompatibleWithCurrentItems(state.Built, tpl, can.SlotId).Incompatible.GetValueOrDefault(false);
 
         var allowed = Parts(_itemHelper.GetItem(parent.Template).Value?.Properties?.Slots?.FirstOrDefault(slot => slot.Name == can.SlotId));
@@ -781,7 +890,7 @@ internal static partial class PresetOfferGate
             }
 
             var others = built.Where(item => item.Id != part.Id).ToList();
-            bool Fits(MongoId tpl) => SlotAccepts(slot, tpl) && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper!.GetItem(tpl))
+            bool Fits(MongoId tpl) => SlotAccepts(slot, tpl) && CanGoOnBuild(tpl)
                 && _itemHelper.GetItem(tpl).Value?.Properties?.Slots?.Any(s => s.Required == true) != true
                 && !_botGenerator!.IsItemIncompatibleWithCurrentItems(others, tpl, part.SlotId!).Incompatible.GetValueOrDefault(false);
 
@@ -869,7 +978,9 @@ internal static partial class PresetOfferGate
             var templates = items.ToDictionary(item => item.Id, item => item.Template);
             foreach (var item in items)
             {
-                if (item.ParentId is { } parentId && item.SlotId is { } slotId && templates.TryGetValue(parentId, out var parentTpl))
+                // A mod's preset can hold another mod's part that isn't installed.
+                if (item.ParentId is { } parentId && item.SlotId is { } slotId && templates.TryGetValue(parentId, out var parentTpl)
+                    && _itemHelper!.GetItem(item.Template).Key)
                 {
                     result.TryAdd((parentTpl, slotId), item.Template);
                 }
@@ -966,7 +1077,7 @@ internal static partial class PresetOfferGate
         new("55818acf4bdc2dde698b456b"), new("55818aeb4bdc2ddc698b456a")
     ];
 
-    private static bool IsOptic(MongoId tpl) => _itemHelper!.IsOfBaseclasses(tpl, OpticBases);
+    private static bool IsOptic(MongoId tpl) => _itemHelper!.IsOfBaseclasses(tpl, OpticBases) && !BuildQuality.IsNotReallyOptic(tpl);
 
     // RMR, Deltapoint, T1, PK-06...
     private static readonly MongoId CompactCollimatorBase = new("55818acf4bdc2dde698b456b");
@@ -1126,7 +1237,8 @@ internal static partial class PresetOfferGate
                     continue;
                 }
 
-                if (key.Mounts <= 0 || !_itemHelper.IsOfBaseclass(tpl, MountBase))
+                // A modded "sight" that's really a rail or iron sight (Eco's M17S rail) is gone through like a mount.
+                if (key.Mounts <= 0 || !(_itemHelper.IsOfBaseclass(tpl, MountBase) || BuildQuality.IsNotReallyOptic(tpl)))
                 {
                     continue;
                 }
@@ -1211,7 +1323,8 @@ internal static partial class PresetOfferGate
             foreach (var slot in _itemHelper!.GetItem(holder.Template).Value?.Properties?.Slots ?? [])
             {
                 if (slot.Name is { } name
-                    && (name.StartsWith("mod_scope", StringComparison.Ordinal) || name.StartsWith("mod_mount", StringComparison.Ordinal))
+                    && (name.StartsWith("mod_scope", StringComparison.Ordinal) || name.StartsWith("mod_mount", StringComparison.Ordinal)
+                        || TakesOpticCarrier(holder.Template, name))
                     && !built.Any(child => child.ParentId == holder.Id && child.SlotId == name))
                 {
                     spots.Add((holder, name, SpotPriority(holder, name, byId)));
@@ -1221,6 +1334,15 @@ internal static partial class PresetOfferGate
 
         return spots;
     }
+
+    private static readonly ConcurrentDictionary<(MongoId Holder, string Slot), bool> CarrierSlots = new();
+
+    // A slot that's not for scopes (a rear sight slot) but takes a modded "sight" that holds one: Eco's M17S iron
+    // sight carries its picatinny rail, which carries the scope.
+    private static bool TakesOpticCarrier(MongoId holderTpl, string slotName) => CarrierSlots.GetOrAdd((holderTpl, slotName), key =>
+        Parts(SlotOn(key.Holder, key.Slot)).Any(tpl => BuildQuality.IsNotReallyOptic(tpl)
+            && (_itemHelper!.GetItem(tpl).Value?.Properties?.Slots ?? []).Any(slot => slot.Name is { } name
+                && (name.StartsWith("mod_scope", StringComparison.Ordinal) || name.StartsWith("mod_mount", StringComparison.Ordinal)))));
 
     // All or nothing.
     private static bool TryPlaceRoute(List<Item> built, Item holder, List<(string Slot, MongoId Tpl)> route)
@@ -1232,7 +1354,7 @@ internal static partial class PresetOfferGate
             var slot = SlotOn(parent.Template, slotName);
             if (built.Any(child => child.ParentId == parent.Id && child.SlotId == slotName)
                 || !SlotAccepts(slot, tpl)
-                || !_ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper!.GetItem(tpl))
+                || !CanGoOnBuild(tpl)
                 || _botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slotName).Incompatible.GetValueOrDefault(false))
             {
                 built.RemoveAll(placed.Contains);
@@ -1256,7 +1378,7 @@ internal static partial class PresetOfferGate
                 }
 
                 var fill = Parts(slot).FirstOrDefault(tpl => SlotAccepts(slot, tpl) && !IsOptic(tpl)
-                    && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper.GetItem(tpl))
+                    && CanGoOnBuild(tpl)
                     && !_botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slotName).Incompatible.GetValueOrDefault(false));
                 if (fill.IsEmpty)
                 {
@@ -1300,7 +1422,7 @@ internal static partial class PresetOfferGate
         bool OpticFits(MongoId optic) =>
             MaxZoom(optic) <= state.ZoomCap
             && !(_itemHelper!.IsOfBaseclass(optic, SpecialScopeBase) && state.TierName != "modded")
-            && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper.GetItem(optic))
+            && CanGoOnBuild(optic)
             && (!backup || _itemHelper.IsOfBaseclass(optic, CompactCollimatorBase) && optic != mainOptic!.Template);
 
         var spots = OpticSpots(built);
@@ -1577,7 +1699,7 @@ internal static partial class PresetOfferGate
 
             // Bot lists have parts filed under the wrong slot, so the slot check comes first.
             bool Fits(MongoId tpl) => SlotAccepts(slot, tpl) && OpticAllowed(tpl)
-                && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper!.GetItem(tpl))
+                && CanGoOnBuild(tpl)
                 && !_botGenerator!.IsItemIncompatibleWithCurrentItems(built, tpl, slot.Name).Incompatible.GetValueOrDefault(false);
 
             // Someone who swapped the barrel swapped the handguard too. The factory muzzle only stays if it suits the
@@ -1603,7 +1725,7 @@ internal static partial class PresetOfferGate
                 var curatedSet = curatedForSlot.ToHashSet();
                 var wide = isBarrel || tier.StatFocus >= 1 || curatedForSlot.Count == 0;
                 var candidates = wide ? allowedBySlot : curatedForSlot;
-                usable = candidates.Where(tpl => !tpl.IsEmpty && _ragfairServerHelper!.IsItemValidRagfairItem(_itemHelper!.GetItem(tpl))).ToList();
+                usable = candidates.Where(tpl => !tpl.IsEmpty && CanGoOnBuild(tpl)).ToList();
                 var fitting = usable.Where(Fits).ToList();
 
                 // Everything in the pool can clash; a required slot then takes anything that fits.
@@ -1787,6 +1909,11 @@ public class CustomBuildPatch : AbstractPatch
             return true;
         }
 
+        if (!PresetOfferGate.DropMissingParts(assortItemWithChildren))
+        {
+            return false;
+        }
+
         var root = assortItemWithChildren.FirstOrDefault();
         var presetId = root?.Upd?.SptPresetId;
         if (presetId is null)
@@ -1794,7 +1921,9 @@ public class CustomBuildPatch : AbstractPatch
             return true;
         }
 
-        if (!PresetOfferGate.KeepBuild(presetId.Value))
+        // A named build with a part that can't be on the flea isn't that build without it: not listed.
+        if (!PresetOfferGate.KeepBuild(presetId.Value)
+            || (!PresetOfferGate.IsDefault(presetId.Value) && PresetOfferGate.HasUnlistablePart(assortItemWithChildren)))
         {
             return false;
         }
@@ -1848,6 +1977,16 @@ public class OfferPricingPatch : AbstractPatch
         if (BetterFlea.Selling.Undercuts.Creating)
         {
             return;
+        }
+
+        // Trader offers too: a mod's trader can sell a build with another mod's part that isn't installed.
+        if (details.Items is { } listed)
+        {
+            PresetOfferGate.DropMissingParts(listed);
+            if (details.Creator == OfferCreator.FakePlayer)
+            {
+                PresetOfferGate.DropUnlistableParts(listed);
+            }
         }
 
         if (!BarterOffers.MaybeInsteadOfMoney(details))

@@ -85,5 +85,14 @@
     "killerAsSeller": true,          // true = listed under the name of whoever killed you
     "scopeStripChance": 0.3,         // chance the scope (and its mount) was sold off first
     "suppressorStripChance": 0.25    // chance the suppressor was sold off first
+  },
+
+  // Attachments from server mods (Eco's, WTT Armory, JSOC...) on other sellers' gun builds.
+  "moddedParts": {
+    "percent": 100,                  // how often a modded part is picked, in % of a base-game part that fits as well. 0 = never
+    "disabledMods": []               // mods whose parts are left off builds. Still used where nothing else fits a part the gun needs,
+                                     // so a mod that depends on another (JSOC needs Epic's All in One) still gets built
+    "allowFleaBannedParts": false    // true = modded parts their mod marks as not sellable on the flea can still go on builds. Some mods
+                                     // mark parts a gun needs (WTT's F2000 top rail: no scope without it), so this adds variety
   }
 }

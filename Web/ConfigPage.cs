@@ -276,6 +276,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             result["liveIgnored"] = lookup.LiveIgnored;
             result["indexPrice"] = lookup.Index;
             result["baseGame"] = lookup.BaseGame;
+            result["ownPrice"] = lookup.Override;
         }
 
         var (indexOn, indexPrices, built, indexEstimated) = LivePrices.IndexStatus();
@@ -331,7 +332,10 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     {
         var version = new ModMetadata().Version.ToString();
         var text = Encoding.UTF8.GetString(Resource("CHANGELOG.md")).Replace("\r\n", "\n");
-        var start = text.IndexOf($"## {version}\n", StringComparison.Ordinal);
+        // A beta (2.4.0-beta.1) shows its release's section, "## 2.4.0 (beta)".
+        var heading = $"## {version.Split('-')[0]}";
+        var start = text.IndexOf($"{heading}\n", StringComparison.Ordinal);
+        start = start >= 0 ? start : text.IndexOf($"{heading} ", StringComparison.Ordinal);
         var section = "";
         if (start >= 0)
         {

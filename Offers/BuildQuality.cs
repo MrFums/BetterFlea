@@ -24,11 +24,14 @@ internal static class BuildQuality
     private static RagfairPriceService? _prices;
     private static TradersTable? _traders;
     private static SPTarkov.Server.Core.Helpers.Profile.HandbookHelper? _handbook;
+    private static TemplateTable? _templates;
 
     private static readonly MongoId FenceId = new("579dc571d53a0658a154fbec");
 
-    public static void Bind(ItemHelper itemHelper, RagfairPriceService prices, TradersTable traders, SPTarkov.Server.Core.Helpers.Profile.HandbookHelper handbook)
+    public static void Bind(ItemHelper itemHelper, RagfairPriceService prices, TradersTable traders, SPTarkov.Server.Core.Helpers.Profile.HandbookHelper handbook,
+        TemplateTable templates)
     {
+        _templates = templates;
         _itemHelper = itemHelper;
         _prices = prices;
         _traders = traders;
@@ -158,11 +161,14 @@ internal static class BuildQuality
     private static double SourceFactor(MongoId tpl, PartPreferences prefs, double power) =>
         prefs.Style == BuildStyle.Budget ? (IsCheapTraderPart(tpl) ? 1 : 0.6) : Math.Pow(Availability(tpl), power);
 
+    // A modded part no trader sells isn't loot-only: mods rarely add traders, so it counts as easy to get, and turns
+    // up as often as a base-game part that fits as well.
     private static double Availability(MongoId tpl) => SourceOf(tpl) switch
     {
         Source.TraderCash => 1.0,
         Source.TraderBarter => 0.85,
         Source.QuestLocked => 0.6,
+        _ when !BetterFlea.Prices.LivePrices.IsBaseGame(tpl) => 1.0,
         _ => 0.45
     };
 
@@ -243,6 +249,10 @@ internal static class BuildQuality
         return colour == buildColour ? 1 + 3 * colourMatch : Math.Max(0.02, 1 - 0.97 * colourMatch);
     }
 
+    // Modded attachments (Weapons tab): how often, in % of a base-game part.
+    private static double ModdedFactor(MongoId tpl) =>
+        BetterFlea.Prices.LivePrices.IsBaseGame(tpl) ? 1 : PresetOfferGate.ModdedParts.Percent / 100;
+
     public static double PartFactor(MongoId tpl, PartPreferences prefs) =>
         SourceFactor(tpl, prefs, prefs.StatFocus / 2) * ColourFactor(tpl, prefs.Colour, prefs.ColourMatch);
 
@@ -278,6 +288,7 @@ internal static class BuildQuality
                 * SourceFactor(fitting[i], prefs, prefs.StatFocus / 2)
                 * Math.Exp(-cheapBias * pricePercentile)
                 * ColourFactor(fitting[i], prefs.Colour, prefs.ColourMatch)
+                * ModdedFactor(fitting[i])
                 * (extra?.Invoke(fitting[i]) ?? 1);
         }
 
@@ -404,31 +415,89 @@ internal static class BuildQuality
         return OpticRules.Any(rule => name.Contains(rule.Key, StringComparison.OrdinalIgnoreCase));
     }
 
-    // Unknown optics get a kind from type and zoom and a middling rating, so a modded 1-8x counts as an LPVO.
+    // Unknown optics (modded ones, mostly) get a kind from type and zoom, so a modded 1-8x counts as an LPVO, and the
+    // middle rating of the rated optics of that kind: a bit more for a dearer one, less for a cheaper one. So they
+    // turn up as often as base-game optics of their kind.
     private static (double Rating, OpticKind Kind, bool Budget) OpticRatingFromStats(MongoId id)
+    {
+        var (kind, budget) = OpticKindFromStats(id);
+        if (!KindMiddles.Value.TryGetValue(kind, out var middle))
+        {
+            return (0.45, kind, budget);
+        }
+
+        var price = _prices!.GetFleaPriceForItem(id);
+        var nudge = price > 0 && middle.Price > 0 ? Math.Clamp(Math.Pow(price / middle.Price, 0.15), 0.85, 1.15) : 1;
+        return (Math.Clamp(middle.Rating * nudge, 0.1, 1), kind, budget);
+    }
+
+    private static (OpticKind Kind, bool Budget) OpticKindFromStats(MongoId id)
     {
         if (_itemHelper!.IsOfBaseclass(id, SpecialScopeBase))
         {
-            return (0.2, OpticKind.Special, false);
+            return (OpticKind.Special, false);
         }
 
         var budget = IsBudgetOptic(id);
         if (_itemHelper.IsOfBaseclass(id, CompactCollimatorBase))
         {
-            return (0.5, OpticKind.Compact, budget);
+            return (OpticKind.Compact, budget);
         }
 
         var low = LowestZoom(id);
         var high = _itemHelper.GetItem(id).Value?.Properties?.Zooms?.SelectMany(mode => mode).DefaultIfEmpty(1).Max() ?? 1;
         return low switch
         {
-            >= 2 when high >= 10 => (0.6, OpticKind.Sniper, false),
-            <= 1.01 when high >= 4 => (0.5, OpticKind.Lpvo, budget),
-            > 1.01 => (0.4, OpticKind.Fixed, budget),
-            _ when high > 1.01 => (0.5, OpticKind.Holo, budget),
-            _ => (0.45, OpticKind.Dot, budget)
+            >= 2 when high >= 10 => (OpticKind.Sniper, false),
+            <= 1.01 when high >= 4 => (OpticKind.Lpvo, budget),
+            > 1.01 => (OpticKind.Fixed, budget),
+            _ when high > 1.01 => (OpticKind.Holo, budget),
+            _ => (OpticKind.Dot, budget)
         };
     }
+
+    private static readonly MongoId SightBase = new("5448fe7a4bdc2d6f028b456b");
+
+    private static readonly MongoId[] OpticClasses =
+    [
+        new("55818ae44bdc2dde698b456c"), new("55818add4bdc2d5b648b456f"), new("55818ad54bdc2ddc698b4569"),
+        new("55818acf4bdc2dde698b456b"), new("55818aeb4bdc2ddc698b456a")
+    ];
+
+    private static readonly ConcurrentDictionary<MongoId, bool> NotOptics = new();
+
+    // A mod makes a part by copying another, so a rail or iron sight copied from a red dot is an optic to the game
+    // (Eco's M17S picatinny rail). The handbook still files it where it belongs (Mounts, Iron sights), so a modded
+    // optic filed anywhere base-game optics aren't is not an optic: routes to a scope go through it like a mount.
+    public static bool IsNotReallyOptic(MongoId tpl) => NotOptics.GetOrAdd(tpl, id =>
+        !BetterFlea.Prices.LivePrices.IsBaseGame(id) && _itemHelper!.IsOfBaseclasses(id, OpticClasses)
+        && HandbookCategories.Value.TryGetValue(id, out var category) && !OpticCategories.Value.Contains(category));
+
+    private static readonly Lazy<Dictionary<MongoId, MongoId>> HandbookCategories = new(() =>
+        (_templates?.Handbook?.Items ?? []).GroupBy(entry => entry.Id).ToDictionary(group => group.Key, group => group.First().ParentId));
+
+    // Where the handbook files base-game optics.
+    private static readonly Lazy<HashSet<MongoId>> OpticCategories = new(() =>
+        HandbookCategories.Value
+            .Where(entry => BetterFlea.Prices.LivePrices.IsBaseGame(entry.Key) && _itemHelper!.IsOfBaseclasses(entry.Key, OpticClasses))
+            .Select(entry => entry.Value).ToHashSet());
+
+    // Per kind, the middle rating and flea price of the rated optics.
+    private static readonly Lazy<Dictionary<OpticKind, (double Rating, double Price)>> KindMiddles = new(() =>
+    {
+        static double Middle(List<double> values)
+        {
+            values.Sort();
+            return values.Count == 0 ? 0 : values[values.Count / 2];
+        }
+
+        return _templates!.Items.Values
+            .Where(item => item.Type == "Item" && _itemHelper.IsOfBaseclass(item.Id, SightBase) && IsKnownOptic(item.Id))
+            .Select(item => (Rule: OpticRating(item.Id), Price: _prices!.GetFleaPriceForItem(item.Id)))
+            .GroupBy(entry => entry.Rule.Kind)
+            .ToDictionary(group => group.Key,
+                group => (Middle(group.Select(entry => entry.Rule.Rating).ToList()), Middle(group.Select(entry => entry.Price).Where(price => price > 0).ToList())));
+    });
 
     public enum GunGroup
     {
@@ -558,7 +627,7 @@ internal static class BuildQuality
         }
 
         // People go out of their way for the optic they want, so availability barely counts.
-        return weight * SourceFactor(tpl, prefs, prefs.StatFocus / 8) * ColourFactor(tpl, prefs.Colour, prefs.ColourMatch);
+        return weight * SourceFactor(tpl, prefs, prefs.StatFocus / 8) * ColourFactor(tpl, prefs.Colour, prefs.ColourMatch) * ModdedFactor(tpl);
     }
 
     private static readonly MongoId MountBase = new("55818b224bdc2dde698b456f");

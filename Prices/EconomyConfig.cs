@@ -15,6 +15,10 @@ public record EconomyFile
     [JsonPropertyName("wipeCycle")]
     public WipeCycleConfig WipeCycle { get; set; } = new();
 
+    // Item ID -> its base price in roubles, set by hand, in place of Better Flea's, the live or SPT's price.
+    [JsonPropertyName("priceOverrides")]
+    public Dictionary<string, double> PriceOverrides { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }
