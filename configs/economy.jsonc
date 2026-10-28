@@ -1,7 +1,18 @@
-// BetterFlea - ECONOMY: real flea prices, and prices that follow the wipe
-// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file. Both are off by default.
+// BetterFlea - ECONOMY: Better Flea's own prices, real flea prices, and prices that follow the wipe
+// Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file. Better Flea pricing is
+// on by default; live prices and the Wipe Cycle are off.
 // Delete this file and restart the server to get the default settings back.
 {
+  // Uses Better Flea's own fixed price for every base-game item as its base price, in place of SPT's. Built from
+  // real PvP and PvE flea prices and trader prices; it doesn't move. The rest of BetterFlea's pricing goes on top.
+  // While it's on, live prices aren't used.
+  "betterFleaPricing": {
+    "enabled": true,
+    "estimateModdedItems": true,     // modded items get a price on the same scale, from similar base-game items
+    "contentBackport": true,         // the base-game items WTT ContentBackport adds get Better Flea's price too
+    "liveTraderPrices": true         // traders pay what they do live (Therapist 51% of base price, SPT 63%). A trader another mod changed (SVM) keeps that mod's
+  },
+
   // Uses the real flea's 24 hour average price (from tarkov.dev) as every item's base price. The rest of
   // BetterFlea's pricing goes on top. The prices are saved, so if tarkov.dev is down the last ones are used.
   "livePrices": {

@@ -18,6 +18,8 @@ Better Flea makes the Flea Market in SPT better. Yeah that's the best I could co
 
 Everything can be turned off or tuned in the settings.
 
+**Recommended with Better Flea:** [Price Index](https://sp-mod.com/mod/3228/price-index) shows what your loot is worth in game, and [Flogger](https://sp-mod.com/mod/3227/flogger) quick sells it to the flea or the best trader. Both read Better Flea's own prices (2.3.0 or newer), so what you see and what you sell match the flea.
+
 ## What you need
 - SPT 4.1.x. Fika compatible.
 - Better Flea has 2 parts. **The server needs part 1. Every real player needs part 2.**
@@ -158,7 +160,8 @@ Well whats the difference between the flip penalty and the trader item lock?
 | **Default** | On | Off |
 | **The player sees** | Nothing. The item only sells slower. | A grey item and a warning |
 
-## 7. Economy (off by default)
+## 7. Economy
+- **Better Flea pricing (on by default):** every base-game item starts from Better Flea's own fixed price instead of SPT's, built from real PvP and PvE flea prices and trader prices with the junk taken out. It doesn't move; the rest of Better Flea's pricing goes on top. Modded items get a price worked out from similar base-game items, and the newer items WTT ContentBackport adds get Better Flea's price too (can be turned off). While it's on, live prices aren't used. How it's built: [Research/price-index.md](Research/price-index.md).
 - **Live prices:** every item starts from its real flea price, the 24 hour average on tarkov.dev, and the rest of Better Flea's pricing goes on top. Pick Live, PvE or Season. Prices are saved, so if tarkov.dev is down the last ones are used. Modded items get a price worked out from similar base-game items. Items from content backport mods are real game items, so they get their real price.
 - **Wipe Cycle (experimental):** prices follow how far into the wipe the players online are, based on how real flea prices moved through a whole wipe. Everything is dear right at the start, hideout and early quest items are dear before people get to them, and the best guns, ammo, armour and stims are dear late on. After the flea's level changes it stays put for 30 minutes, so swapping profiles can't be used to flip items. The Live progression flea style turns it on.
 
@@ -183,8 +186,10 @@ Better Flea works from what an item is (its type, stats and price), not from lis
 ## Other mods
 - **Mods that show prices or colour banned items** see Better Flea's bans correctly.
 - **Price Index** shows Better Flea's prices with Better Flea 2.3.0 or newer. With an older version it shows the base game's prices.
+- **Flogger** quick sells at Better Flea's prices with Better Flea 2.3.0 or newer, and Better Flea's bans, unlock levels and sale rules still apply.
 - **Quicksell mods** should work with the BepInEx plugin. I have only tested with ShowMeTheMoney so please let me know of any issues for others.
 - **All Quests Checkmarks** will still work. Better Flea adds its own icon and does not change or mess with it's icon.
+- **SVM (Server Value Modifier) and other mods that change what traders pay:** with **Live trader prices** on (Economy tab), Better Flea sets what each trader pays to the live game's. A trader another mod has changed (SVM's Trader markup, say) keeps that mod's price instead, and the server log says which traders. SVM's default markups are SPT's own, so if you haven't changed them, Better Flea's live prices are used. To use SVM's for every trader, turn Live trader prices off.
 - **Other mods that change the Flea Market** (number of offers, prices, items in one offer) can do the same thing as Better Flea. The mod that loads last usually wins. Turn off the same feature in one of the 2 mods.
 
 ## For mod developers

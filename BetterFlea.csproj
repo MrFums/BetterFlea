@@ -41,6 +41,8 @@
         <EmbeddedResource Include="Web\index.html;Web\icon.png;CHANGELOG.md" LogicalName="BetterFlea.web.%(Filename)%(Extension)" />
         <!-- How real flea prices moved through a wipe, per item (Wipe Cycle). -->
         <EmbeddedResource Include="Prices\wipe-curves.json" LogicalName="BetterFlea.data.wipe-curves.json" />
+        <!-- Better Flea's own fixed price for every base-game item (Research/tools/price_index.py). -->
+        <EmbeddedResource Include="Prices\price-index.json" LogicalName="BetterFlea.data.price-index.json" />
         <!-- The level each item can be bought from on the real flea (tarkov.dev's minLevelForFlea). -->
         <EmbeddedResource Include="Flea\flea-levels.json" LogicalName="BetterFlea.data.flea-levels.json" />
     </ItemGroup>

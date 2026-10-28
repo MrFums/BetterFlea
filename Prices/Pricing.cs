@@ -45,6 +45,7 @@ public class DynamicPricePatchesLoad(
         GunPricing.Bind(configManager, itemHelper, handbookHelper, tradersTable, ragfairPriceService);
         EmptyFuelPricing.Bind(configManager, itemHelper, handbookHelper, ragfairPriceService);
         new DynamicPricePatch().Enable();
+        new HighestTraderPricePatch().Enable();
         return Task.CompletedTask;
     }
 }
@@ -384,6 +385,32 @@ public class DynamicPricePatch : AbstractPatch
         }
 
         __result = PriceGate.Adjust(itemTemplateId, desiredCurrency, item, price);
+    }
+}
+
+// SPT's "most a trader pays for this" ignores what each trader buys, so the BTR Driver, Lightkeeper and the
+// Storyteller (no cut at all) count as paying the full handbook price for everything. With useTraderPriceForOffersIfHigher
+// that put every item worth less than its handbook price at the handbook price on the flea (a 657k LEDX at 970k).
+// Only traders that buy the item count.
+public class HighestTraderPricePatch : AbstractPatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return typeof(SPTarkov.Server.Core.Helpers.Traders.TraderHelper).GetMethod(
+            nameof(SPTarkov.Server.Core.Helpers.Traders.TraderHelper.GetHighestSellToTraderPrice),
+            BindingFlags.Instance | BindingFlags.Public)!;
+    }
+
+    [PatchPrefix]
+    public static bool Prefix(object[] __args, ref double __result)
+    {
+        if (__args is not [MongoId tpl, ..])
+        {
+            return true;
+        }
+
+        __result = PriceGate.BestTraderBuyPrice(tpl);
+        return false;
     }
 }
 

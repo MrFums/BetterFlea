@@ -51,9 +51,13 @@
     "lootedBuildChance": 0.2,   // share of found listings that are a gun as a scav, boss or guard carries it (SPT's own bot gear)
     // Some built guns (and plated armor) are listed below what their parts are worth (a good deal), by a discount
     // between min and max. Never below what traders pay for the parts plus 10%. Keep it rare: a deal is a lucky find.
-    "buildDealChance": 0.02,
-    "buildDealMinDiscount": 0.15,
-    "buildDealMaxDiscount": 0.3,
+    // A steal is the same, rarer and deeper. Either sells to someone else within minutes (market.jsonc dealGone).
+    "buildDealChance": 0.05,
+    "buildDealMinDiscount": 0.2,
+    "buildDealMaxDiscount": 0.35,
+    "buildStealChance": 0.01,
+    "buildStealMinDiscount": 0.4,
+    "buildStealMaxDiscount": 0.6,
     "nearStockMin": 5,              // near-stock offers on top of each gun's others: the factory gun, now and then with a cheap red dot or
     "nearStockMax": 15,             // holo added or no magazine, nothing else. Listed cheaper (prices.jsonc guns.stockOfferMinPercent)
     "forgotScopeChance": 0.007,    // chance a scoped build is listed as if the scope weren't on it (someone forgot it was there). Never below the floor

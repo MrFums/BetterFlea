@@ -204,6 +204,9 @@
   .type:hover:not(:disabled) { border-color: var(--slate); color: var(--text); }
   .type.on { background: rgba(226, 112, 92, 0.14); border-color: rgba(226, 112, 92, 0.6); color: var(--text); }
   .mod.banned .types { opacity: 0.6; }
+  .mod.skipped { border-color: var(--warn); }
+  .mod.skipped .why { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .mod-head .failed { color: var(--warn); font-size: 12px; }
   .type:disabled { cursor: default; }
   .hint { color: var(--faint); font-size: 12.5px; text-align: center; padding: 14px; }
 
@@ -214,6 +217,13 @@
   .tile .s, .card .s { color: var(--faint); font-size: 12px; }
   .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
   .card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+  .card.recommended { margin-bottom: 12px; }
+  .rec-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+  .rec { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; min-width: 0; }
+  .rec-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .rec-what { color: var(--muted); font-size: 12.5px; flex: 1; }
+  .rec-soon { color: var(--faint); font-size: 12px; }
+  @media (max-width: 640px) { .rec-list { grid-template-columns: 1fr; } }
   .chart { position: relative; height: 170px; }
   .chart svg { display: block; overflow: visible; }
   .chart text { fill: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -354,7 +364,7 @@ const ABOUT = {
   "market.jsonc": "How long offers last, other buyers, seller ratings, packs and barters.",
   "prices.jsonc": "What the offers cost.",
   "selling.jsonc": "Players selling their own items.",
-  "economy.jsonc": "Real flea prices as the starting point, and prices that follow the wipe. Both are off until you turn them on.",
+  "economy.jsonc": "Better Flea's own prices (on by default) or real flea prices as the starting point, and prices that follow the wipe (off until you turn it on).",
   "debug.jsonc": "Extra logging for testing."
 };
 
@@ -473,6 +483,10 @@ const LABELS = {
   "prices.jsonc:demand.floodDropPercent": "Drop from a lot sold (%)",
   "prices.jsonc:demand.maxDropPercent": "Biggest drop (%)",
   "prices.jsonc:demand.recoverMinutes": "Half back to normal in (minutes)",
+  "economy.jsonc:betterFleaPricing": "Use Better Flea pricing",
+  "economy.jsonc:betterFleaPricing.estimateModdedItems": "Estimate modded items",
+  "economy.jsonc:betterFleaPricing.contentBackport": "WTT ContentBackport items",
+  "economy.jsonc:betterFleaPricing.liveTraderPrices": "Live trader prices",
   "economy.jsonc:livePrices": "Live prices (tarkov.dev)",
   "economy.jsonc:livePrices.gameMode": "Game mode",
   "economy.jsonc:livePrices.refreshHours": "Refresh every (hours)",
@@ -588,6 +602,9 @@ const DESC = {
   "weapons.jsonc:presets.buildDealChance": "Share of built guns listed below what their parts are worth.",
   "weapons.jsonc:presets.buildDealMinDiscount": "Smallest discount on a build deal.",
   "weapons.jsonc:presets.buildDealMaxDiscount": "Biggest discount on a build deal.",
+  "weapons.jsonc:presets.buildStealChance": "Share of built guns listed as a steal: rarer than a deal and far cheaper.",
+  "weapons.jsonc:presets.buildStealMinDiscount": "Smallest discount on a steal.",
+  "weapons.jsonc:presets.buildStealMaxDiscount": "Biggest discount on a steal.",
   "weapons.jsonc:presets.buildStyles": "How often builds go for ergonomics, a balance of both, or low recoil.",
   "weapons.jsonc:presets.brokenMaxParts": "Most main parts taken off a broken-down gun.",
   "weapons.jsonc:presets.brokenPriceBias": "How much broken-down guns lean towards cheap guns.",
@@ -720,6 +737,10 @@ const DESC = {
   "selling.jsonc:undercut.buyersLeft": "Share of your buyers who still buy yours afterwards.",
 
   // Economy
+  "economy.jsonc:betterFleaPricing": "Every base-game item starts from Better Flea's own price instead of SPT's: one fixed price per item, worked out from real PvP and PvE flea prices and trader prices. Think of it as a more reliable handbook. It doesn't move by itself; levels, multipliers, demand, drift and the Wipe Cycle still apply on top. While it's on, live prices aren't used.",
+  "economy.jsonc:betterFleaPricing.liveTraderPrices": "Traders pay you what they do in the live game. Each trader takes its live cut of an item's base price: Therapist pays 51% instead of SPT's 63%, Prapor 40% instead of 50%, Fence 24% instead of 40%. Players see the new prices after logging in again. A trader another mod has changed (SVM's Trader markup, say) keeps that mod's price.",
+  "economy.jsonc:betterFleaPricing.contentBackport": "The base-game items WTT ContentBackport adds (newer items SPT doesn't have yet) get Better Flea's price too, about 675 of them. Off: they keep the price ContentBackport gives them. Does nothing without ContentBackport.",
+  "economy.jsonc:betterFleaPricing.estimateModdedItems": "Items the real game doesn't have get a price on the same scale, worked out from similar base-game items. Real-game items that a mod adds back (content backports) get Better Flea's price.",
   "economy.jsonc:livePrices": "Every item starts from its real flea price: the 24 hour average on tarkov.dev. All of Better Flea's pricing goes on top. Prices are saved, so if tarkov.dev is down the last ones are used.",
   "economy.jsonc:livePrices.gameMode": "Which game's prices to use.",
   "economy.jsonc:livePrices.estimateModdedItems": "Items the real game doesn't have get a price on the live scale, worked out from similar base-game items. Real-game items that a mod adds back (content backports) are not counted as modded: they get their real price, or keep their own if the real flea doesn't sell them.",
@@ -747,7 +768,7 @@ const ADVANCED = [
   "weapons.jsonc:presets.showCustomBuilds", "weapons.jsonc:presets.customBuildChance",
   "weapons.jsonc:presets.stripped", "weapons.jsonc:presets.stock", "weapons.jsonc:presets.found", "weapons.jsonc:presets.modded",
   "weapons.jsonc:presets.broken", "weapons.jsonc:presets.gutted", "weapons.jsonc:presets.budget", "weapons.jsonc:presets.ground",
-  "weapons.jsonc:presets.buildDealMinDiscount", "weapons.jsonc:presets.forgotScopeChance", "market.jsonc:simulatedSales.dealGoneMinMinutes", "market.jsonc:simulatedSales.dealGoneMaxMinutes", "weapons.jsonc:presets.buildDealMaxDiscount", "weapons.jsonc:presets.buildStyles",
+  "weapons.jsonc:presets.buildDealMinDiscount", "weapons.jsonc:presets.forgotScopeChance", "market.jsonc:simulatedSales.dealGoneMinMinutes", "market.jsonc:simulatedSales.dealGoneMaxMinutes", "weapons.jsonc:presets.buildDealMaxDiscount", "weapons.jsonc:presets.buildStealMinDiscount", "weapons.jsonc:presets.buildStealMaxDiscount", "weapons.jsonc:presets.buildStyles",
   "weapons.jsonc:presets.brokenMaxParts", "weapons.jsonc:presets.brokenPriceBias", "weapons.jsonc:presets.maxTacticalDevices",
   "weapons.jsonc:presets.comboTacticalWeight", "weapons.jsonc:presets.laserLightChance", "weapons.jsonc:presets.extraTacticalChance",
   "weapons.jsonc:presets.emptyMountChance", "weapons.jsonc:presets.emptyRingsChance", "weapons.jsonc:presets.maxAttachmentDepth",
@@ -796,7 +817,7 @@ const OFF = {
   "listings.jsonc": { listings: { enabled: false }, itemsPerOffer: { enabled: false }, offerCurrency: { roubles: 78, dollars: 14, euros: 8 } },
   "condition.jsonc": { keys: { enabled: false }, markedKeys: { enabled: false }, keycards: { enabled: false }, meds: { enabled: false },
     foodAndDrink: { enabled: false }, fuel: { enabled: false }, repairKits: { enabled: false }, guns: { enabled: false } },
-  "weapons.jsonc": { presets: { showCustomBuilds: false, randomBuildChance: 0, loadedMagazineChance: 0, buildDealChance: 0 },
+  "weapons.jsonc": { presets: { showCustomBuilds: false, randomBuildChance: 0, loadedMagazineChance: 0, buildDealChance: 0, buildStealChance: 0 },
     playerGuns: { savedBuildChance: 0, lostGunChance: 0 } },
   "armor.jsonc": { enabled: false },
   "market.jsonc": { offerExpiry: { minMinutes: 6, maxMinutes: 60 }, simulatedSales: { enabled: false }, soldBeforeYouChance: 0,
@@ -836,7 +857,7 @@ const STYLES = [
     files: {
       "listings.jsonc": { listings: { multiplier: 4 } },
       "prices.jsonc": { priceMultiplier: 0.85, sellers: { overpriceChance: 0.02, quickSellChance: 0.3, quickSellMinPercent: 20, quickSellMaxPercent: 50 }, guns: { traderPricePercent: 80 } },
-      "weapons.jsonc": { presets: { buildDealChance: 0.4, buildDealMaxDiscount: 0.45 } },
+      "weapons.jsonc": { presets: { buildDealChance: 0.4, buildDealMaxDiscount: 0.45, buildStealChance: 0.05 } },
       "market.jsonc": { offerExpiry: { minMinutes: 60, maxMinutes: 360 }, simulatedSales: { normalSellChancePerHour: 0.15 }, packs: { chancePercent: 6, scamChance: 0.2 } }
     } },
   { id: "chaos", name: "Chaos", short: "Everything turned right up.", about: "Everything turned up: piles of offers, scams and giant packs, wild prices, loaded mags and sold-before-you everywhere.",
@@ -1056,8 +1077,11 @@ function economyCard() {
     card.appendChild(r);
   };
   const mode = { live: "Live (PvP)", pve: "PvE", season: "Season" }[o.livePrices.gameMode] || o.livePrices.gameMode;
-  const synced = o.livePrices.fetched ? "Prices updated " + ago(o.livePrices.fetched) + (o.livePrices.failed ? ", the last update failed." : ".") : "Not fetched yet.";
-  row("Live prices", o.livePrices.enabled, o.livePrices.enabled ? "Real flea prices from tarkov.dev, " + mode + "." : "Using SPT's own prices.",
+  const synced = o.livePrices.fallback ? "Can't reach tarkov.dev, so Better Flea pricing is used until it can."
+    : o.livePrices.fetched ? "Prices updated " + ago(o.livePrices.fetched) + (o.livePrices.failed ? ", the last update failed." : ".") : "Not fetched yet.";
+  const indexOn = o.betterFleaPricing && o.betterFleaPricing.enabled;
+  if (indexOn) row("Better Flea pricing", true, "Better Flea's own fixed prices, from real flea and trader prices.");
+  else row("Live prices", o.livePrices.enabled, o.livePrices.enabled ? "Real flea prices from tarkov.dev, " + mode + "." : "Using SPT's own prices.",
     o.livePrices.enabled ? synced : "");
   const w = o.wipeCycle.now;
   const market = w ? Math.round((w.market - 1) * 100) : 0;
@@ -1244,7 +1268,9 @@ function render() {
   section.appendChild(head);
 
   if (f.file === "flea.jsonc") section.appendChild(notice("Bans apply after a server restart. Item unlock levels apply straight away."));
-  if (f.file === "economy.jsonc" && getAt(f.values, ["livePrices", "enabled"]) && getAt(f.values, ["wipeCycle", "enabled"]))
+  if (f.file === "economy.jsonc" && getAt(f.values, ["betterFleaPricing", "enabled"]) && getAt(f.values, ["livePrices", "enabled"]))
+    section.appendChild(notice("Better Flea pricing is on, so live prices aren't used. Turn one of them off."));
+  else if (f.file === "economy.jsonc" && getAt(f.values, ["livePrices", "enabled"]) && getAt(f.values, ["wipeCycle", "enabled"]))
     section.appendChild(notice("Live prices and the Wipe Cycle aren't made to run together. You may run into issues."));
   if (tabOff) section.appendChild(notice("Better Flea's " + f.title.toLowerCase() + " changes are off: this part of the flea works like plain SPT."));
 
@@ -1591,6 +1617,40 @@ function duration(seconds) {
   return d ? d + "d " + h + "h" : h ? h + "h " + m + "m" : m + "m";
 }
 
+// Fums' other mods that work with Better Flea. Both read Better Flea's own price for each item (POST
+// /betterflea/item-price, 2.3.0 or newer). url null = not out yet.
+const RECOMMENDED = [
+  { name: "Price Index", what: "Know what your loot is worth",
+    about: "Shows an item's flea price and the trader who pays the most when you inspect or hover it, and can put a price tag on everything in your stash. With Better Flea it shows Better Flea's own price for that exact item, and marks items you can't list yet.",
+    url: "https://sp-mod.com/mod/3228/price-index" },
+  { name: "Flogger", what: "Quick sell",
+    about: "Adds Quick sell to the item menu: one click sells an item, a selection or a whole bag to the flea or the trader who pays most, whichever gets you more. With Better Flea it lists at Better Flea's own price, and Better Flea's bans, unlock levels and sale rules still apply.",
+    url: "https://sp-mod.com/mod/3227/flogger" }
+];
+
+function recommendedMods() {
+  const card = make("div", "card recommended");
+  card.append(make("h3", "", "Recommended with Better Flea"),
+    make("div", "s", "Client mods (BepInEx) that read Better Flea's prices, so what you see and what you sell match the flea."));
+  const list = make("div", "rec-list");
+  for (const mod of RECOMMENDED) {
+    const row = make("div", "rec");
+    const head = make("div", "rec-head");
+    head.append(make("b", "", mod.name), make("span", "rec-what", mod.what));
+    if (mod.url) {
+      const a = make("a", "", "Get it");
+      a.href = mod.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      head.appendChild(a);
+    } else head.appendChild(make("span", "rec-soon", "Coming soon"));
+    row.append(head, make("div", "s", mod.about));
+    list.appendChild(row);
+  }
+  card.appendChild(list);
+  return card;
+}
+
 function homeSection() {
   const s = state.status;
   const section = make("section", "home");
@@ -1664,6 +1724,7 @@ function homeSection() {
   }
   cards.appendChild(drift);
   section.appendChild(cards);
+  section.appendChild(recommendedMods());
 
   if (state.notes && state.notes.notes) {
     const notes = make("div", "card notes");
@@ -1871,6 +1932,22 @@ function economyPanel() {
   const wrap = make("div", "econ");
   if (!d) { wrap.appendChild(make("div", "hint", "Loading…")); if (!e.loading) { e.loading = true; loadEconomy(); } return wrap; }
 
+  // Better Flea pricing, when on: how many prices, and how far they are from SPT's own.
+  const ix = d.index || {};
+  if (ix.on) {
+    const card = make("div", "card");
+    card.appendChild(make("h3", "", "Better Flea pricing"));
+    card.appendChild(make("div", "s", count(ix.prices) + " fixed prices, built " + new Date(ix.built * 1000).toLocaleDateString() + ". Live prices aren't used while this is on."));
+    if (ix.estimated) card.appendChild(make("div", "s", count(ix.estimated) + " modded items are estimated from similar base-game items, so their prices may be a little off."));
+    if (ix.differences && ix.differences.length) {
+      card.appendChild(make("div", "s gap", "Biggest differences from SPT's own prices:"));
+      const half = ix.differences.length / 2;
+      const row = (x) => [x.name, k(x.spt) + " → " + k(x.live), x.live > x.spt];
+      card.appendChild(moverColumns([["Dearer", ix.differences.slice(0, half).map(row)], ["Cheaper", ix.differences.slice(half).map(row)]]));
+    }
+    wrap.appendChild(card);
+  }
+
   // Live prices: where they come from, and how far they are from SPT's own.
   const live = make("div", "card");
   live.appendChild(make("h3", "", "Live prices"));
@@ -1879,7 +1956,8 @@ function economyPanel() {
     ? count(l.prices) + " prices from " + l.modes.map(m => MODE_NAMES[m] || m).join(" + ") + ", fetched " + ago(l.fetched) + (l.on ? "." : ". Not in use while live prices are off.")
     : "No prices fetched yet. Turn live prices on and press Save."));
   if (l.on && l.estimated) live.appendChild(make("div", "s", count(l.estimated) + " modded items are estimated from similar base-game items, so their prices may be a little off. Real-game items from content backport mods are not estimated."));
-  if (l.error) live.appendChild(make("div", "s bad", "Last fetch failed: " + l.error + ". Using the saved prices."));
+  if (l.error) live.appendChild(make("div", "s bad", "Can't reach tarkov.dev: " + l.error + ". "
+    + (l.fallback ? "Using Better Flea pricing until it can, trying again every 10 minutes." : "Using the saved prices.")));
   if (l.differences && l.differences.length) {
     live.appendChild(make("div", "s gap", "Biggest differences from SPT's own prices:"));
     const half = l.differences.length / 2;
@@ -1967,20 +2045,25 @@ function itemLookup(e, d) {
     refresh.onclick = () => { refresh.disabled = true; loadEconomy(); };
     head.append(make("div", "k", e.item.name), refresh);
     look.appendChild(head);
-    const estimates = state.guest ? state.overview && state.overview.livePrices.estimateModdedItems
-      : getAt(state.byFile["economy.jsonc"].values, ["livePrices", "estimateModdedItems"]);
+    const econ = state.guest ? state.overview || {} : state.byFile["economy.jsonc"].values;
+    const indexOn = state.guest ? econ.betterFleaPricing && econ.betterFleaPricing.enabled : getAt(econ, ["betterFleaPricing", "enabled"]);
+    const estimates = state.guest ? (indexOn ? econ.betterFleaPricing : econ.livePrices || {}).estimateModdedItems
+      : getAt(econ, [indexOn ? "betterFleaPricing" : "livePrices", "estimateModdedItems"]);
+    const modded = "not in the real game (modded), " + (estimates ? "estimated from similar items" : "keeps SPT's price");
     const liveText = d.livePrice ? count(d.livePrice) + " ₽"
-      : d.baseGame ? "the real flea doesn't sell it, so it keeps its own price"
-      : "not in the real game (modded), " + (estimates ? "estimated from similar items" : "keeps SPT's price");
+      : d.liveIgnored ? "ignored, too far from SPT's price and the handbook's to trust"
+      : d.baseGame ? "the real flea doesn't sell it"
+      : modded;
+    const indexText = d.indexPrice ? count(d.indexPrice) + " ₽" : d.baseGame ? "none, it keeps SPT's price" : modded;
     const facts = make("div", "facts econ-facts");
-    // SPT's own price only when live prices changed it.
+    // SPT's own price only when live prices or Better Flea pricing changed it.
     if (d.sptPrice && d.sptPrice !== d.basePrice) {
       facts.append(make("div", "", "Base price now: " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + count(d.sptPrice) + " ₽"));
     } else {
       facts.append(make("div", "", "Base price: " + count(d.basePrice) + " ₽"));
     }
-    facts.append(make("div", "", "Live price: " + liveText),
-      make("div", "", "Actual value: " + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
+    facts.append(make("div", "", "Better Flea price: " + indexText), make("div", "", "Live price: " + liveText),
+      make("div", "", (d.stockBuild ? "Actual value (default build): " : "Actual value: ") + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
     look.appendChild(facts);
     look.appendChild(make("div", "s", "Through a wipe (with the Wipe Cycle on):"));
     const chart = make("div", "chart");
@@ -1993,7 +2076,11 @@ function itemLookup(e, d) {
 // ---------- mod items ----------
 
 async function loadMods() {
-  try { state.mods = (await (await fetch(API + "/mods")).json()).mods || []; } catch (e) { state.mods = []; }
+  try {
+    const answer = await (await fetch(API + "/mods")).json();
+    state.mods = answer.mods || [];
+    state.skippedMods = answer.skipped || [];
+  } catch (e) { state.mods = []; state.skippedMods = []; }
   if (state.current === "flea.jsonc") render();
 }
 
@@ -2005,7 +2092,7 @@ function modBans(f, path, value, def) {
   row.append(label(f, path, true), resetButton(f, path, value, def));
   const control = make("div", "control mods");
   if (!state.mods) control.appendChild(make("span", "none", "Looking for mods…"));
-  else if (!state.mods.length) control.appendChild(make("span", "none", "No server mods that add items are installed."));
+  else if (!state.mods.length && !(state.skippedMods || []).length) control.appendChild(make("span", "none", "No server mods that add items are installed."));
   for (const mod of state.mods || []) {
     const bans = value[mod.name] || [];
     const all = bans.some(ban => ban.toLowerCase() === "all");
@@ -2031,6 +2118,13 @@ function modBans(f, path, value, def) {
       types.appendChild(b);
     }
     card.append(head, types);
+    control.appendChild(card);
+  }
+  for (const mod of state.skippedMods || []) {
+    const card = make("div", "mod skipped");
+    const head = make("div", "mod-head");
+    head.append(make("b", "", mod.name), make("span", "failed", "Failed to load"));
+    card.append(head, make("div", "why", "Skipped: " + mod.reason + ". Its items can't be banned by mod; ban them one by one or by type instead."));
     control.appendChild(card);
   }
   row.appendChild(control);

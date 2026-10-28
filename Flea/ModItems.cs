@@ -1,3 +1,5 @@
+﻿using System.Diagnostics;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
@@ -9,11 +11,11 @@ namespace BetterFlea.Flea;
 // Which server mod added which items, so they can be banned from the flea by mod. The item list is noted before
 // any other mod loads; a new item belongs to the mod whose files carry its id. Nothing in other mods is touched.
 [Injectable(TypePriority = OnLoadOrder.Watermark + 1)]
-public class ModItemsLoad(IReadOnlyList<SptMod> mods, TemplateTable templates) : IOnLoad
+public class ModItemsLoad(ISptLogger<ModItemsLoad> logger, IReadOnlyList<SptMod> mods, TemplateTable templates) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
-        ModItems.Start(mods, templates);
+        ModItems.Start(mods, templates, message => logger.Warning(message));
         return Task.CompletedTask;
     }
 }
@@ -22,11 +24,34 @@ internal static class ModItems
 {
     private const int IdLength = 24;
     private const long MaxFileBytes = 64L * 1024 * 1024;
+
+    // A mod past any of these is skipped, so one huge or broken mod folder can't hold up the server. Its items
+    // can still be banned one by one or by type.
+    private const int MaxModFiles = 20000;
+    private const long MaxModBytes = 512L * 1024 * 1024;
+    private static readonly TimeSpan MaxModTime = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan MaxTotalTime = TimeSpan.FromSeconds(30);
+
     private static readonly HashSet<string> Scanned = new(StringComparer.OrdinalIgnoreCase) { ".json", ".jsonc", ".json5", ".dll" };
 
     private static TemplateTable? _templates;
     private static HashSet<MongoId> _baseItems = [];
     private static Lazy<Dictionary<string, string>> _modById = new(() => new Dictionary<string, string>());
+    private static Action<string>? _warn;
+
+    // Mods whose files couldn't be read, and why. Shown on the settings page.
+    private static readonly List<(string Mod, string Reason)> SkippedMods = [];
+    public static IReadOnlyList<(string Mod, string Reason)> Skipped
+    {
+        get
+        {
+            _ = _modById.Value;
+            lock (SkippedMods)
+            {
+                return SkippedMods.ToList();
+            }
+        }
+    }
 
     public static bool IsBaseItem(MongoId tpl) => _baseItems.Contains(tpl);
 
@@ -50,9 +75,10 @@ internal static class ModItems
         }
     }
 
-    public static void Start(IReadOnlyList<SptMod> mods, TemplateTable templates)
+    public static void Start(IReadOnlyList<SptMod> mods, TemplateTable templates, Action<string> warn)
     {
         _templates = templates;
+        _warn = warn;
         _baseItems = templates.Items.Keys.ToHashSet();
         var self = typeof(ModItems).Assembly;
         var others = mods.Where(mod => !mod.Assemblies.Contains(self)).ToList();
@@ -65,31 +91,68 @@ internal static class ModItems
     private static Dictionary<string, string> Index(List<SptMod> mods)
     {
         var counts = new Dictionary<string, Dictionary<string, (int Json, int All)>>();
+        var total = Stopwatch.StartNew();
+        var (readFiles, readBytes) = (0, 0L);
         foreach (var mod in mods)
         {
-            var name = mod.ModMetadata.Name ?? Path.GetFileName(mod.Directory);
-            foreach (var file in Files(mod.Directory))
+            var name = mod.ModMetadata?.Name ?? Path.GetFileName(mod.Directory) ?? "unknown mod";
+            if (total.Elapsed > MaxTotalTime)
             {
-                var json = !Path.GetExtension(file).Equals(".dll", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-                try
-                {
-                    foreach (var id in Ids(File.ReadAllBytes(file)))
-                    {
-                        if (!counts.TryGetValue(id, out var byMod))
-                        {
-                            counts[id] = byMod = new Dictionary<string, (int Json, int All)>();
-                        }
+                Skip(name, "the mod scan ran out of time before reaching it");
+                continue;
+            }
 
-                        var seen = byMod.GetValueOrDefault(name);
-                        byMod[name] = (seen.Json + json, seen.All + 1);
+            // Counted on their own first, so a mod skipped part way doesn't leave half its items behind.
+            var own = new Dictionary<string, (int Json, int All)>();
+            var (files, bytes) = (0, 0L);
+            var watch = Stopwatch.StartNew();
+            string? problem = null;
+            try
+            {
+                foreach (var file in Files(mod.Directory))
+                {
+                    var data = File.ReadAllBytes(file);
+                    files++;
+                    bytes += data.Length;
+                    if (files > MaxModFiles || bytes > MaxModBytes || watch.Elapsed > MaxModTime)
+                    {
+                        problem = $"too big to read quickly ({files:N0}+ files, {bytes / 1048576.0:N0} MB, {watch.Elapsed.TotalSeconds:N0} s)";
+                        break;
+                    }
+
+                    var json = !Path.GetExtension(file).Equals(".dll", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                    foreach (var id in Ids(data))
+                    {
+                        var seen = own.GetValueOrDefault(id);
+                        own[id] = (seen.Json + json, seen.All + 1);
                     }
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                problem = $"its files couldn't be read ({ex.GetType().Name}: {ex.Message})";
+            }
+
+            if (problem is not null)
+            {
+                Skip(name, problem);
+                continue;
+            }
+
+            readFiles += files;
+            readBytes += bytes;
+            foreach (var (id, seen) in own)
+            {
+                if (!counts.TryGetValue(id, out var byMod))
                 {
-                    DebugLog.Write(() => $"Mod items: can't read {file}: {ex.Message}");
+                    counts[id] = byMod = new Dictionary<string, (int Json, int All)>();
                 }
+
+                byMod[name] = seen;
             }
         }
+
+        DebugLog.Summary(() => $"Mod items: read {readFiles:N0} files ({readBytes / 1048576.0:N0} MB) from {mods.Count} mods in {total.Elapsed.TotalSeconds:N1} s.");
 
         var baseIds = _baseItems.Select(tpl => tpl.ToString().ToLowerInvariant()).ToHashSet();
         var owners = new Dictionary<string, string>();
@@ -115,24 +178,32 @@ internal static class ModItems
         return ranked[0].Key;
     }
 
-    private static IEnumerable<string> Files(string directory)
+    private static void Skip(string mod, string reason)
     {
-        if (!Directory.Exists(directory))
+        lock (SkippedMods)
+        {
+            SkippedMods.Add((mod, reason));
+        }
+
+        _warn?.Invoke($"[BetterFlea] Mod items: skipped {mod}: {reason}. Its items can't be banned by mod, only one by one or by type.");
+    }
+
+    // Folder links are skipped: one that points back up the tree would be read forever.
+    private static IEnumerable<string> Files(string? directory)
+    {
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
         {
             return [];
         }
 
-        try
+        var options = new EnumerationOptions
         {
-            return Directory.EnumerateFiles(directory, "*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true })
-                .Where(file => Scanned.Contains(Path.GetExtension(file)) && new FileInfo(file).Length <= MaxFileBytes)
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Write(() => $"Mod items: can't list {directory}: {ex.Message}");
-            return [];
-        }
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReparsePoint
+        };
+        return Directory.EnumerateFiles(directory, "*", options)
+            .Where(file => Scanned.Contains(Path.GetExtension(file)) && new FileInfo(file).Length <= MaxFileBytes);
     }
 
     // 24 hex characters in a row, as plain text (json) or as UTF-16 (strings inside a dll).

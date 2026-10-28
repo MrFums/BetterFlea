@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
@@ -306,7 +306,14 @@ public class ClientDataRoute(
     public const string Path = "/betterflea/client-data";
     public const string LevelsPath = "/betterflea/item-levels";
 
-    // Currency, dogtags and quest items are kept off by the game itself, so they get no icon.
+    // Items the game won't let anyone list (the Death Shadow mask, many ammo boxes) get the icon. Things nobody
+    // expects to list get none: money, quest items, dogtags, armbands and secure containers.
+    private static readonly MongoId[] NeverListed =
+    [
+        new("543be5dd4bdc2deb348b4569"), // money
+        new("5b3f15d486f77432d0509248"), // armbands
+        new("5448bf274bdc2dfc2f8b456a") // secure containers
+    ];
     // Built again if the bans change: the server answers before startup has applied them.
     private (int Bans, List<string> Ids)? _fleaBanned;
     private readonly object _sync = new();
@@ -349,11 +356,13 @@ public class ClientDataRoute(
 
             var ids = templates.Handbook.Items
                 .Select(entry => itemHelper.GetItem(entry.Id))
-                // SPT turns CanSellOnRagfair off for the items Better Flea bans, so those are let through first.
                 .Where(item => item.Key
                     && item.Value?.Properties?.QuestItem != true
+                    && !itemHelper.IsDogtag(item.Value!.Id)
+                    && !itemHelper.IsOfBaseclasses(item.Value!.Id, NeverListed)
                     && (FleaSellingGate.IsBanned(item.Value!.Id)
-                        || item.Value?.Properties?.CanSellOnRagfair == true && !ragfairServerHelper.IsItemValidRagfairItem(item)))
+                        || item.Value?.Properties?.CanSellOnRagfair != true
+                        || !ragfairServerHelper.IsItemValidRagfairItem(item)))
                 .Select(item => item.Value!.Id.ToString())
                 .ToList();
             _fleaBanned = (bans, ids);

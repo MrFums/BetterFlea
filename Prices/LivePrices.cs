@@ -1,5 +1,6 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.Json;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.DI;
@@ -10,7 +11,7 @@ using SPTarkov.Server.Core.Services.Ragfair;
 namespace BetterFlea.Prices;
 
 [Injectable(TypePriority = OnLoadOrder.Preload)]
-public class LivePricesLoad(ConfigManager configManager, TemplateTable templates) : IOnLoad
+public class LivePricesLoad(ISptLogger<LivePricesLoad> logger, ConfigManager configManager, TemplateTable templates, TradersTable traders) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -19,14 +20,15 @@ public class LivePricesLoad(ConfigManager configManager, TemplateTable templates
             configManager.Load();
         }
 
-        LivePrices.Bind(configManager, templates);
+        LivePrices.Bind(configManager, templates, traders, message => logger.Warning(message));
         new LivePricesPatch().Enable();
         return Task.CompletedTask;
     }
 }
 
 // The real flea's 24 hour average price (tarkov.dev) as every item's base price. Saved to data/, so if tarkov.dev
-// can't be reached the last prices are used; with nothing saved, SPT's own prices stay.
+// can't be reached the last prices are used; with nothing saved, Better Flea's prices are used until it can be.
+// Better Flea pricing goes the same way, from the fixed price index inside the DLL. While it's on, live prices rest.
 internal static class LivePrices
 {
     private const string Source = "https://json.tarkov.dev/{0}/items";
@@ -43,19 +45,96 @@ internal static class LivePrices
     private static bool _applied;
     private static Timer? _refresh;
     private static int _fetching;
+    private static bool _indexApplied;
+    // Live prices are on, but there are none yet and tarkov.dev can't be reached: Better Flea's prices stand in.
+    private static bool _fallback;
+    private static Action<string>? _warn;
+    private static readonly Lazy<Cache?> Index = new(ReadIndex);
 
     // Known: every item tarkov.dev has, priced or not (base-game items, wherever they come from).
     // Levels: the level each item can be bought from on the real flea, where it needs one (LevelLock).
-    public record Cache(string[] Modes, long Fetched, Dictionary<string, double> Prices, string[]? Known = null, Dictionary<string, int>? Levels = null);
+    // Backport: the price index's items that only WTT ContentBackport adds (SPT 4.1.6 doesn't have them yet).
+    // TraderCuts: each trader's cut when buying from a player in the live game (SPT's buy_price_coef), by trader id.
+    public record Cache(string[] Modes, long Fetched, Dictionary<string, double> Prices, string[]? Known = null, Dictionary<string, int>? Levels = null,
+        string[]? Backport = null, Dictionary<string, double>? TraderCuts = null);
 
     private static LivePricesConfig Settings => _config!.Mod.Economy.LivePrices;
 
+    private static BetterFleaPricingConfig IndexSettings => _config!.Mod.Economy.BetterFleaPricing;
+
+    private static bool IndexOn => IndexSettings.Enabled && Index.Value is not null;
+
+    // Better Flea's prices are in use, chosen or standing in for live ones.
+    private static bool IndexWanted => IndexOn || _fallback;
+
     private static string[] WantedModes => [Settings.Endpoint()];
 
-    public static void Bind(ConfigManager configManager, TemplateTable templates)
+    public static void Bind(ConfigManager configManager, TemplateTable templates, TradersTable traders, Action<string> warn)
     {
         _config = configManager;
         _templates = templates;
+        _traders = traders;
+        _warn = warn;
+    }
+
+    private static TradersTable? _traders;
+    private static Dictionary<MongoId, double?[]>? _sptCuts;
+    private static HashSet<MongoId> _cutsSetByMod = [];
+
+    // SPT 4.1's own cuts. A trader whose cut is something else was changed by another mod (SVM's trader markup, say),
+    // and keeps that mod's cut.
+    private static readonly Dictionary<string, double> SptDefaultCuts = new()
+    {
+        ["54cb50c76803fa8b248b4571"] = 50, ["54cb57776803fa99248b456e"] = 37, ["579dc571d53a0658a154fbec"] = 60,
+        ["58330581ace78e27b8b10cee"] = 51, ["5935c25fb3acc3127c3d8cd9"] = 55, ["5a7c2eca46aef81a7ca2145d"] = 44,
+        ["5ac3b934156ae10c4430e83c"] = 38, ["5c0647fdd443bc2504c2d371"] = 40
+    };
+
+    // Traders whose cut another mod changed: their cut is left alone. For the settings page.
+    public static IReadOnlyList<string> CutsSetByMod =>
+        _traders is null ? [] : _cutsSetByMod.Select(id => _traders.GetValueOrDefault(id)?.Base?.Nickname ?? id.ToString()).ToList();
+
+    // Live trader prices: what traders pay a player, with each trader's live cut (Therapist keeps 49%, not SPT's 37%).
+    // Null puts SPT's back. Players pick it up when they next log in.
+    private static void UseTraderCuts(Dictionary<string, double>? cuts)
+    {
+        if (_traders is null)
+        {
+            return;
+        }
+
+        if (_sptCuts is null)
+        {
+            _sptCuts = _traders.Values.Where(trader => trader.Base?.LoyaltyLevels is not null)
+                .ToDictionary(trader => trader.Base!.Id, trader => trader.Base!.LoyaltyLevels!.Select(level => level.BuyPriceCoefficient).ToArray());
+            _cutsSetByMod = _sptCuts
+                .Where(entry => SptDefaultCuts.TryGetValue(entry.Key.ToString(), out var cut) && entry.Value.Any(level => level != cut))
+                .Select(entry => entry.Key).ToHashSet();
+            if (_cutsSetByMod.Count > 0)
+            {
+                _warn?.Invoke($"[BetterFlea] Live trader prices: another mod changed what these traders pay, so they keep that mod's prices: {string.Join(", ", CutsSetByMod)}.");
+            }
+        }
+
+        foreach (var trader in _traders.Values)
+        {
+            if (trader.Base?.LoyaltyLevels is not { } levels || !_sptCuts.TryGetValue(trader.Base.Id, out var spt))
+            {
+                continue;
+            }
+
+            if (_cutsSetByMod.Contains(trader.Base.Id))
+            {
+                continue;
+            }
+
+            for (var i = 0; i < levels.Count && i < spt.Length; i++)
+            {
+                levels[i].BuyPriceCoefficient = cuts?.TryGetValue(trader.Base.Id.ToString(), out var cut) == true ? cut : spt[i];
+            }
+        }
+
+        PriceGate.ForgetTraderPrices();
     }
 
     // Right after SPT works out its own prices, before any offer is made.
@@ -77,6 +156,13 @@ internal static class LivePrices
             return;
         }
 
+        _fallback = false;
+        if (IndexOn)
+        {
+            Use(Index.Value, true);
+            return;
+        }
+
         if (!Settings.Enabled || WantedModes.Length == 0)
         {
             PutBackSpt();
@@ -92,14 +178,23 @@ internal static class LivePrices
             Fetch();
         }
 
-        Use(_cache);
+        if (_cache is null && Index.Value is not null)
+        {
+            _fallback = true;
+            _warn?.Invoke($"[BetterFlea] Live prices: couldn't reach tarkov.dev ({_error}). Using Better Flea pricing until it can, trying again every 10 minutes.");
+            Use(Index.Value, true);
+            return;
+        }
+
+        Use(_cache, false);
         RefreshIfOld();
     }
 
+    // Every 10 minutes: fetched again once the prices are old, or until the first ones come.
     private static void RefreshIfOld()
     {
-        if (!Settings.Enabled || _cache is null
-            || DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _cache.Fetched < Settings.RefreshHours * 3600)
+        if (!Settings.Enabled || IndexOn
+            || (_cache is not null && DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _cache.Fetched < Settings.RefreshHours * 3600))
         {
             return;
         }
@@ -107,7 +202,13 @@ internal static class LivePrices
         Task.Run(() =>
         {
             Fetch();
-            Use(_cache);
+            if (_fallback && _cache is not null)
+            {
+                _fallback = false;
+                _warn?.Invoke("[BetterFlea] Live prices: tarkov.dev reached, live prices in use from the next offers.");
+            }
+
+            Use(_cache, false);
         });
     }
 
@@ -185,21 +286,25 @@ internal static class LivePrices
         return low > 0 ? low : Number(item, "avg24hPrice");
     }
 
-    private static void Use(Cache? cache)
+    private static void Use(Cache? cache, bool index)
     {
-        Flea.LevelLock.UseLive(cache?.Levels);
-        if (cache is null || !Settings.Enabled)
+        if (cache is null || (index ? !IndexWanted : !Settings.Enabled || IndexOn))
         {
             return;
         }
+
+        Flea.LevelLock.UseLive(cache.Levels);
 
         lock (Gate)
         {
             var prices = _templates!.Prices;
             var live = new Dictionary<MongoId, double>();
+            // ContentBackport's items keep their own price unless its option is on.
+            var skip = index && !IndexSettings.ContentBackport ? cache.Backport?.ToHashSet() : null;
             foreach (var (id, price) in cache.Prices)
             {
-                if (MongoId.IsValidMongoId(id) && new MongoId(id) is var tpl && _sptPrices!.TryGetValue(tpl, out var spt) && Plausible(spt, price))
+                if (MongoId.IsValidMongoId(id) && skip?.Contains(id) != true && new MongoId(id) is var tpl && _sptPrices!.TryGetValue(tpl, out var spt)
+                    && (index || Plausible(tpl, spt, price)))
                 {
                     prices[tpl] = price;
                     live[tpl] = price;
@@ -216,9 +321,12 @@ internal static class LivePrices
             }
 
             var baseGame = cache.Known?.ToHashSet() ?? [];
-            _estimated = Settings.EstimateModdedItems ? MatchModdedItems(live, baseGame) : 0;
+            _estimated = (index ? IndexSettings.EstimateModdedItems : Settings.EstimateModdedItems) ? MatchModdedItems(live, baseGame) : 0;
             _applied = true;
+            _indexApplied = index;
         }
+
+        UseTraderCuts(index && !_fallback && IndexSettings.LiveTraderPrices ? cache.TraderCuts : null);
 
         // Modded items' levels go by price.
         Flea.LevelLock.Forget();
@@ -227,8 +335,28 @@ internal static class LivePrices
     private static int _estimated;
 
     // Some 24 hour averages are junk (a handful of joke listings at a few roubles). Far below or far above SPT's
-    // own price, the live price is ignored and the item keeps its own.
-    private static bool Plausible(double spt, double live) => spt < 1000 || (live >= spt * 0.15 && live <= spt * 40);
+    // own price, the live price is ignored and the item keeps its own, unless the handbook agrees with it: SPT's own
+    // price is the odd one out for some items (44k Glock sights, a 275k X-17 that sells for 17k).
+    private static bool Plausible(MongoId tpl, double spt, double live) =>
+        spt < 1000 || (live >= spt * 0.15 && live <= spt * 40)
+        || (Handbook.Value.GetValueOrDefault(tpl) is > 0 and var book && live >= book * 0.2 && live <= book * 10);
+
+    private static readonly Lazy<Dictionary<MongoId, double>> Handbook = new(() =>
+        (_templates?.Handbook?.Items ?? []).Where(entry => entry.Price > 0).GroupBy(entry => entry.Id)
+            .ToDictionary(group => group.Key, group => (double)group.First().Price!));
+
+    private static Cache? ReadIndex()
+    {
+        try
+        {
+            using var stream = typeof(LivePrices).Assembly.GetManifestResourceStream("BetterFlea.data.price-index.json");
+            return stream is null ? null : JsonSerializer.Deserialize<Cache>(stream);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 
     // tarkov.dev only knows the base game's items, so the rest (modded items) would stay on SPT's price scale next
     // to live-priced items. Move each onto the live scale by how far live prices sit from SPT's for the base-game
@@ -293,34 +421,46 @@ internal static class LivePrices
             }
 
             _applied = false;
+            _indexApplied = false;
         }
 
+        UseTraderCuts(null);
         Flea.LevelLock.Forget();
     }
 
-    // For the settings page: SPT's own price, the live price (null if the real flea doesn't sell it), and whether
-    // the real game has the item at all.
-    public static (double? Spt, double? Live, bool BaseGame) Lookup(MongoId tpl)
+    // For the settings page: SPT's own price, the live price (null if the real flea doesn't sell it, or it was too
+    // far from SPT's price and the handbook's to trust: LiveIgnored), Better Flea's price, and whether the real game
+    // has the item at all.
+    public record PriceLookup(double? Spt, double? Live, bool LiveIgnored, double? Index, bool BaseGame);
+
+    public static PriceLookup Lookup(MongoId tpl)
     {
         _cache ??= DataFiles.Read<Cache>(CacheFile);
         var id = tpl.ToString();
-        return (_sptPrices?.GetValueOrDefault(tpl), _cache?.Prices.TryGetValue(id, out var live) == true && Plausible(_sptPrices?.GetValueOrDefault(tpl) ?? 0, live) ? live : null,
-            _cache?.Known?.Contains(id) == true);
+        var spt = _sptPrices?.GetValueOrDefault(tpl);
+        double? live = _cache?.Prices.TryGetValue(id, out var price) == true ? price : null;
+        var ignored = live is { } value && !Plausible(tpl, spt ?? 0, value);
+        double? index = Index.Value?.Prices.TryGetValue(id, out var fixedPrice) == true
+            && (IndexSettings.ContentBackport || Index.Value.Backport?.Contains(id) != true) ? fixedPrice : null;
+        var baseGame = _cache?.Known?.Contains(id) == true || Index.Value?.Known?.Contains(id) == true;
+        return new PriceLookup(spt, ignored ? null : live, ignored, index, baseGame);
     }
 
-    // The items whose live price is furthest from SPT's, each way: (item, SPT price, live price).
-    public static List<(MongoId Tpl, double Spt, double Live)> Differences(int each)
+    // The items whose live price (or Better Flea's, with index) is furthest from SPT's, each way: (item, SPT price,
+    // that price).
+    public static List<(MongoId Tpl, double Spt, double Live)> Differences(int each, bool index = false)
     {
         _cache ??= DataFiles.Read<Cache>(CacheFile);
-        if (_cache is null || _sptPrices is null)
+        var cache = index ? Index.Value : _cache;
+        if (cache is null || _sptPrices is null)
         {
             return [];
         }
 
-        var all = _cache.Prices
+        var all = cache.Prices
             .Where(entry => MongoId.IsValidMongoId(entry.Key))
             .Select(entry => (Tpl: new MongoId(entry.Key), Live: entry.Value))
-            .Where(entry => _sptPrices.GetValueOrDefault(entry.Tpl) >= 3000 && Plausible(_sptPrices[entry.Tpl], entry.Live))
+            .Where(entry => _sptPrices.GetValueOrDefault(entry.Tpl) >= 3000 && (index || Plausible(entry.Tpl, _sptPrices[entry.Tpl], entry.Live)))
             .Select(entry => (entry.Tpl, Spt: _sptPrices[entry.Tpl], entry.Live))
             .ToList();
         return all.OrderByDescending(entry => entry.Live / entry.Spt).Take(each)
@@ -328,10 +468,17 @@ internal static class LivePrices
     }
 
     // For the settings page.
-    public static (bool On, int Prices, long Fetched, string[] Modes, string? Error, int Estimated) Status()
+    public static (bool On, int Prices, long Fetched, string[] Modes, string? Error, int Estimated, bool Fallback) Status()
     {
         _cache ??= DataFiles.Read<Cache>(CacheFile);
-        return (_applied, _cache?.Prices.Count ?? 0, _cache?.Fetched ?? 0, _cache?.Modes ?? [], _error, _applied ? _estimated : 0);
+        var live = _applied && !_indexApplied;
+        return (live, _cache?.Prices.Count ?? 0, _cache?.Fetched ?? 0, _cache?.Modes ?? [], _error, live ? _estimated : 0, _fallback);
+    }
+
+    public static (bool On, int Prices, long Built, int Estimated) IndexStatus()
+    {
+        var on = _applied && _indexApplied && !_fallback;
+        return (on, Index.Value?.Prices.Count ?? 0, Index.Value?.Fetched ?? 0, on ? _estimated : 0);
     }
 }
 

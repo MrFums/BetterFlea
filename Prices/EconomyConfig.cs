@@ -6,6 +6,9 @@ namespace BetterFlea.Prices;
 // configs/economy.jsonc
 public record EconomyFile
 {
+    [JsonPropertyName("betterFleaPricing")]
+    public BetterFleaPricingConfig BetterFleaPricing { get; set; } = new();
+
     [JsonPropertyName("livePrices")]
     public LivePricesConfig LivePrices { get; set; } = new();
 
@@ -14,6 +17,28 @@ public record EconomyFile
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
+}
+
+// Better Flea's own fixed price for every base-game item (built from real PvP and PvE flea and trader prices) as the
+// base price. Takes the place of live prices while it's on.
+public record BetterFleaPricingConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    // Items the real game doesn't have (modded items) get a price on the same scale, from similar base-game items.
+    [JsonPropertyName("estimateModdedItems")]
+    public bool EstimateModdedItems { get; set; } = true;
+
+    // Base-game items that WTT ContentBackport adds (SPT 4.1.6 doesn't have them yet) get Better Flea's price too.
+    // Off: they keep the price ContentBackport gives them.
+    [JsonPropertyName("contentBackport")]
+    public bool ContentBackport { get; set; } = true;
+
+    // Traders pay what they do in the live game: each takes its live cut (Therapist pays 51% of an item's base price,
+    // not SPT's 63%). Off: SPT's own.
+    [JsonPropertyName("liveTraderPrices")]
+    public bool LiveTraderPrices { get; set; } = true;
 }
 
 // Real flea prices (the 24 hour average from tarkov.dev) as the base price of every item.

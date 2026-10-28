@@ -174,7 +174,9 @@ public class FleaCategoryFilter(
         if (banned.Count > 0 && (HandbookTree.InAny(tpl, banned) || itemHelper.IsOfBaseclasses(tpl, banned))) return false;
 
         var category = FleaCategories.Find(item, itemHelper);
-        if (ModItems.ModOf(tpl) is { } mod && configManager.Mod.Flea.BannedModItems.TryGetValue(mod, out var modBans)
+        // Only asked when a mod ban is set: finding which mod added an item reads every mod's files.
+        if (configManager.Mod.Flea.BannedModItems.Count > 0
+            && ModItems.ModOf(tpl) is { } mod && configManager.Mod.Flea.BannedModItems.TryGetValue(mod, out var modBans)
             && modBans.Any(ban => ban.Equals("all", StringComparison.OrdinalIgnoreCase)
                 || ban.Equals(category?.Name ?? FleaCategories.Uncategorised, StringComparison.OrdinalIgnoreCase)))
         {

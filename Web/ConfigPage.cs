@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -9,7 +9,9 @@ using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Generators.Ragfair;
+using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Helpers.Items;
+using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Spt.Tables;
@@ -69,7 +71,7 @@ public class LiveSettings(
 // needs the page's own admin login, made by whoever opens the page first.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload)]
 public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManager, TemplateTable templates,
-    LocaleService locales, ItemHelper itemHelper) : IHttpListener
+    LocaleService locales, ItemHelper itemHelper, PresetHelper presetHelper) : IHttpListener
 {
     private const string Root = "/betterflea";
 
@@ -204,13 +206,18 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     private JsonObject Overview()
     {
         var economy = configManager.Mod.Economy;
-        var (_, _, fetched, _, error, _) = LivePrices.Status();
+        var (_, _, fetched, _, error, _, fallback) = LivePrices.Status();
         return new JsonObject
         {
             ["version"] = new ModMetadata().Version.ToString(),
+            ["betterFleaPricing"] = new JsonObject
+            {
+                ["enabled"] = economy.BetterFleaPricing.Enabled, ["estimateModdedItems"] = economy.BetterFleaPricing.EstimateModdedItems
+            },
             ["livePrices"] = new JsonObject
             {
                 ["enabled"] = economy.LivePrices.Enabled, ["gameMode"] = economy.LivePrices.GameMode, ["fetched"] = fetched, ["failed"] = error is not null,
+                ["fallback"] = fallback,
                 ["estimateModdedItems"] = economy.LivePrices.EstimateModdedItems
             },
             ["wipeCycle"] = new JsonObject { ["enabled"] = economy.WipeCycle.Enabled, ["now"] = economy.WipeCycle.Enabled ? Wipe("", "") : null }
@@ -255,21 +262,35 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         if (MongoId.IsValidMongoId(id))
         {
             result["curve"] = new JsonArray(Enumerable.Range(1, 70).Select(l => (JsonNode)Math.Round(WipeEconomy.FactorAt(new MongoId(id), l), 3)).ToArray());
-            result["basePrice"] = Math.Round(templates.Prices.GetValueOrDefault(new MongoId(id)));
-            // One new item on its own, priced like the flea's offers: every multiplier, drift, the Wipe Cycle and the floor.
-            var fleaPrice = BetterFlea.Selling.SaleDelayGate.NormalPrice(
-                [new SPTarkov.Server.Core.Models.Eft.Common.Tables.Item { Id = new MongoId(), Template = new MongoId(id) }]);
+            var tpl = new MongoId(id);
+            result["basePrice"] = Math.Round(templates.Prices.GetValueOrDefault(tpl));
+            // One new item, priced like the flea's offers: every multiplier, drift, the Wipe Cycle and the floor. A gun
+            // on its own is only the gun's base part, so it's priced as its default build, the way the flea lists it.
+            var build = presetHelper.GetDefaultPresets().Values.FirstOrDefault(preset => preset.Encyclopedia == tpl)?.Items;
+            var fleaPrice = BetterFlea.Selling.SaleDelayGate.NormalPrice(build is { Count: > 1 } ? build : [new Item { Id = new MongoId(), Template = tpl }]);
             result["fleaPrice"] = fleaPrice is { } f ? Math.Round(f) : null;
-            var (spt, livePrice, baseGame) = LivePrices.Lookup(new MongoId(id));
-            result["sptPrice"] = spt is { } s ? Math.Round(s) : null;
-            result["livePrice"] = livePrice;
-            result["baseGame"] = baseGame;
+            result["stockBuild"] = build is { Count: > 1 };
+            var lookup = LivePrices.Lookup(tpl);
+            result["sptPrice"] = lookup.Spt is { } s ? Math.Round(s) : null;
+            result["livePrice"] = lookup.Live;
+            result["liveIgnored"] = lookup.LiveIgnored;
+            result["indexPrice"] = lookup.Index;
+            result["baseGame"] = lookup.BaseGame;
         }
 
-        var (on, prices, fetched, modes, error, estimated) = LivePrices.Status();
+        var (indexOn, indexPrices, built, indexEstimated) = LivePrices.IndexStatus();
+        result["index"] = new JsonObject
+        {
+            ["on"] = indexOn, ["prices"] = indexPrices, ["built"] = built, ["estimated"] = indexEstimated,
+            ["differences"] = new JsonArray(LivePrices.Differences(8, index: true).Select(entry => (JsonNode)new JsonObject
+            {
+                ["name"] = ItemName(entry.Tpl), ["spt"] = Math.Round(entry.Spt), ["live"] = entry.Live
+            }).ToArray())
+        };
+        var (on, prices, fetched, modes, error, estimated, fallback) = LivePrices.Status();
         result["live"] = new JsonObject
         {
-            ["on"] = on, ["prices"] = prices, ["fetched"] = fetched, ["error"] = error, ["estimated"] = estimated,
+            ["on"] = on, ["prices"] = prices, ["fetched"] = fetched, ["error"] = error, ["fallback"] = fallback, ["estimated"] = estimated,
             ["modes"] = new JsonArray(modes.Select(mode => (JsonNode)mode).ToArray()),
             ["differences"] = new JsonArray(LivePrices.Differences(8).Select(entry => (JsonNode)new JsonObject
             {
@@ -300,7 +321,9 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             });
         }
 
-        return new JsonObject { ["mods"] = mods };
+        var skipped = new JsonArray(ModItems.Skipped
+            .Select(entry => (JsonNode)new JsonObject { ["name"] = entry.Mod, ["reason"] = entry.Reason }).ToArray());
+        return new JsonObject { ["mods"] = mods, ["skipped"] = skipped };
     }
 
     // This version's part of the changelog, as markdown.

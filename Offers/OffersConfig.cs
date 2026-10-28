@@ -341,13 +341,23 @@ public record PresetOffersConfig
     public double LootedBuildChance { get; set; } = 0.2;
 
     [JsonPropertyName("buildDealChance")]
-    public double BuildDealChance { get; set; } = 0.02;
+    public double BuildDealChance { get; set; } = 0.05;
 
     [JsonPropertyName("buildDealMinDiscount")]
-    public double BuildDealMinDiscount { get; set; } = 0.15;
+    public double BuildDealMinDiscount { get; set; } = 0.2;
 
     [JsonPropertyName("buildDealMaxDiscount")]
-    public double BuildDealMaxDiscount { get; set; } = 0.3;
+    public double BuildDealMaxDiscount { get; set; } = 0.35;
+
+    // A rarer, deeper deal than a build deal.
+    [JsonPropertyName("buildStealChance")]
+    public double BuildStealChance { get; set; } = 0.01;
+
+    [JsonPropertyName("buildStealMinDiscount")]
+    public double BuildStealMinDiscount { get; set; } = 0.4;
+
+    [JsonPropertyName("buildStealMaxDiscount")]
+    public double BuildStealMaxDiscount { get; set; } = 0.6;
 
     // Near-stock offers on top of a gun's others: the factory gun, now and then with a cheap sight or no magazine.
     [JsonPropertyName("nearStockMin")]

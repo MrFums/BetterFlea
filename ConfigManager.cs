@@ -52,13 +52,16 @@ public class ConfigManager(
         ("2.3.0", "prices.jsonc", ["sellers", "quickSellChance"], 0.03, 0.004),
         ("2.3.0", "prices.jsonc", ["sellers", "quickSellMinPercent"], 15, 10),
         ("2.3.0", "prices.jsonc", ["sellers", "quickSellMaxPercent"], 35, 25),
-        ("2.3.0", "weapons.jsonc", ["presets", "buildDealChance"], 0.1, 0.02),
+        ("2.3.0", "weapons.jsonc", ["presets", "buildDealChance"], 0.1, 0.05),
         ("2.3.0", "market.jsonc", ["simulatedSales", "dealSpeedup"], 8, 20),
         ("2.3.0", "selling.jsonc", ["saleDelay", "expensivePercent"], 30, 15),
         ("2.3.0b", "weapons.jsonc", ["playerGuns", "savedBuildChance"], 0.05, 0.003),
         ("2.3.0c", "market.jsonc", ["sellerRating", "min"], 0.2, 2),
         ("2.3.0c", "market.jsonc", ["sellerRating", "everydayMax"], 50, 100),
-        ("2.3.0c", "market.jsonc", ["sellerRating", "regularChance"], 0.08, 0.25)
+        ("2.3.0c", "market.jsonc", ["sellerRating", "regularChance"], 0.08, 0.25),
+        ("2.3.0d", "weapons.jsonc", ["presets", "buildDealChance"], 0.02, 0.05),
+        ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMinDiscount"], 0.15, 0.2),
+        ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMaxDiscount"], 0.3, 0.35)
     ];
 
     private const string UpdatesFile = "applied-updates.json";

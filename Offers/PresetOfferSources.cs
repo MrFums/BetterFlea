@@ -598,9 +598,17 @@ internal static partial class PresetOfferGate
     {
         var settings = Settings;
         var items = details.Items;
+        var steal = Math.Max(0, settings.BuildStealChance);
+        var deal = Math.Max(0, settings.BuildDealChance);
         if (details.Creator != OfferCreator.FakePlayer || items is null || items.Count < 2 || details.BarterScheme is null
-            || settings.BuildDealChance <= 0 || !(_itemHelper!.IsOfBaseclass(items[0].Template, GunBase) || ArmorOffers.IsCarrier(items[0].Template))
-            || Random.Shared.NextDouble() >= settings.BuildDealChance)
+            || steal + deal <= 0 || !(_itemHelper!.IsOfBaseclass(items[0].Template, GunBase) || ArmorOffers.IsCarrier(items[0].Template)))
+        {
+            return false;
+        }
+
+        // One roll: a steal (rarer, deeper), a deal, or neither.
+        var roll = Random.Shared.NextDouble();
+        if (roll >= steal + deal)
         {
             return false;
         }
@@ -610,8 +618,9 @@ internal static partial class PresetOfferGate
             return false;
         }
 
-        var low = Math.Clamp(settings.BuildDealMinDiscount, 0, 0.9);
-        var high = Math.Clamp(Math.Max(settings.BuildDealMaxDiscount, low), 0, 0.9);
+        var isSteal = roll < steal;
+        var low = Math.Clamp(isSteal ? settings.BuildStealMinDiscount : settings.BuildDealMinDiscount, 0, 0.9);
+        var high = Math.Clamp(Math.Max(isSteal ? settings.BuildStealMaxDiscount : settings.BuildDealMaxDiscount, low), 0, 0.9);
         var discount = low + Random.Shared.NextDouble() * (high - low);
         var floor = PriceGate.FloorForItems(items, scheme[0].Template);
         var ratio = Math.Max(1 - discount, floor / price);
@@ -627,7 +636,7 @@ internal static partial class PresetOfferGate
 
         if (Interlocked.Increment(ref _deals) <= 5)
         {
-            DebugLog.Summary(() => $"Deal: {_itemHelper.GetItem(items[0].Template).Value?.Name} with {items.Count - 1} part(s) listed at {ratio:P0} of its parts' value");
+            DebugLog.Summary(() => $"{(isSteal ? "Steal" : "Deal")}: {_itemHelper.GetItem(items[0].Template).Value?.Name} with {items.Count - 1} part(s) listed at {ratio:P0} of its parts' value");
         }
 
         return true;
