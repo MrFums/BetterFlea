@@ -264,7 +264,7 @@ internal static class SaleDelayGate
                 price *= _itemHelper.GetItemQualityModifier(item);
             }
 
-            price = BetterFlea.Prices.PriceGate.Adjust(item.Template, Money.ROUBLES, item, price, counted: false);
+            price = BetterFlea.Prices.PriceGate.Adjust(item.Template, Money.ROUBLES, item, price, counted: false, parts: listed);
             var rounds = item != root && item.SlotId == "cartridges" ? Math.Max(1, item.Upd?.StackObjectsCount ?? 1) : 1;
             total += price * rounds;
         }

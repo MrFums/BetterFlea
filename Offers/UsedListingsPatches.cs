@@ -32,6 +32,7 @@ public class UsedListingsPatchesLoad(
 
         UsedListingsGate.Bind(configManager, itemHelper, ragfairConfig);
         new UsedListingsPatch().Enable();
+        new ArmorQualityPatch().Enable();
         return Task.CompletedTask;
     }
 }
@@ -328,6 +329,36 @@ internal static class UsedListingsGate
         return Math.Clamp(quality, 0.01, 1);
     }
 
+    // Most helmets and body armour keep their durability in built-in inserts and none in the shell (a 6/14 helmet is
+    // its inserts added up), and SPT prices an offer by the shell's condition, skipping the inserts: a 6/14 helmet
+    // cost what a new one does. A shell without durability of its own goes by its inserts together, on the same curve
+    // as other armour. 1 for anything else, or without the item's parts.
+    public static double ShellQuality(Item? shell, IEnumerable<Item>? parts)
+    {
+        if (shell is null || parts is null || _itemHelper is null || IgnoresCondition(shell.Template)
+            || _itemHelper.GetItem(shell.Template).Value?.Properties is not { } props || props.MaxDurability > 0)
+        {
+            return 1.0;
+        }
+
+        double full = 0, max = 0, current = 0;
+        foreach (var part in parts)
+        {
+            if (part.ParentId != shell.Id.ToString() || part.Upd?.Repairable is not { Durability: { } left, MaxDurability: { } most }
+                || !_itemHelper.IsOfBaseclass(part.Template, BaseClasses.BUILT_IN_INSERTS)
+                || _itemHelper.GetItem(part.Template).Value?.Properties?.MaxDurability is not { } templateMax || templateMax <= 0)
+            {
+                continue;
+            }
+
+            full += templateMax;
+            max += most;
+            current += left;
+        }
+
+        return full > 0 && max > 0 ? ArmorQualityPatch.Quality(full, max, current) : 1.0;
+    }
+
     internal static bool IgnoresCondition(MongoId tpl) =>
         _ragfairConfig?.Dynamic.IgnoreQualityPriceVarianceBlacklist.Contains(tpl) == true;
 
@@ -464,6 +495,42 @@ public class UsedListingsPatch : AbstractPatch
 
         UsedListingsGate.RollCondition(itemWithMods, itemDetails);
         ArmorOffers.RollCondition(itemWithMods as List<Item> ?? itemWithMods.ToList(), itemDetails);
+    }
+}
+
+// What condition leaves of an armour piece's price (plates, body armour, helmets and their parts; not guns, which
+// GunPricing handles). SPT takes the root of current over full durability, so a ruined 8/14 plate cost the same as an
+// 8/35 one, and a 5/33 one bought and repaired made about 9k. The max is what an armour piece can ever be repaired
+// to, so it counts most; the current only for the repair still to pay (a little under half the price at nothing
+// left). 33/40 is about 80%, 5/33 about half, 8/14 under a quarter. Flea, listings and Fence use it; traders don't.
+public class ArmorQualityPatch : AbstractPatch
+{
+    private const double MaxWeight = 1.2;
+    private const double CurrentShare = 0.45;
+
+    protected override MethodBase GetTargetMethod()
+    {
+        return typeof(ItemHelper).GetMethod("GetRepairableItemQualityValue", BindingFlags.Instance | BindingFlags.NonPublic)!;
+    }
+
+    [PatchPostfix]
+    public static void Postfix(TemplateItem itemDetails, UpdRepairable repairable, ref double __result)
+    {
+        var full = itemDetails.Properties?.MaxDurability ?? 0;
+        if (full <= 0 || BookPrice.Helper?.IsOfBaseclass(itemDetails.Id, BaseClasses.WEAPON) != false
+            || repairable.Durability is not { } current || repairable.MaxDurability is not { } max || max <= 0)
+        {
+            return;
+        }
+
+        __result = Quality(full, max, current);
+    }
+
+    // Share of a new one's price at this max and current, out of full (the template's max).
+    internal static double Quality(double full, double max, double current)
+    {
+        var kept = Math.Pow(Math.Clamp(max / full, 0, 1), MaxWeight);
+        return Math.Clamp(kept * (1 - CurrentShare + CurrentShare * Math.Clamp(current / max, 0, 1)), 0.01, 1);
     }
 }
 

@@ -157,6 +157,25 @@
   .level-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
   .level-name small { color: var(--faint); }
   .finder { position: relative; margin-top: 8px; max-width: 380px; }
+  .prices { display: flex; flex-direction: column; gap: 8px; align-items: stretch; max-width: 720px; }
+  .prices .finder { margin-top: 0; }
+  .price-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+  .price-add .finder { flex: 1 1 320px; }
+  .price-tools { display: flex; gap: 8px; }
+  .price-paste { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .price-paste textarea { width: 100%; font-family: inherit; resize: vertical; }
+  .price-head { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+  .price-head .text { flex: 0 1 280px; }
+  .price-count { color: var(--faint); font-size: 12.5px; }
+  .price-rows { display: flex; flex-direction: column; gap: 4px; }
+  .price-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto 52px 28px; gap: 10px; align-items: center; }
+  .price-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .price-usual { color: var(--faint); font-size: 12px; text-align: right; }
+  .price-delta { font-size: 12px; color: var(--faint); text-align: right; }
+  .price-delta.up { color: var(--green); }
+  .price-delta.down { color: var(--bad); }
+  .price-pager { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  @media (max-width: 560px) { .price-row { grid-template-columns: minmax(0, 1fr) auto 28px; } .price-usual, .price-delta { display: none; } }
   .finder .text { width: 100%; }
   .results { margin-top: 4px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto; }
   .results button { display: flex; justify-content: space-between; width: 100%; text-align: left; background: none; border: 0; padding: 7px 10px; cursor: pointer; gap: 10px; }
@@ -954,7 +973,7 @@ const STYLES = [
 // ---------- helpers ----------
 
 const HOME = "home";
-const state = { status: null, notes: null, version: "", files: [], byFile: {}, saved: {}, current: null, open: new Set(), styleNote: "", advanced: false, names: {} };
+const state = { status: null, notes: null, version: "", files: [], byFile: {}, saved: {}, current: null, open: new Set(), styleNote: "", advanced: false, names: {}, priceView: {} };
 const $ = (id) => document.getElementById(id);
 
 function store(key, value) {
@@ -1320,13 +1339,16 @@ async function loadNames() {
   }
   for (const key of LEVEL_TABLES.concat(PRICE_TABLES)) {
     const [file, path] = key.split(":");
-    for (const id of Object.keys(getAt(state.byFile[file].values, path.split(".")) || {})) if (!state.names[id]) ids.add(id);
+    for (const id of Object.keys(getAt(state.byFile[file].values, path.split(".")) || {})) if (!state.names[id] || !("usual" in state.names[id])) ids.add(id);
   }
   if (!ids.size) return;
+  const all = [...ids];
   try {
-    const res = await fetch(API + "/items?ids=" + encodeURIComponent([...ids].join(",")));
-    const data = await res.json();
-    for (const item of data.items || []) state.names[item.id] = item;
+    for (let i = 0; i < all.length; i += 150) {
+      const res = await fetch(API + "/items?ids=" + encodeURIComponent(all.slice(i, i + 150).join(",")));
+      const data = await res.json();
+      for (const item of data.items || []) state.names[item.id] = item;
+    }
     render();
   } catch (e) { /* names are only nice to have */ }
 }
@@ -1703,52 +1725,191 @@ function levelTable(f, path, value, def) {
   return row;
 }
 
-// Your own base prices: an item and its price in roubles. A new one starts at the item's base price now.
+// Your own base prices: an item and its price in roubles. Made for long lists (hundreds of items): add at the top, by
+// search or by pasting a list of IDs (with prices or without), then a table sorted by name, 50 to a page, with a
+// filter. A new item starts at its usual price, which each row shows next to yours.
+const PRICE_PAGE = 50;
+
 function priceTable(f, path, value, def) {
   const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
   row.append(label(f, path, true), resetButton(f, path, value, def));
-  const control = make("div", "control levels");
-  const ids = Object.keys(value);
-  if (!ids.length) control.appendChild(make("span", "none", "None yet. Every item keeps its usual price."));
-  for (const id of ids) {
-    const known = state.names[id];
-    const entry = make("div", "level-row");
-    entry.title = id;
-    const remove = make("button", "remove", "×");
-    remove.title = "Remove";
-    remove.onclick = () => { const copy = clone(value); delete copy[id]; change(f, path, copy); };
-    entry.append(make("span", "level-name", known ? known.name : id), stepper(f, path.concat(id), value[id], 1000), remove);
-    control.appendChild(entry);
-  }
-  control.appendChild(itemFinder("find-" + path.join("-"), async (item) => {
-    if (item.category || item.id in value) return;
-    let price = 10000;
-    try {
-      const d = await (await fetch(API + "/economy?id=" + encodeURIComponent(item.id))).json();
-      if (d.basePrice > 0) price = Math.round(d.basePrice);
-    } catch (e) { /* start from 10,000 */ }
-    const copy = clone(getAt(f.values, path) || {});
-    copy[item.id] = price;
+  const control = make("div", "control prices");
+  const key = path.join(".");
+  const view = state.priceView[key] || (state.priceView[key] = { filter: "", page: 0, paste: false, text: "" });
+  const nameOf = (id) => (state.names[id] && state.names[id].name) || id;
+  const usualOf = (id) => state.names[id] ? state.names[id].usual : undefined;
+  const current = () => clone(getAt(f.values, path) || {});
+  const ids = Object.keys(value).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+
+  // Adding: search for one, or paste a list.
+  const add = make("div", "price-add");
+  add.appendChild(itemFinder("find-" + path.join("-"), async (item) => {
+    if (item.category) { toast("Pick an item, not a category: prices are set per item.", "bad", 5000); return; }
+    if (item.id in value) {
+      view.filter = nameOf(item.id);
+      view.page = 0;
+      toast(nameOf(item.id) + " is already in your prices.", "bad", 5000);
+      render();
+      return;
+    }
+    const copy = current();
+    copy[item.id] = item.usual > 0 ? item.usual : 10000;
     change(f, path, copy);
-  }));
+  }, { itemsOnly: true, note: (item) => item.id in value ? "yours: " + count(value[item.id]) : "" }));
+  const tools = make("div", "price-tools");
+  const pasteButton = make("button", "btn", view.paste ? "Close the paste box" : "Paste a list");
+  pasteButton.onclick = () => { view.paste = !view.paste; render(); };
+  tools.appendChild(pasteButton);
+  if (ids.length) {
+    const copyButton = make("button", "btn", "Copy the list");
+    copyButton.title = "One line per item: ID, your price, name. Paste it back here, on another server too.";
+    copyButton.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(ids.map(id => id + "," + value[id] + "," + nameOf(id)).join("\n"));
+        toast("Copied " + count(ids.length) + " prices.", "", 4000);
+      } catch (e) { toast("Couldn't copy: the browser said no.", "bad", 5000); }
+    };
+    tools.appendChild(copyButton);
+  }
+  add.appendChild(tools);
+  control.appendChild(add);
+
+  if (view.paste) {
+    const box = make("div", "price-paste");
+    const area = document.createElement("textarea");
+    area.className = "text";
+    area.rows = 6;
+    area.placeholder = "One item per line: its ID, and a price if you want one (5c0e874186f7745dc7616606 45000). Without a price it starts at its usual price. A line copied from this list works too.";
+    area.value = view.text;
+    area.oninput = () => { view.text = area.value; };
+    const go = make("button", "btn primary", "Add these");
+    go.onclick = async () => {
+      const lines = view.text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const wanted = new Map();
+      let unreadable = 0;
+      for (const line of lines) {
+        const m = line.match(/([0-9a-f]{24})(?:\s*[,;\t ]\s*([0-9][0-9 .,_']*))?/i);
+        if (!m) { unreadable++; continue; }
+        const price = m[2] ? parseInt(m[2].replace(/[^0-9]/g, ""), 10) : NaN;
+        wanted.set(m[1].toLowerCase(), price > 0 ? price : null);
+      }
+      if (!wanted.size) { toast("No item IDs found in that.", "bad", 5000); return; }
+      let found = [];
+      try {
+        found = (await (await fetch(API + "/items?ids=" + encodeURIComponent([...wanted.keys()].join(",")))).json()).items || [];
+      } catch (e) { toast("Couldn't look those up. Is the server running?", "bad", 6000); return; }
+      const copy = current();
+      let added = 0, updated = 0;
+      for (const item of found) {
+        if (item.category) continue;
+        state.names[item.id] = item;
+        const price = wanted.get(item.id) ?? (item.id in copy ? copy[item.id] : (item.usual > 0 ? item.usual : 10000));
+        if (item.id in copy) updated++; else added++;
+        copy[item.id] = price;
+      }
+      const missing = wanted.size - added - updated;
+      view.text = "";
+      view.paste = false;
+      change(f, path, copy);
+      toast("Added " + count(added) + ", updated " + count(updated)
+        + (missing ? ", " + count(missing) + " not found on this server" : "")
+        + (unreadable ? ", " + count(unreadable) + " lines without an ID" : "") + ". Press Save to keep them.", missing || unreadable ? "bad" : "", 8000);
+    };
+    box.append(area, go);
+    control.appendChild(box);
+  }
+
+  if (!ids.length) {
+    control.appendChild(make("span", "none", "None yet. Every item keeps its usual price."));
+    row.appendChild(control);
+    return row;
+  }
+
+  // The list: filtered and paged in place, so typing in the filter keeps its focus.
+  const head = make("div", "price-head");
+  const filter = document.createElement("input");
+  filter.className = "text";
+  filter.placeholder = "Filter by name or ID";
+  filter.value = view.filter;
+  const summary = make("span", "price-count");
+  head.append(filter, summary);
+  const table = make("div", "price-rows");
+  const pager = make("div", "price-pager");
+  control.append(head, table, pager);
+
+  const draw = () => {
+    const q = view.filter.trim().toLowerCase();
+    const shown = q ? ids.filter(id => (nameOf(id) + " " + id).toLowerCase().includes(q)) : ids;
+    const pages = Math.max(1, Math.ceil(shown.length / PRICE_PAGE));
+    view.page = Math.min(view.page, pages - 1);
+    summary.textContent = q ? count(shown.length) + " of " + count(ids.length) + " items" : count(ids.length) + " items";
+    table.innerHTML = "";
+    for (const id of shown.slice(view.page * PRICE_PAGE, (view.page + 1) * PRICE_PAGE)) {
+      const entry = make("div", "price-row");
+      const name = make("span", "price-name", nameOf(id));
+      name.title = id;
+      const usual = usualOf(id);
+      const diff = usual > 0 ? Math.round((value[id] / usual - 1) * 100) : null;
+      const was = make("span", "price-usual", usual > 0 ? "usual " + count(usual) : "");
+      const delta = make("span", "price-delta" + (diff > 0 ? " up" : diff < 0 ? " down" : ""), diff === null || diff === 0 ? "" : diff >= 900 ? "×" + count(Math.round(value[id] / usual)) : (diff > 0 ? "+" : "") + diff + "%");
+      const remove = make("button", "remove", "×");
+      remove.title = "Remove";
+      remove.onclick = () => { const copy = current(); delete copy[id]; change(f, path, copy); };
+      entry.append(name, was, stepper(f, path.concat(id), value[id], 1000), delta, remove);
+      table.appendChild(entry);
+    }
+    if (!shown.length) table.appendChild(make("span", "none", "Nothing matches."));
+
+    pager.innerHTML = "";
+    if (pages > 1) {
+      const prev = make("button", "btn", "‹ Previous");
+      prev.disabled = view.page === 0;
+      prev.onclick = () => { view.page--; draw(); };
+      const next = make("button", "btn", "Next ›");
+      next.disabled = view.page >= pages - 1;
+      next.onclick = () => { view.page++; draw(); };
+      pager.append(prev, make("span", "price-count", "Page " + (view.page + 1) + " of " + pages), next);
+    }
+    if (q && shown.length) {
+      const clear = make("button", "btn", "Remove these " + count(shown.length));
+      clear.onclick = () => {
+        if (!confirm(T("Remove your price from these " + shown.length + " items?"))) return;
+        const copy = current();
+        for (const id of shown) delete copy[id];
+        view.filter = "";
+        change(f, path, copy);
+      };
+      pager.appendChild(clear);
+    }
+  };
+  filter.oninput = () => { view.filter = filter.value; view.page = 0; draw(); };
+  draw();
   row.appendChild(control);
   return row;
 }
 
 // Search for an item or category by name, or paste an ID.
-function itemFinder(id, onPick) {
+// options.itemsOnly: no categories. options.note(item): a few words shown beside a result.
+function itemFinder(id, onPick, options = {}) {
   const finder = document.createElement("div");
   finder.className = "finder";
   const search = document.createElement("input");
   search.className = "text";
   search.id = id;
-  search.placeholder = "Search for an item or category to add, or paste an ID";
+  search.placeholder = options.itemsOnly ? "Search for an item to add, or paste an ID" : "Search for an item or category to add, or paste an ID";
   const results = document.createElement("div");
   results.className = "results";
   results.hidden = true;
   let timer = null;
-  const add = (item) => {
-    state.names[item.id] = item;
+  const add = async (item) => {
+    // A pasted ID: ask for its name, so the list doesn't show the ID.
+    if (item.name === item.id) {
+      try {
+        const found = ((await (await fetch(API + "/items?ids=" + encodeURIComponent(item.id))).json()).items || [])[0];
+        if (found) item = found;
+      } catch (e) { /* the ID stays its name */ }
+    }
+    if (item.name !== item.id) state.names[item.id] = item;
     onPick(item);
   };
   search.oninput = () => {
@@ -1768,10 +1929,11 @@ function itemFinder(id, onPick) {
           results.appendChild(e);
         }
         for (const item of items) {
+          if (options.itemsOnly && item.category) continue;
           const b = document.createElement("button");
           b.innerHTML = "<span></span><small></small>";
           b.firstChild.textContent = item.name;
-          b.lastChild.textContent = item.category ? "category" : "";
+          b.lastChild.textContent = item.category ? "category" : options.note ? options.note(item) : "";
           b.onmousedown = (e) => { e.preventDefault(); add(item); };
           results.appendChild(b);
         }

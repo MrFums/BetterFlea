@@ -163,12 +163,13 @@ internal static class PriceGate
     }
 
     // counted = false: only working out a price (a player's listing), no offer is being made.
-    public static double Adjust(MongoId tpl, MongoId currency, Item? item, double price, bool counted = true)
+    // parts: the item with everything in it, for a helmet or armour whose condition is its inserts' (ShellQuality).
+    public static double Adjust(MongoId tpl, MongoId currency, Item? item, double price, bool counted = true, IEnumerable<Item>? parts = null)
     {
-        price *= UsedListingsGate.KeyPriceFactor(tpl, item) * UsedListingsGate.ResourcePriceFactor(tpl, item);
+        price *= UsedListingsGate.KeyPriceFactor(tpl, item) * UsedListingsGate.ResourcePriceFactor(tpl, item) * UsedListingsGate.ShellQuality(item, parts);
         price *= DriftFactor(tpl) * (counted ? Demand.Factor(tpl) : Demand.SellerFactor(tpl));
 
-        var floor = FloorFor(tpl, item, currency);
+        var floor = FloorFor(tpl, item, currency, parts);
         if (price < floor && !counted)
         {
             return floor;
@@ -186,10 +187,10 @@ internal static class PriceGate
 
     // Rounds in a mag are one item but a trader buys each round.
     public static double FloorForItems(IEnumerable<Item> items, MongoId currency) =>
-        items.Sum(item => FloorFor(item.Template, item, currency) * (item.SlotId == "cartridges" ? Math.Max(1, item.Upd?.StackObjectsCount ?? 1) : 1));
+        items.Sum(item => FloorFor(item.Template, item, currency, items) * (item.SlotId == "cartridges" ? Math.Max(1, item.Upd?.StackObjectsCount ?? 1) : 1));
 
     // 0 = no floor.
-    public static double FloorFor(MongoId tpl, Item? item, MongoId currency)
+    public static double FloorFor(MongoId tpl, Item? item, MongoId currency, IEnumerable<Item>? parts = null)
     {
         var settings = _config?.Mod.Prices.Floor;
         if (settings is null || !settings.Enabled || _handbook is null)
@@ -204,7 +205,7 @@ internal static class PriceGate
         }
 
         var condition = item is not null && !UsedListingsGate.IgnoresCondition(tpl)
-            ? _itemHelper!.GetItemQualityModifier(item)
+            ? _itemHelper!.GetItemQualityModifier(item) * UsedListingsGate.ShellQuality(item, parts)
             : 1.0;
 
         var floor = bestBuy * condition * (1.0 + settings.MarginPercent / 100.0);
@@ -384,14 +385,14 @@ public class DynamicPricePatch : AbstractPatch
     }
 
     [PatchPostfix]
-    public static void Postfix(MongoId itemTemplateId, MongoId desiredCurrency, Item? item, ref double? __result)
+    public static void Postfix(MongoId itemTemplateId, MongoId desiredCurrency, Item? item, IEnumerable<Item>? offerItems, ref double? __result)
     {
         if (__result is not { } price)
         {
             return;
         }
 
-        __result = PriceGate.Adjust(itemTemplateId, desiredCurrency, item, price);
+        __result = PriceGate.Adjust(itemTemplateId, desiredCurrency, item, price, parts: offerItems);
     }
 }
 

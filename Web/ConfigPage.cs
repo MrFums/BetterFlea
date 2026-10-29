@@ -436,7 +436,14 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
 
         foreach (var (id, name, _, category) in matches)
         {
-            found.Add(new JsonObject { ["id"] = id, ["name"] = LocalName((id, name, "", category)), ["category"] = category });
+            var entry = new JsonObject { ["id"] = id, ["name"] = LocalName((id, name, "", category)), ["category"] = category };
+            // For Your prices: what the item costs without the admin's own price.
+            if (!category && MongoId.IsValidMongoId(id))
+            {
+                entry["usual"] = Math.Round(LivePrices.UsualPrice(new MongoId(id)));
+            }
+
+            found.Add(entry);
         }
 
         return new JsonObject { ["items"] = found };

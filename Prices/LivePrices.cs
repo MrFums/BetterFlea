@@ -439,7 +439,7 @@ internal static class LivePrices
             count++;
         }
 
-        AtLeastTraderPrice(modded, tpl => items.GetValueOrDefault(tpl)?.Parent is { } kind ? prices.Ceiling(kind) : null);
+        AtLeastTraderPrice(modded, live, tpl => items.GetValueOrDefault(tpl)?.Parent is { } kind ? prices.Ceiling(kind) : null);
         return count;
     }
 
@@ -449,7 +449,10 @@ internal static class LivePrices
     // sells is worth at least the share gun pricing keeps of a trader's price (traderPricePercent, 95%), on the
     // cheapest such offer. An offer of several items (a gun with its magazine) is split by price. Not Fence. Still
     // under what 9 in 10 base-game items of its kind cost (ceiling), as a mod's trader can ask silly money too.
-    private static void AtLeastTraderPrice(HashSet<MongoId> modded, Func<MongoId, double?> ceiling)
+    // And the item an offer is of (not its parts) is worth at most what base-game ones of its kind go for on the flea
+    // next to their trader price (the median, 1-2x): a helmet a trader sells new for 65k isn't 164k from a player. Its
+    // parts don't count against it: an armour's soft inserts carry a price of their own that's a guess too.
+    private static void AtLeastTraderPrice(HashSet<MongoId> modded, Dictionary<MongoId, double> live, Func<MongoId, double?> ceiling)
     {
         if (_traders is null || modded.Count == 0)
         {
@@ -457,9 +460,13 @@ internal static class LivePrices
         }
 
         var prices = _templates!.Prices;
+        var items = _templates.Items;
         var handbook = Handbook.Value;
         var share = Math.Clamp((_config?.Mod.Prices.Guns.TraderPricePercent ?? 95) / 100, 0, 1);
         var floors = new Dictionary<MongoId, double>();
+        var caps = new Dictionary<MongoId, double>();
+        var ratios = new Medians();
+        var offers = new List<(MongoId Kind, double Roubles, MongoId Tpl)>();
         foreach (var (traderId, trader) in _traders)
         {
             if (traderId == Fence || trader.Assort?.Items is not { Count: > 0 } assort || trader.Assort.BarterScheme is not { } schemes)
@@ -473,7 +480,8 @@ internal static class LivePrices
                 // Money only: a barter's worth is another guess.
                 if (!schemes.TryGetValue(root.Id, out var options) || options.FirstOrDefault() is not { Count: 1 } payment
                     || payment[0].Count is not { } cost || cost <= 0
-                    || (payment[0].Template != Money.ROUBLES && handbook.GetValueOrDefault(payment[0].Template) is not > 0))
+                    || (payment[0].Template != Money.ROUBLES && handbook.GetValueOrDefault(payment[0].Template) is not > 0)
+                    || items.GetValueOrDefault(root.Template)?.Parent is not { } kind)
                 {
                     continue;
                 }
@@ -485,17 +493,26 @@ internal static class LivePrices
                     tree.AddRange(children[tree[i].Id.ToString()]);
                 }
 
-                if (!tree.Any(entry => modded.Contains(entry.Template)))
-                {
-                    continue;
-                }
-
                 var total = tree.Sum(entry => prices.GetValueOrDefault(entry.Template));
                 if (total <= 0)
                 {
                     continue;
                 }
 
+                if (live.GetValueOrDefault(root.Template) is > 0 and var flea && !modded.Contains(root.Template))
+                {
+                    ratios.Add(kind, flea / roubles);
+                }
+
+                if (!tree.Any(entry => modded.Contains(entry.Template)))
+                {
+                    continue;
+                }
+
+                if (modded.Contains(root.Template))
+                {
+                    offers.Add((kind, roubles, root.Template));
+                }
                 foreach (var entry in tree.Where(entry => modded.Contains(entry.Template)))
                 {
                     var floor = roubles * share * prices.GetValueOrDefault(entry.Template) / total;
@@ -507,20 +524,32 @@ internal static class LivePrices
             }
         }
 
-        var raised = new List<(MongoId Tpl, double From, double To)>();
-        foreach (var (tpl, traderFloor) in floors)
+        foreach (var (kind, roubles, tpl) in offers)
         {
-            var floor = ceiling(tpl) is { } cap ? Math.Min(traderFloor, cap) : traderFloor;
-            if (prices.GetValueOrDefault(tpl) is var from && from < floor)
+            var most = roubles * Math.Clamp(ratios.IsEmpty ? 1.0 : ratios.For(kind), 1.0, 2.0);
+            caps[tpl] = caps.TryGetValue(tpl, out var known) ? Math.Min(known, most) : most;
+        }
+
+        var raised = new List<(MongoId Tpl, double From, double To)>();
+        var lowered = new List<(MongoId Tpl, double From, double To)>();
+        foreach (var tpl in floors.Keys.Union(caps.Keys))
+        {
+            var from = prices.GetValueOrDefault(tpl);
+            var floor = floors.TryGetValue(tpl, out var traderFloor) ? (ceiling(tpl) is { } top ? Math.Min(traderFloor, top) : traderFloor) : 0;
+            var to = Math.Round(Math.Max(floor, caps.TryGetValue(tpl, out var cap) ? Math.Min(from, cap) : from));
+            if (to != from)
             {
-                prices[tpl] = Math.Round(floor);
-                raised.Add((tpl, from, Math.Round(floor)));
+                prices[tpl] = to;
+                (to > from ? raised : lowered).Add((tpl, from, to));
             }
         }
 
         DebugLog.Summary(() => $"Modded items: {raised.Count} raised to at least what a trader sells them for; most: "
             + string.Join(", ", raised.OrderByDescending(entry => entry.To / Math.Max(1, entry.From)).Take(15)
-                .Select(entry => $"{_templates.Items.GetValueOrDefault(entry.Tpl)?.Name ?? entry.Tpl.ToString()} {entry.From:0} -> {entry.To:0}")));
+                .Select(entry => $"{items.GetValueOrDefault(entry.Tpl)?.Name ?? entry.Tpl.ToString()} {entry.From:0} -> {entry.To:0}")));
+        DebugLog.Summary(() => $"Modded items: {lowered.Count} lowered to what base-game offers of their kind go for next to a trader's price; most: "
+            + string.Join(", ", lowered.OrderByDescending(entry => entry.From / Math.Max(1, entry.To)).Take(15)
+                .Select(entry => $"{items.GetValueOrDefault(entry.Tpl)?.Name ?? entry.Tpl.ToString()} {entry.From:0} -> {entry.To:0}")));
     }
 
     // The median by item kind. A kind with fewer than 5 items uses the median of all of them.
@@ -600,12 +629,26 @@ internal static class LivePrices
     // Items with the admin's own base price (Economy tab, Your prices). Inside Gate, last, so nothing else changes them.
     private static readonly HashSet<MongoId> Overridden = new();
 
+    // What each overridden item's base price would be without the admin's own, for the settings page.
+    private static readonly Dictionary<MongoId, double> Usual = new();
+
+    // The item's base price as Better Flea sets it, before the admin's own (Your prices).
+    public static double UsualPrice(MongoId tpl)
+    {
+        lock (Gate)
+        {
+            return Usual.TryGetValue(tpl, out var usual) ? usual : _templates?.Prices.GetValueOrDefault(tpl) ?? 0;
+        }
+    }
+
     private static void UseOverrides()
     {
+        Usual.Clear();
         foreach (var (id, price) in _config!.Mod.Economy.PriceOverrides)
         {
             if (price > 0 && MongoId.IsValidMongoId(id) && new MongoId(id) is var tpl && _templates!.Items.ContainsKey(tpl))
             {
+                Usual[tpl] = _templates.Prices.GetValueOrDefault(tpl);
                 _templates.Prices[tpl] = price;
                 Overridden.Add(tpl);
             }
