@@ -33,6 +33,7 @@ public class FleaCategoryFilter(
         var bannedPerCategory = new Dictionary<string, int>();
         var forced = 0;
         var blocked = 0;
+        var lifted = 0;
 
         foreach (var entry in templates.Handbook.Items)
         {
@@ -42,6 +43,17 @@ public class FleaCategoryFilter(
             }
 
             bool? decision = Decide(item, allowed, banned, out var reason);
+
+            // With BSG's bans off, SPT only stops keeping the game's banned items off its own offers: the item still
+            // says it can't go on the flea, so the game wouldn't let a player list one and showed it as banned. A
+            // mod's own ban was decided above (Decide). Quest items stay off.
+            if (decision is null && !config.EnableBsgBlacklist && item.Properties.CanSellOnRagfair == false && item.Properties.QuestItem != true)
+            {
+                item.Properties.CanSellOnRagfair = true;
+                lifted++;
+                continue;
+            }
+
             if (decision is null)
             {
                 continue;
@@ -75,7 +87,7 @@ public class FleaCategoryFilter(
         var breakdown = string.Join(", ", bannedPerCategory.OrderBy(x => x.Key).Select(x => $"{x.Key} {x.Value}"));
         DebugLog.Summary(() =>
             $"Flea filter applied: {blocked} banned, {forced} forced allowed " +
-            $"(bsgBlacklist={config.EnableBsgBlacklist})" + (blocked > 0 ? $" - {breakdown}" : string.Empty));
+            $"(bsgBlacklist={config.EnableBsgBlacklist}, {lifted} of the game's bans lifted)" + (blocked > 0 ? $" - {breakdown}" : string.Empty));
     }
 
     // The parts that can change while the server runs. Bans are only applied at startup.
