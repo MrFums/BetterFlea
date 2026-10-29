@@ -13,9 +13,18 @@ namespace BetterFlea.Flea;
 [Injectable(TypePriority = OnLoadOrder.Watermark + 1)]
 public class ModItemsLoad(ISptLogger<ModItemsLoad> logger, IReadOnlyList<SptMod> mods, TemplateTable templates) : IOnLoad
 {
+    // Never throws: a fault here must not stop the server or any other mod loading.
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
-        ModItems.Start(mods, templates, message => logger.Warning(message));
+        try
+        {
+            ModItems.Start(mods, templates, message => logger.Warning(message));
+        }
+        catch (Exception ex)
+        {
+            logger.Warning($"[BetterFlea] Mod items: couldn't start ({ex.GetType().Name}: {ex.Message}). Items can't be banned by mod, only one by one or by type.");
+        }
+
         return Task.CompletedTask;
     }
 }
@@ -82,7 +91,21 @@ internal static class ModItems
         _baseItems = templates.Items.Keys.ToHashSet();
         var self = typeof(ModItems).Assembly;
         var others = mods.Where(mod => !mod.Assemblies.Contains(self)).ToList();
-        _modById = new Lazy<Dictionary<string, string>>(() => Index(others), LazyThreadSafetyMode.ExecutionAndPublication);
+        _modById = new Lazy<Dictionary<string, string>>(() => SafeIndex(others), LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    // A fault reading mods leaves no items by mod, never an exception for whoever asked.
+    private static Dictionary<string, string> SafeIndex(List<SptMod> mods)
+    {
+        try
+        {
+            return Index(mods);
+        }
+        catch (Exception ex)
+        {
+            Skip("all mods", $"the mod scan failed ({ex.GetType().Name}: {ex.Message})");
+            return new Dictionary<string, string>();
+        }
     }
 
     // Every item-like id in each mod's folder. An id found in several mods goes to the one that defines it (the id as

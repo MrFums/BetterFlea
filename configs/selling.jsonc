@@ -56,10 +56,10 @@
   // This only works when saleDelay is on. Recent purchases are saved in data\recent-purchases.json, so a restart doesn't wipe them.
   "flipPenalty": {
     "enabled": true,
-    "windowMinutes": 60,             // purchases older than this do not count
+    "windowMinutes": 30,             // purchases older than this do not count
     "freePurchases": 2,              // a player can buy this many of one item with no extra wait
     "purchasesForMaxPenalty": 10,    // at this many purchases, the extra wait is the longest
-    "maxExtraMinutes": 30,          // the longest extra wait, in minutes
+    "maxExtraMinutes": 10,           // the longest extra wait, in minutes. Enough to put flipping off, not to stall a sale
     "countFleaPurchases": true,      // true = purchases from the Flea Market also count, not only from traders
     "fenceMultiplier": 3             // 1 item bought from Fence counts as this many
   },

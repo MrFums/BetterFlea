@@ -14,6 +14,10 @@
   "sidePlateChance": 0.3,     // armor that takes side plates has them (with or without front/back plates)
   "bestKitChance": 0.05,      // class 4 front/back + class 6 sides, all mint: the best (and priciest) there is
   "flippedDownChance": 0.3,   // chance a face shield, visor or night vision on a helmet is listed flipped down
+  "helmetAttachmentChance": 0.2, // chance a helmet comes with something on it (a Bastion's armor plate, a shroud, ears)
+  "helmetDamage": 0.5,        // helmets are rarely wrecked. 1 = as damaged as other armor
+  "bossHelmetChance": 0.25,   // a helmet bosses or guards wear sometimes comes off one: good max, low current
+  "repairBuffChance": 0.02,   // a piece with a lowered max now and then has a repair kit bonus (the gold background)
 
   // Condition by rarity: mint, worn (a bit under max), destroyed (15-35% left but a good max, worth repairing),
   // obliterated (max worn right down too). Plates, soft armor, loose plates, helmets, face shields, armored masks and

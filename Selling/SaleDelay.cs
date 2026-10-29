@@ -82,12 +82,15 @@ internal static class SaleDelayGate
         }
 
         _listedTpl = listed[0].Template;
-        _plain = listed.Count == 1 && _packUnits == 1;
+        // Only what the order book's buyers take (OrderBook.Handles): a lone gun or thing with durability (glasses,
+        // a bare helmet) gets the roll, or nothing would ever buy it.
+        _plain = listed.Count == 1 && _packUnits == 1 && listed[0].Upd?.Repairable is null
+            && !itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON);
 
         // One plain item (not a gun, not a pack) is up against the same item from other sellers.
         if (listed.Count == 1 && _packUnits == 1 && !itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON))
         {
-            var quality = BetterFlea.Offers.UsedListingsGate.IgnoresCondition(listed[0].Template) ? 1 : Math.Clamp(itemHelper.GetItemQualityModifier(listed[0]), 0.01, 1);
+            var quality = BetterFlea.Offers.UsedListingsGate.PriceQuality(listed[0]);
             _cheapest = Undercuts.Cheapest(listed[0].Template, quality);
         }
 
@@ -321,8 +324,18 @@ internal static class SaleDelayGate
     }
 
     // How much longer a dear unique item takes than a cheap one: 1 at 100,000 roubles, with the root of the price.
-    private static double Dearness() =>
-        Math.Clamp(Math.Sqrt(Math.Max(1, _normalUsed ?? 100000) / 100000), 0.5, 3);
+    private static double Dearness(double? normal = null) =>
+        Math.Clamp(Math.Sqrt(Math.Max(1, normal ?? _normalUsed ?? 100000) / 100000), 0.5, 3);
+
+    // One wait at the normal price for a unique item worth this much: uniqueMinMinutes to uniqueMaxMinutes, longer
+    // the dearer. At least a minute.
+    public static double UniqueWaitMinutes(double normal)
+    {
+        var settings = _config?.Mod.PlayerSelling.SaleDelay;
+        var low = settings?.UniqueMinMinutes ?? 5;
+        var high = Math.Max(low, settings?.UniqueMaxMinutes ?? 20);
+        return Math.Max(1, (low + Random.Shared.NextDouble() * (high - low)) * Dearness(normal));
+    }
 
     public static void Delay(List<SellResult> sales)
     {
@@ -435,7 +448,8 @@ public class FlipPenaltyPatchesLoad(
     ConfigManager configManager,
     ItemHelper itemHelper,
     TraderHelper traderHelper,
-    RagfairOfferService ragfairOfferService) : IOnLoad
+    RagfairOfferService ragfairOfferService,
+    SPTarkov.Server.Core.Services.Commerce.MailSendService mailSendService) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -444,7 +458,7 @@ public class FlipPenaltyPatchesLoad(
             configManager.Load();
         }
 
-        FlipPenaltyGate.Bind(configManager, itemHelper, traderHelper, ragfairOfferService);
+        FlipPenaltyGate.Bind(configManager, itemHelper, traderHelper, ragfairOfferService, mailSendService);
         new RecordPurchasePatch().Enable();
         new ListingContextPatch().Enable();
         return Task.CompletedTask;
@@ -489,12 +503,16 @@ internal static class FlipPenaltyGate
     private static int _dirty;
     private static Timer? _saveTimer;
 
-    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, TraderHelper traderHelper, RagfairOfferService offers)
+    private static SPTarkov.Server.Core.Services.Commerce.MailSendService? _mail;
+
+    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, TraderHelper traderHelper, RagfairOfferService offers,
+        SPTarkov.Server.Core.Services.Commerce.MailSendService mail)
     {
         _config = configManager;
         _itemHelper = itemHelper;
         _traderHelper = traderHelper;
         _offers = offers;
+        _mail = mail;
 
         foreach (var (player, items) in DataFiles.Read<PurchaseFile>(FileName)?.Players ?? [])
         {
@@ -667,6 +685,101 @@ internal static class FlipPenaltyGate
         SaleDelayGate.EndListing();
     }
 
+    // A listing that waits longer because its item was just bought says so, so the wait isn't a mystery.
+    public static void TellPlayer(MongoId player)
+    {
+        // A notice the client never picked up isn't this listing's.
+        Notices.TryRemove(player, out _);
+        if (_listing is null || _mail is null || _config?.Mod.PlayerSelling.SaleDelay.Enabled != true)
+        {
+            return;
+        }
+
+        var extra = Math.Ceiling(ExtraWaitMinutes());
+        if (extra < 1 || Settings is not { } settings || _listing is not { } listing)
+        {
+            return;
+        }
+
+        var (bought, clearsIn) = Recent(player, listing.Tpl, settings);
+        // For the client plugin to show on screen, every listing.
+        Notices[player] = new FlipNotice { Tpl = listing.Tpl.ToString(), Minutes = extra, Bought = Math.Round(bought), ClearsIn = clearsIn };
+
+        // Listing several of it one after another: one message.
+        var key = $"{player}:{listing.Tpl}";
+        var now = Now();
+        if (Told.TryGetValue(key, out var at) && now - at < 120)
+        {
+            return;
+        }
+
+        Told[key] = now;
+        string Minutes(double count) => $"{count:0} minute{(Math.Round(count) == 1 ? "" : "s")}";
+        try
+        {
+            var name = SafeName(listing.Tpl);
+            var stacks = Stacks(listing.Tpl) ? $" (it stacks, so any {name} you list counts, not only the ones you bought)" : "";
+            _mail.SendSystemMessageToPlayer(player,
+                $"Better Flea flip penalty: you bought {bought:0} {name} in the last {Minutes(settings.WindowMinutes)}{stacks}. "
+                + $"Buyers will take about {Minutes(extra)} longer to get to this offer. "
+                + $"The first {settings.FreePurchases:0} you buy are free; from {settings.PurchasesForMaxPenalty:0} the wait is the longest, {Minutes(settings.MaxExtraMinutes)}. "
+                + (clearsIn > 0 ? $"Listed in about {Minutes(clearsIn)}, there'd be no wait. " : "")
+                + "It's there to put off buying to resell straight away.", null);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write(() => $"Flip penalty: couldn't send the message ({ex.Message})");
+        }
+    }
+
+    // Player and item -> when they were last told about the penalty.
+    private static readonly ConcurrentDictionary<string, long> Told = new();
+
+    // The penalty on each player's last listing, until the client plugin asks for it.
+    private static readonly ConcurrentDictionary<MongoId, FlipNotice> Notices = new();
+
+    public static FlipNotice? TakeNotice(MongoId player) => Notices.TryRemove(player, out var notice) ? notice : null;
+
+    // The game's own name for the item (English), or its database name.
+    private static string SafeName(MongoId tpl)
+    {
+        try
+        {
+            return _itemHelper?.GetItemName(tpl) is { Length: > 0 } name ? name : Name(tpl);
+        }
+        catch (Exception)
+        {
+            return Name(tpl);
+        }
+    }
+
+    // How many of the item the player bought within the window (Fence's counted as fenceMultiplier each), and in how
+    // many minutes the penalty would be gone.
+    private static (double Bought, int ClearsIn) Recent(MongoId player, MongoId tpl, FlipPenaltyConfig settings)
+    {
+        if (!History.TryGetValue(player, out var byItem) || !byItem.TryGetValue(tpl, out var list))
+        {
+            return (0, 0);
+        }
+
+        var window = settings.WindowMinutes * 60.0;
+        var now = Now();
+        List<Purchase> recent;
+        lock (list)
+        {
+            recent = list.Where(p => now - p.At < window).ToList();
+        }
+
+        double WeightIn(int minutes) => recent.Sum(p => p.Count * Math.Max(0, 1.0 - (now + minutes * 60 - p.At) / window));
+        var clears = 0;
+        while (clears < settings.WindowMinutes && WeightIn(clears) > settings.FreePurchases)
+        {
+            clears++;
+        }
+
+        return (recent.Sum(p => p.Count), clears);
+    }
+
     public static double ExtraWaitMinutes()
     {
         if (_listing is not { } listing || Settings is not { } settings)
@@ -776,6 +889,10 @@ public class ListingContextPatch : AbstractPatch
         {
             var (ratio, lowest) = SaleDelayGate.Outcome;
             Undercuts.AfterListing(sessionID, pmcData.RagfairInfo?.Offers, __result, ratio, lowest);
+            if (__result?.Warnings is not { Count: > 0 })
+            {
+                FlipPenaltyGate.TellPlayer(sessionID);
+            }
         }
         finally
         {

@@ -5,6 +5,7 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
+using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Spt.Tables;
 using SPTarkov.Server.Core.Services.Ragfair;
 
@@ -405,6 +406,7 @@ internal static class LivePrices
         }
 
         var count = 0;
+        var modded = new HashSet<MongoId>();
         foreach (var (tpl, spt) in _sptPrices!)
         {
             // Base-game items (a content backport mod's too) aren't modded: they keep their own price.
@@ -412,6 +414,8 @@ internal static class LivePrices
             {
                 continue;
             }
+
+            modded.Add(tpl);
 
             // Armour sells for 15-18x its handbook price, so the handbook ratio is allowed far wider.
             var fromFlea = spt * Math.Clamp(byFlea.For(item.Parent), 0.25, 4.0);
@@ -435,7 +439,88 @@ internal static class LivePrices
             count++;
         }
 
+        AtLeastTraderPrice(modded, tpl => items.GetValueOrDefault(tpl)?.Parent is { } kind ? prices.Ceiling(kind) : null);
         return count;
+    }
+
+    private static readonly MongoId Fence = new("579dc571d53a0658a154fbec");
+
+    // What a trader sells a modded item for is real, where its mod's flea and handbook prices are a guess: one a trader
+    // sells is worth at least the share gun pricing keeps of a trader's price (traderPricePercent, 95%), on the
+    // cheapest such offer. An offer of several items (a gun with its magazine) is split by price. Not Fence. Still
+    // under what 9 in 10 base-game items of its kind cost (ceiling), as a mod's trader can ask silly money too.
+    private static void AtLeastTraderPrice(HashSet<MongoId> modded, Func<MongoId, double?> ceiling)
+    {
+        if (_traders is null || modded.Count == 0)
+        {
+            return;
+        }
+
+        var prices = _templates!.Prices;
+        var handbook = Handbook.Value;
+        var share = Math.Clamp((_config?.Mod.Prices.Guns.TraderPricePercent ?? 95) / 100, 0, 1);
+        var floors = new Dictionary<MongoId, double>();
+        foreach (var (traderId, trader) in _traders)
+        {
+            if (traderId == Fence || trader.Assort?.Items is not { Count: > 0 } assort || trader.Assort.BarterScheme is not { } schemes)
+            {
+                continue;
+            }
+
+            var children = assort.Where(entry => entry.ParentId is not null).ToLookup(entry => entry.ParentId!);
+            foreach (var root in assort.Where(entry => entry.ParentId == "hideout"))
+            {
+                // Money only: a barter's worth is another guess.
+                if (!schemes.TryGetValue(root.Id, out var options) || options.FirstOrDefault() is not { Count: 1 } payment
+                    || payment[0].Count is not { } cost || cost <= 0
+                    || (payment[0].Template != Money.ROUBLES && handbook.GetValueOrDefault(payment[0].Template) is not > 0))
+                {
+                    continue;
+                }
+
+                var roubles = payment[0].Template == Money.ROUBLES ? cost : cost * handbook[payment[0].Template];
+                var tree = new List<SPTarkov.Server.Core.Models.Eft.Common.Tables.Item> { root };
+                for (var i = 0; i < tree.Count; i++)
+                {
+                    tree.AddRange(children[tree[i].Id.ToString()]);
+                }
+
+                if (!tree.Any(entry => modded.Contains(entry.Template)))
+                {
+                    continue;
+                }
+
+                var total = tree.Sum(entry => prices.GetValueOrDefault(entry.Template));
+                if (total <= 0)
+                {
+                    continue;
+                }
+
+                foreach (var entry in tree.Where(entry => modded.Contains(entry.Template)))
+                {
+                    var floor = roubles * share * prices.GetValueOrDefault(entry.Template) / total;
+                    if (floor > 0)
+                    {
+                        floors[entry.Template] = floors.TryGetValue(entry.Template, out var known) ? Math.Min(known, floor) : floor;
+                    }
+                }
+            }
+        }
+
+        var raised = new List<(MongoId Tpl, double From, double To)>();
+        foreach (var (tpl, traderFloor) in floors)
+        {
+            var floor = ceiling(tpl) is { } cap ? Math.Min(traderFloor, cap) : traderFloor;
+            if (prices.GetValueOrDefault(tpl) is var from && from < floor)
+            {
+                prices[tpl] = Math.Round(floor);
+                raised.Add((tpl, from, Math.Round(floor)));
+            }
+        }
+
+        DebugLog.Summary(() => $"Modded items: {raised.Count} raised to at least what a trader sells them for; most: "
+            + string.Join(", ", raised.OrderByDescending(entry => entry.To / Math.Max(1, entry.From)).Take(15)
+                .Select(entry => $"{_templates.Items.GetValueOrDefault(entry.Tpl)?.Name ?? entry.Tpl.ToString()} {entry.From:0} -> {entry.To:0}")));
     }
 
     // The median by item kind. A kind with fewer than 5 items uses the median of all of them.

@@ -47,6 +47,7 @@ internal static class ArmorOffers
     private static readonly MongoId VestBase = new("5448e5284bdc2dcb718b4567");
     private static readonly MongoId PlateBase = new("644120aa86ffbe10ee032b6f");
     private static readonly MongoId SoftInsertBase = new("65649eb40bf0ed77b8044453");
+    private static readonly MongoId HeadwearBase = new("5a341c4086f77401f2541505");
 
     private static readonly string[] FavouredPlates = ["monoclete", "elaphros"];
 
@@ -92,6 +93,45 @@ internal static class ArmorOffers
             part.Upd ??= new Upd();
             part.Upd.Togglable = new UpdTogglable { On = Random.Shared.NextDouble() < chance };
         }
+    }
+
+    // Now and then a helmet has something on it, as its last owner had it: a Bastion's armor plate, a shroud, ears.
+    public static void FitHelmetAttachment(List<Item> items)
+    {
+        var settings = Settings;
+        var helmet = items.FirstOrDefault();
+        if (!settings.Enabled || helmet is null || !_itemHelper!.IsOfBaseclass(helmet.Template, HeadwearBase)
+            || Random.Shared.NextDouble() >= settings.HelmetAttachmentChance)
+        {
+            return;
+        }
+
+        var free = (_itemHelper.GetItem(helmet.Template).Value?.Properties?.Slots ?? [])
+            .Where(slot => slot.Required != true && slot.Name is not null
+                && !items.Any(item => item.ParentId == helmet.Id && item.SlotId == slot.Name))
+            .ToList();
+        if (free.Count == 0)
+        {
+            return;
+        }
+
+        var slot = free[Random.Shared.Next(free.Count)];
+        var parts = PresetOfferGate.Parts(slot).Where(tpl => PresetOfferGate.CanGoOnBuild(tpl, slot)).ToList();
+        if (parts.Count == 0)
+        {
+            return;
+        }
+
+        var tpl = parts[Random.Shared.Next(parts.Count)];
+        var max = _itemHelper.GetItem(tpl).Value?.Properties?.MaxDurability ?? 0;
+        items.Add(new Item
+        {
+            Id = new MongoId(),
+            Template = tpl,
+            ParentId = helmet.Id,
+            SlotId = slot.Name,
+            Upd = max > 0 ? new Upd { Repairable = new UpdRepairable { Durability = max, MaxDurability = max } } : null
+        });
     }
 
     public static void FitPlates(List<Item> items)
@@ -340,7 +380,8 @@ internal static class ArmorOffers
         Mint,
         Worn,
         Destroyed,
-        Obliterated
+        Obliterated,
+        Shot
     }
 
     // Plates, face shields, armored masks and visors, helmet ears and tops.
@@ -362,8 +403,21 @@ internal static class ArmorOffers
         var weights = settings.ConditionByRarity.TryGetValue(template.Properties?.RarityPvE ?? "", out var byRarity)
             ? byRarity
             : new ArmorConditionWeights();
+
+        // Helmets are rarely wrecked, but a flea of near-max helmets looked wrong, rare ones (Ulach, Bastion) worst,
+        // so they are a bit less often mint than other armor.
+        var helmet = _itemHelper!.IsOfBaseclass(template.Id, HeadwearBase);
+        if (helmet)
+        {
+            var damage = Math.Clamp(settings.HelmetDamage, 0, 1);
+            weights = weights with { Mint = weights.Mint * HelmetMintShare, Destroyed = weights.Destroyed * damage, Obliterated = weights.Obliterated * damage };
+        }
         var bestKit = BestKits.TryRemove(root.Id, out _);
-        var overall = bestKit ? Condition.Mint : PickCondition(weights);
+
+        // Taken off a boss or guard: they were shot until they dropped, so a good max but a low current.
+        var overall = bestKit ? Condition.Mint
+            : helmet && PresetOfferGate.IsBossHelmet(template.Id) && Random.Shared.NextDouble() < Math.Clamp(settings.BossHelmetChance, 0, 1) ? Condition.Shot
+            : PickCondition(weights);
 
         // Soft armor mostly follows the plates; mint often comes out a bit worn.
         var softWeights = weights with { Mint = weights.Mint / 2, Worn = weights.Worn + weights.Mint / 2 };
@@ -384,10 +438,11 @@ internal static class ArmorOffers
             var state = bestKit ? Condition.Mint
                 : Random.Shared.NextDouble() < PieceOddOneOutChance ? PickMild(isSoftInsert ? softWeights : weights)
                 : isSoftInsert ? soft : overall;
-            Apply(item, state);
+            Apply(item, state, helmet);
         }
     }
 
+    private const double HelmetMintShare = 0.6;
     private const double SoftOwnRollChance = 0.3;
     private const double PieceOddOneOutChance = 0.2;
 
@@ -415,7 +470,7 @@ internal static class ArmorOffers
 
     // Destroyed: 15-35% left but a good max (worth repairing). Obliterated: the max is worn down too.
     // Never 1 HP: a plate only has about 40.
-    private static void Apply(Item item, Condition state)
+    private static void Apply(Item item, Condition state, bool helmet)
     {
         var full = _itemHelper!.GetItem(item.Template).Value?.Properties?.MaxDurability ?? 0;
         if (full <= 0)
@@ -426,6 +481,8 @@ internal static class ArmorOffers
         double Between(double low, double high) => low + Random.Shared.NextDouble() * (high - low);
         var (max, current) = state switch
         {
+            Condition.Worn when helmet => Worn(full * Between(0.8, 0.98), Between(0.6, 0.97)),
+            Condition.Shot => Worn(full * Between(0.88, 1.0), Between(0.2, 0.55)),
             Condition.Worn => Worn(full * Between(0.85, 1.0), Between(0.45, 0.98)),
             Condition.Destroyed => Worn(full * Between(0.8, 1.0), Between(0.15, 0.35)),
             Condition.Obliterated => Worn(full * Between(0.25, 0.45), Between(0.35, 0.55)),
@@ -434,6 +491,10 @@ internal static class ArmorOffers
 
         item.Upd ??= new Upd();
         item.Upd.Repairable = new UpdRepairable { Durability = current, MaxDurability = max };
+        if (max < full && Random.Shared.NextDouble() < Settings.RepairBuffChance)
+        {
+            UsedListingsGate.AddRepairBuff(item.Upd, current, weapon: false);
+        }
     }
 
     // At least 2: SPT prices 0 as new and 1 looks broken.

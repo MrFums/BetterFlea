@@ -107,6 +107,20 @@ internal static partial class PresetOfferGate
 
     public static string? TakeBuildKind() => _lastBuildKind;
 
+    // A gun with a build on it: two or more parts its factory build doesn't have (rounds don't count, and one cheap
+    // sight is still near stock). Someone put it together and used it.
+    public static bool HasBuild(IEnumerable<Item> items)
+    {
+        var list = items as IList<Item> ?? items.ToList();
+        if (list.Count < 3 || _presets?.GetDefaultPreset(list[0].Template)?.Items is not { Count: > 0 } preset)
+        {
+            return false;
+        }
+
+        var factory = preset.Select(item => item.Template).ToHashSet();
+        return list.Skip(1).Count(item => item.SlotId != "cartridges" && !factory.Contains(item.Template)) >= 2;
+    }
+
     // Plain guns are the same few parts, so prices bunch up without this.
     public static void ScatterPlainGunPrice(CreateFleaOfferDetails details)
     {
@@ -201,8 +215,22 @@ internal static partial class PresetOfferGate
     {
         var settings = Settings;
         var gun = items.FirstOrDefault();
-        if (gun is null || settings.RandomBuildChance <= 0
-            || Random.Shared.NextDouble() >= settings.RandomBuildChance || !_itemHelper!.IsOfBaseclass(gun.Template, GunBase))
+        if (gun is null || !_itemHelper!.IsOfBaseclass(gun.Template, GunBase))
+        {
+            return;
+        }
+
+        // Bought from a trader to flip: the factory gun untouched, several to an offer.
+        // Not a named build: a trader sells the factory gun.
+        if (_config!.Mod.GeneratedOffers.ItemsPerOffer is { Enabled: true } perOffer && perOffer.TraderGunStacks.Chance > 0
+            && BetterFlea.Prices.GunPricing.TraderSells(gun.Template) && !HasBuild(items)
+            && Random.Shared.NextDouble() < perOffer.TraderGunStacks.Chance)
+        {
+            _lastBuildKind = "traderflip";
+            return;
+        }
+
+        if (settings.RandomBuildChance <= 0 || Random.Shared.NextDouble() >= settings.RandomBuildChance)
         {
             return;
         }
@@ -219,7 +247,9 @@ internal static partial class PresetOfferGate
             return;
         }
 
-        var (tierName, tier) = PickTier(settings, gun.Template);
+        var (tierName, tier) = IsBossGun(gun.Template) && Random.Shared.NextDouble() < _config!.Mod.GeneratedOffers.UsedItems.Guns.BossGunGroundShare
+            ? ("ground", settings.Ground)
+            : PickTier(settings, gun.Template);
 
         var style = tierName == "budget" ? BuildStyle.Budget : BuildQuality.PickStyle(settings.BuildStyles);
         string? origin = null;
@@ -1972,6 +2002,7 @@ public class RandomBuildPatch : AbstractPatch
         }
 
         ArmorOffers.FitPlates(itemWithChildren);
+        ArmorOffers.FitHelmetAttachment(itemWithChildren);
         PresetOfferGate.MaybeRandomBuild(itemWithChildren);
     }
 }
@@ -2015,10 +2046,13 @@ public class OfferPricingPatch : AbstractPatch
             }
 
             BetterFlea.Prices.SellerPricing.ApplyMultiplier(details);
+            BetterFlea.Prices.SellerPricing.CapUsedKey(details);
             BetterFlea.Prices.SellerPricing.Humanise(details);
         }
 
         OfferQuantityGate.MatchCondition(details);
+        OfferQuantityGate.StockGunStack(details);
+        OfferQuantityGate.HelmetStack(details);
         if (details.Creator == OfferCreator.FakePlayer && details.Items is { } offerItems)
         {
             ArmorOffers.FlipHinges(offerItems);

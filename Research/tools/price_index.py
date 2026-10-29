@@ -11,6 +11,10 @@ Sources, best first, all from tarkov.dev (PvP "regular" and PvE):
 - Guns: the gun item is priced so its default build costs what that build sells for on the flea.
 Never below the best trader sell price. Rounded to 3 significant figures.
 
+Few listings are mostly the ones nobody buys, so a thin day counts near its cheapest listing, not the average. Weapons
+and weapon parts without plenty of listings are held to what traders say they're worth: twice the trader's price or
+markup at most, and a part that comes on a build a trader sells to twice its share of that build.
+
 SPT's prices and the handbook are only shown next to it in the review, never used.
 
 Writes Prices/price-index.json (embedded in the mod), Research/price-index.tsv (every item and where its price came
@@ -200,6 +204,22 @@ MIN_LISTINGS = 3
 HISTORY_DAYS = 365
 GOOD_DAYS = 14
 THIN_DAYS = 5
+# A reading's price is the average of what's listed, and with only a few listings that's mostly the ones nobody buys
+# (an AK-545 Mk.3 handguard: one listing at 99,999 for weeks, while the few at 40-50k sold). Buyers take the cheapest.
+# Below DEEP listings a reading counts for no more than its cheapest listing times CHEAPEST_TO_AVERAGE, which is how far
+# the average sits over the cheapest where there are plenty of listings (about 3/4), so a thin item and a well-listed
+# one come out on the same scale. Ammo is left alone: it sells by the round, and its cheapest is often a few odd ones.
+DEEP = 10
+CHEAPEST_TO_AVERAGE = 4 / 3
+
+
+def reading(p):
+    if (p.get("offerCount") or 0) >= DEEP:
+        return p["price"]
+    return min(p["price"], (p.get("priceMin") or p["price"]) * CHEAPEST_TO_AVERAGE)
+
+
+
 # The year runs back from when tarkov.dev's files were downloaded, not from today, so a rebuild on another day gives the
 # same prices.
 NOW_MS = os.path.getmtime(os.path.join(CACHE, "regular-items.json")) * 1000 if os.path.exists(os.path.join(CACHE, "regular-items.json")) else time.time() * 1000
@@ -209,11 +229,11 @@ _HISTORY = {}
 def history(mode, tpl):
     key = (mode, tpl)
     if key not in _HISTORY:
-        _HISTORY[key] = summarise(os.path.join(CACHE, "history", mode, f"{tpl}.json"))
+        _HISTORY[key] = summarise(os.path.join(CACHE, "history", mode, f"{tpl}.json"), kind(tpl) != AMMO)
     return _HISTORY[key]
 
 
-def summarise(path):
+def summarise(path, cheapest=True):
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as f:
@@ -227,7 +247,8 @@ def summarise(path):
         days = {}
         for p in readings:
             days.setdefault(int(p["timestamp"] // 864e5), []).append(p)
-        return [(statistics.median(p["price"] for p in ps), statistics.median(p.get("priceMin") or p["price"] for p in ps))
+        return [(statistics.median(reading(p) if cheapest else p["price"] for p in ps),
+                 statistics.median(p.get("priceMin") or p["price"] for p in ps), statistics.median(p["price"] for p in ps))
                 for _, ps in sorted(days.items())]
 
     good = daily([p for p in recent if (p.get("offerCount") or 0) >= MIN_LISTINGS])
@@ -238,7 +259,8 @@ def summarise(path):
     last30 = [d[0] for d in days[-30:]]
     return {"price": statistics.median(prices), "low": statistics.median(d[1] for d in days),
             "p25": prices[len(prices) // 4], "p75": prices[len(prices) * 3 // 4], "p80": prices[int(len(prices) * 0.8)],
-            "recent": statistics.median(last30), "days": len(days), "good": days is good}
+            "recent": statistics.median(last30), "days": len(days), "good": days is good,
+            "depth": statistics.median((p.get("offerCount") or 0) for p in recent), "average": statistics.median(d[2] for d in days)}
 
 
 _MODE = {}
@@ -266,18 +288,68 @@ def solid(entry):
 flea = solid
 
 
+# The plain average of what was listed, as prices were worked out before the cheapest-listing rule above.
+def average(entry):
+    h = history(*_MODE[id(entry)]) if entry else None
+    return h["average"] if h and h["good"] else solid(entry)
+
+
+# Plenty of listings on a typical day: its price stands as the market says, however far from what traders pay.
+def deep(entry):
+    if not entry:
+        return False
+    h = history(*_MODE[id(entry)])
+    return (h["depth"] if h else entry.get("lastOfferCount") or 0) >= DEEP
+
+
+# Weapons, weapon parts and builds. What they're worth follows what traders pay for them, so a thin price far over that
+# is somebody's bait. Keys, collectibles and barter goods are worth what collectors pay, so those are left to the
+# looser checks further down.
+WEAPON_PART = "5448fe124bdc2da5018b4567"
+WEAPON_KINDS = {WEAPON_PART, "5422acb9af1c889c16000029"}
+# A weapon item without plenty of listings counts for no more than this times what traders say it's worth. Parts with
+# plenty of listings sit under 2.5x of it nine times in ten.
+WEAPON_CAP = 2
+
+
+def ancestors(tpl):
+    seen = []
+    while tpl and tpl in ITEMS:
+        tpl = ITEMS[tpl].get("_parent")
+        seen.append(tpl)
+    return seen
+
+
+def checked(tpl, entry):
+    return is_preset(entry or {}) or bool(WEAPON_KINDS & set(ancestors(tpl)))
+
+
 BASE = [tpl for tpl, entry in PVP.items() if not is_preset(entry) and tpl in ITEMS]
 BASE += [tpl for tpl, entry in PVE.items() if not is_preset(entry) and tpl in ITEMS and tpl not in PVP]
 
-# How far over the best trader sell price the flea pays, per kind of item (median of items with both).
+# How far over the best trader sell price the flea pays, per kind of item (median of items with both), from the plain
+# average.
 markups = {}
 for tpl in BASE:
     sell = trader_sell(tpl, fence=False)
-    prices = [p for p in (flea(PVP.get(tpl)), flea(PVE.get(tpl))) if p]
+    prices = [average(e) for e in (PVP.get(tpl), PVE.get(tpl)) if e and flea(e)]
     if sell and prices:
         markups.setdefault(kind(tpl), []).append(prices[0] / sell)
 ALL_MARKUP = statistics.median([m for ms in markups.values() for m in ms])
 MARKUP = {k: statistics.median(ms) for k, ms in markups.items() if len(ms) >= 5}
+# Weapon kinds from items with plenty of listings only: the rest are mostly bait, and counting them gave weapon parts
+# like triggers and hammers 34 times the trader sell price, so a 30,000 HK USP trigger passed as fair. A kind with too
+# few goes by all weapon items with plenty of listings.
+weapon_markups = {}
+for tpl in BASE:
+    sell = trader_sell(tpl, fence=False)
+    entries = [e for e in (PVP.get(tpl), PVE.get(tpl)) if e and flea(e) and deep(e)]
+    if sell and entries and checked(tpl, entries[0]):
+        weapon_markups.setdefault(kind(tpl), []).append(flea(entries[0]) / sell)
+WEAPON_MARKUP = statistics.median([m for ms in weapon_markups.values() for m in ms])
+for _kind in {kind(tpl) for tpl in BASE if checked(tpl, PVP.get(tpl) or PVE.get(tpl))}:
+    _ms = weapon_markups.get(_kind, [])
+    MARKUP[_kind] = statistics.median(_ms) if len(_ms) >= 5 else WEAPON_MARKUP
 
 
 def markup(tpl):
@@ -298,16 +370,23 @@ def anchor(tpl):
 # item is worth (their price, or their sell price times the markup). Those are somebody's bait: an 18,888 NSPU-M
 # eyecup Prapor sells for 355. A cheap one stands; bait is never cheap. With nothing from traders, it counts only if
 # the other mode's agrees (within 2x). Rounds are left alone. The markups above came from solid prices only.
+# Weapon items without plenty of listings are checked the same way even when their days are solid, and more tightly
+# (WEAPON_CAP): enough listed days doesn't make one listing at 99,999 a price. One a trader sells counts up to
+# WEAPON_CAP times the trader's price, and the trader-price rule further down takes most of what's over.
 LOW_LISTINGS = {}
 ACCEPTED = {}
 for _mode, _other in ((PVP, PVE), (PVE, PVP)):
     for _tpl, _entry in _mode.items():
         _solid = solid(_entry)
-        if _solid:
+        _weapon = checked(_tpl, _entry) and not deep(_entry)
+        if _solid and _weapon and trader_buy(_tpl):
+            ACCEPTED[id(_entry)] = min(_solid, trader_buy(_tpl) * WEAPON_CAP)
+            continue
+        if _solid and not _weapon:
             ACCEPTED[id(_entry)] = _solid
             continue
         _h = history(*_MODE[id(_entry)])
-        _price = _h["price"] if _h else _entry.get("avg24hPrice")
+        _price = _solid or (_h["price"] if _h else _entry.get("avg24hPrice"))
         if not _price or banned(_entry):
             continue
         if kind(_tpl) == AMMO:
@@ -315,8 +394,10 @@ for _mode, _other in ((PVP, PVE), (PVE, PVP)):
             continue
         _target, _ = anchor(_tpl)
         _other_entry = _other.get(_tpl)
-        _twin = (history(*_MODE[id(_other_entry)]) or {}).get("price") if _other_entry else None
-        if (_price <= _target * 3) if _target else bool(_twin and max(_price, _twin) / min(_price, _twin) <= 2):
+        # The two modes compared on their plain averages: the cheapest-listing rule can move them apart.
+        _twin = (history(*_MODE[id(_other_entry)]) or {}).get("average") if _other_entry else None
+        _plain = _h["average"] if _h else _price
+        if (_price <= _target * (WEAPON_CAP if _weapon else 3)) if _target else bool(_twin and max(_plain, _twin) / min(_plain, _twin) <= 2):
             ACCEPTED[id(_entry)] = _price
         else:
             LOW_LISTINGS.setdefault(_tpl, []).append(_price)
@@ -344,7 +425,10 @@ def price_from_flea(tpl, pvp, pve):
         return math.sqrt(pvp * pve), "flea, PvP and PvE (key)", None
     price, mode = (pvp, "PvP") if pvp else (pve, "PvE only")
     target, _ = anchor(tpl)
-    review = "PvE price only, far from what traders say"         if not pvp and target and price >= 5000 and log_gap(price, target) > math.log(5) else None
+    # Judged on the plain average too, so the cheapest-listing rule can't bring a price just under the line and skip
+    # the review it got before. Weapon items by the tighter WEAPON_CAP.
+    gap = log_gap(max(price, average(PVE.get(tpl)) or 0), target) if target else 0
+    review = "PvE price only, far from what traders say" if not pvp and target and price >= 5000 and gap > math.log(WEAPON_CAP if checked(tpl, PVE.get(tpl)) else 5) else None
     if not pvp and not target and price >= 100000:
         review = "PvE price only, nothing from traders to check against"
     return price, f"flea, {mode}", review
@@ -398,7 +482,8 @@ for tpl in BASE:
         continue
     sell = trader_sell(tpl, fence=False)
     if sell:
-        record(tpl, sell * markup(tpl), f"trader sell price x {markup(tpl):.1f} (flea-banned)")
+        why = "too few listings, far over what traders say" if tpl in LOW_LISTINGS else "flea-banned"
+        record(tpl, sell * markup(tpl), f"trader sell price x {markup(tpl):.1f} ({why})")
 
 # Ammo packs: their rounds. Packs are rarely listed and their averages are mostly a few odd listings.
 for tpl, row in rows.items():
@@ -422,6 +507,26 @@ for tpl, row in rows.items():
     if sell and row["price"] < sell:
         row["note"] = (row["note"] + "; " if row["note"] else "") + "raised to the trader sell price"
         row["price"] = round3(sell)
+
+# A weapon part that comes on a build a trader sells can be had by buying that build and taking it off, so without
+# plenty of listings it's worth no more than twice its share of the build (by handbook price) of the cheapest such
+# build. Stock parts nobody lists on their own (a Vityaz metal skeleton stock at 10,000) come down to what the gun
+# they come on says they're worth.
+BUILD_SHARE = {}
+for _entry in list(PVP.values()) + list(PVE.values()):
+    _offers = [o["priceRUB"] for o in _entry.get("buyFromTrader") or [] if o.get("priceRUB")]
+    if not is_preset(_entry) or not _offers:
+        continue
+    _parts = [c["item"] for c in _entry.get("containsItems") or [] if c["item"] in rows]
+    _total = sum(HANDBOOK.get(p, 0) for p in _parts)
+    for _p in _parts:
+        if _total and HANDBOOK.get(_p) and WEAPON_PART in ancestors(_p):
+            BUILD_SHARE[_p] = min(BUILD_SHARE.get(_p, math.inf), min(_offers) * HANDBOOK[_p] / _total)
+for tpl, share in BUILD_SHARE.items():
+    row = rows[tpl]
+    if not deep(PVP.get(tpl)) and not deep(PVE.get(tpl)) and row["price"] > share * 2:
+        row["note"] = (row["note"] + "; " if row["note"] else "") + f"was {row['price']:,}, over twice its share of a trader's build"
+        row["price"] = round3(max(share * 2, trader_sell(tpl) or 0))
 
 # Guns: the default build's flea price, less its parts.
 DEFAULT_PRESET = {p["_encyclopedia"]: pid for pid, p in PRESETS.items() if p.get("_encyclopedia")}

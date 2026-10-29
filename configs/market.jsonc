@@ -3,12 +3,16 @@
 // Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 // "Chance" values go from 0 (never) to 1 (always). Delete this file and restart the server to get the defaults back.
 {
-  // How long each offer is listed for, in minutes: a random time in this range per offer (live: up to 24 hours).
-  // Each offer is found partway through its time: good deals mostly just listed (they don't last), overpriced
-  // ones mostly close to expiring (nobody bought them).
+  // How long each offer is listed for. Live, people list for 12 or 24 hours, and a big stack is often up for days.
+  // Each offer is found partway through its time, mostly soon after it went up: few show the red "under 10 hours".
+  // Good deals are fresher still (they don't last), overpriced ones older (nobody bought them).
   "offerExpiry": {
-    "minMinutes": 360,
-    "maxMinutes": 1440
+    "minMinutes": 360,               // shortest and longest an offer can be up (7200 = 5 days, 10080 at most)
+    "maxMinutes": 7200,
+    "hours": { "12": 0.3, "24": 0.7 }, // how long people list for, in hours, by weight. {} = any time from min to max
+    "longStackMin": 10,              // a stack of this many or more (of an item that doesn't stack)...
+    "longChance": 0.35,              // ...is this often listed for days (1.5 days up to maxMinutes)
+    "freshness": 20                  // 1 = found anywhere in their time, higher = most just listed
   },
 
   // Other players buying: every few minutes some offers sell and come off the market. Good deals go fast, offers at
@@ -17,6 +21,7 @@
     "enabled": true,
     "everyMinutes": 5,               // how often buyers come round
     "normalSellChancePerHour": 0.04, // chance an offer at the normal price sells within an hour
+    "topSellChancePerHour": 0.5,     // the cheapest few offers of every item sell this often (busy items more, rare ones less) and are relisted fresh
     "dealSpeedup": 20,               // an offer 20% under normal sells this many times as fast; 20% over, this many times slower
     "dealGoneMinMinutes": 1,         // an offer 10% or more under normal is bought by someone else this long after it appears
     "dealGoneMaxMinutes": 6          // (random between), so a deal has to be spotted quickly
@@ -51,8 +56,8 @@
   // seller name keeps its badge (and its rating) on every offer. Never a trader's or system badge.
   "sellerBadges": {
     "enabled": true,
-    "edgeOfDarknessChance": 0.20,
-    "unheardChance": 0.15,
+    "edgeOfDarknessChance": 0.25,
+    "unheardChance": 0.20,
     "specialChance": 0.001           // a Developer, Sherpa or Emissary badge. 0.001 = 1 in 1000
   },
 

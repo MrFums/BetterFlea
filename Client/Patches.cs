@@ -66,7 +66,7 @@ internal class AddOfferPatch : ModulePatch
     }
 
     [PatchPrefix]
-    public static bool Prefix(string[] items, Action callback)
+    public static bool Prefix(string[] items, ref Action callback)
     {
         if (FleaStatus.SellingOff)
         {
@@ -77,10 +77,12 @@ internal class AddOfferPatch : ModulePatch
 
         if (items == null || !items.Any(FleaStatus.IsBoughtFromTrader))
         {
+            // Once listed, say if it waits longer for buyers (the flip penalty).
+            callback = FlipNotice.After(callback);
             return true;
         }
 
-        NotificationManager.DisplayWarningNotification("Trader items can't be sold at the Flea Market.");
+        NotificationManager.DisplayWarningNotification(ClientText.Get("Trader items can't be sold at the Flea Market."));
         callback?.Invoke();
         return false;
     }

@@ -197,7 +197,20 @@
   .type { border: 1px solid var(--line); background: var(--panel-2); border-radius: 99px; padding: 3px 10px; font-size: 12px; color: var(--muted); cursor: pointer; }
   .type:hover:not(:disabled) { border-color: var(--slate); color: var(--text); }
   .type.on { background: rgba(226, 112, 92, 0.14); border-color: rgba(226, 112, 92, 0.6); color: var(--text); }
-  .mod.banned .types { opacity: 0.6; }
+  .mod.ban { border-color: rgba(226, 112, 92, 0.5); }
+  .mod.allow { border-color: rgba(120, 180, 80, 0.5); }
+  .mod .n { color: var(--faint); font-size: 12px; margin-left: 8px; }
+  .mod .link { background: none; border: 0; color: var(--muted); font-size: 12px; padding: 6px 0 0; cursor: pointer; }
+  .mod .link:disabled { opacity: 0.4; cursor: default; }
+  .type-rows { display: grid; gap: 4px; margin-top: 6px; }
+  .type-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { background: var(--panel-2); border: 0; border-left: 1px solid var(--line); color: var(--muted); font-size: 12px; padding: 4px 10px; cursor: pointer; }
+  .seg button:first-child { border-left: 0; }
+  .seg button:hover { color: var(--text); }
+  .seg button.on { color: var(--text); background: var(--line); }
+  .seg button.on.ban { background: rgba(226, 112, 92, 0.25); }
+  .seg button.on.allow { background: rgba(120, 180, 80, 0.25); }
   .mod.skipped { border-color: var(--warn); }
   .mod.skipped .why { color: var(--muted); font-size: 12px; margin-top: 6px; }
   .mod-head .failed { color: var(--warn); font-size: 12px; }
@@ -296,6 +309,7 @@
     <span class="status" id="status">Unsaved changes</span>
     <button class="btn" id="discard" disabled>Discard</button>
     <button class="btn primary" id="save" disabled>Save</button>
+    <select class="btn" id="lang" aria-label="Language"></select>
     <div class="menu" id="menu">
       <button class="btn" id="menuButton">More ▾</button>
       <div class="menu-list">
@@ -314,6 +328,7 @@
 <main id="main"><div class="loading">Loading settings…</div></main>
 
 <footer>
+  <span>Created by Fums</span>
   <span>Saved settings go into the files in <code>configs\</code>.</span>
   <a href="https://github.com/MrFums/BetterFlea" target="_blank" rel="noopener">GitHub</a>
   <a href="https://sp-mod.com/mod/3177/better-flea" target="_blank" rel="noopener">Mod page</a>
@@ -372,6 +387,7 @@ const LABELS = {
   "flea.jsonc:bannedItems": "Banned items",
   "flea.jsonc:allowedItems": "Always allowed",
   "flea.jsonc:bannedModItems": "Mod items",
+  "flea.jsonc:allowedModItems": "Flea-banned mod items",
   "flea.jsonc:levelLock": "Item unlock levels",
   "flea.jsonc:levelLock.allowSellingBelowLevel": "Allow selling below the level",
   "flea.jsonc:levelLock.moddedItems": "Modded items",
@@ -392,11 +408,17 @@ const LABELS = {
   "listings.jsonc:itemsPerOffer.grenadeWeights": "Grenades per offer",
   "listings.jsonc:itemsPerOffer.grenadeBulk": "Grenade piles",
   "listings.jsonc:itemsPerOffer.stimBulk": "Stim handfuls",
+  "listings.jsonc:itemsPerOffer.stimBatch": "Stim batches",
   "listings.jsonc:itemsPerOffer.fullMedWeights": "Full meds per offer",
+  "listings.jsonc:itemsPerOffer.fullStacks": "Big stacks of full meds and drinks",
+  "listings.jsonc:itemsPerOffer.usedMedStacks": "Flippers' used medkit stacks",
   "listings.jsonc:offerCurrency": "Price currency",
   "condition.jsonc:guns.wornChanceByRarity": "Worn guns by rarity",
   "condition.jsonc:guns.wearByBuild": "Wear by build type",
   "condition.jsonc:*.oneUsePricePercent": "One-use price",
+  "condition.jsonc:*.oneDownChance": "One use down",
+  "condition.jsonc:*.usedPricePercent": "Used price",
+  "condition.jsonc:*.amountPriceWeight": "Amount left counts",
   "weapons.jsonc:presets": "Gun builds",
   "weapons.jsonc:presets.showCustomBuilds": "SPT's other presets",
   "weapons.jsonc:presets.randomBuildChance": "Own builds",
@@ -407,6 +429,20 @@ const LABELS = {
   "armor.jsonc:class3Chance": "Both plates class 3",
   "armor.jsonc:bestKitChance": "Best kit",
   "market.jsonc:offerExpiry": "Offer length",
+  "market.jsonc:offerExpiry.hours": "Listed for (hours)",
+  "market.jsonc:offerExpiry.longStackMin": "Big stack size",
+  "market.jsonc:offerExpiry.longChance": "Big stacks up for days",
+  "listings.jsonc:itemsPerOffer.stockGunStacks": "Several factory guns",
+  "listings.jsonc:itemsPerOffer.traderGunStacks": "Trader gun flips",
+  "listings.jsonc:itemsPerOffer.helmetStacks": "Several mint helmets",
+  "condition.jsonc:keys.usedChanceByRarity": "Used keys by rarity",
+  "condition.jsonc:guns.bossGunGroundShare": "Boss guns as found",
+  "condition.jsonc:guns.bossGunWear": "Boss gun wear",
+  "condition.jsonc:*.repairBuffChance": "Repair kit bonus",
+  "armor.jsonc:helmetAttachmentChance": "Helmet attachments",
+  "armor.jsonc:helmetDamage": "Helmet damage",
+  "armor.jsonc:bossHelmetChance": "Boss helmets",
+  "armor.jsonc:repairBuffChance": "Repair kit bonus",
   "market.jsonc:simulatedSales": "Other buyers",
   "market.jsonc:soldBeforeYouChance": "Sold before you",
   "market.jsonc:sellerRating": "Seller ratings",
@@ -449,6 +485,10 @@ const LABELS = {
   "selling.jsonc:saleDelay.uniqueMaxMinutes": "Guns and armour: longest wait (minutes)",
   "selling.jsonc:saleDelay.slowSaleMaxHours": "Slow sales: up to (hours)",
   "prices.jsonc:sellers.roundPriceChance": "Easy round prices",
+  "prices.jsonc:sellers.trollChance": "Troll prices",
+  "prices.jsonc:sellers.trollGunChance": "Troll prices on guns",
+  "prices.jsonc:sellers.trollMinMultiplier": "Smallest troll price",
+  "prices.jsonc:sellers.trollMaxMultiplier": "Biggest troll price",
   "selling.jsonc:undercut": "Undercutting sellers",
   "selling.jsonc:buyers": "Buyers (order book)",
   "weapons.jsonc:presets.forgotScopeChance": "Forgot-the-scope deal chance",
@@ -505,7 +545,8 @@ const DESC = {
   "flea.jsonc:bannedCategories": "Turn a type of item on to take it off the Flea Market completely.",
   "flea.jsonc:bannedItems": "Items or whole categories that are never on the Flea Market.",
   "flea.jsonc:allowedItems": "Items or whole categories that are always on the Flea Market, even if banned above.",
-  "flea.jsonc:bannedModItems": "Keep a server mod's items off the flea: all of them, or only some types. Only mods that add items are listed.",
+  "flea.jsonc:bannedModItems": "Items that server mods add, for the whole mod or per type: as the mod sets them, banned from the flea, or allowed (the ones the mod itself keeps off the flea, let on anyway). Only mods that add items are listed.",
+  "flea.jsonc:allowedModItems": "Some mods mark their own items as not sellable on the flea. Let them on anyway: all of a mod's, or only some types. Only mods that ban some of their items are listed.",
   "flea.jsonc:levelLock": "Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40). In game, items show the level they unlock at and flea categories show a lock. Off by default; the Live progression flea style turns it on. Applies straight away.",
   "flea.jsonc:levelLock.allowSellingBelowLevel": "Let players list items they can't buy yet. Buying stays locked.",
   "flea.jsonc:levelLock.moddedItems": "Modded items unlock with the real items of their kind worth about the same. Off: modded items need no level.",
@@ -538,31 +579,44 @@ const DESC = {
   "listings.jsonc:itemsPerOffer.grenadeWeights": "How likely each amount is. Box 1 is one grenade, box 2 is two and so on. A bigger number makes that amount more likely.",
   "listings.jsonc:itemsPerOffer.grenadeBulk": "Now and then someone sells a pile of grenades.",
   "listings.jsonc:itemsPerOffer.stimBulk": "Now and then someone sells a handful of the same stim.",
+  "listings.jsonc:itemsPerOffer.stimBatch": "Rarely someone sells off a whole batch of one stim they had stored.",
   "listings.jsonc:itemsPerOffer.*.chance": "How often it happens.",
   "listings.jsonc:itemsPerOffer.*.min": "Fewest in one.",
   "listings.jsonc:itemsPerOffer.fullMedWeights": "How likely each amount of full meds is in one offer. Box 1 is one, box 2 is two and so on. A bigger number makes that amount more likely.",
+  "listings.jsonc:itemsPerOffer.fullStacks": "Now and then someone sells a big stack of full meds, food or drinks, like 30 IFAKs or 31 waters.",
+  "listings.jsonc:itemsPerOffer.usedMedStacks": "Now and then a flipper sells a stack of used medkits, all with the same amount left.",
+  "listings.jsonc:itemsPerOffer.stockGunStacks": "Now and then factory guns as found come several to an offer, like someone listing a boss farm's haul.",
+  "listings.jsonc:itemsPerOffer.helmetStacks": "Now and then a helmet that is easy to come by (not superrare, or a trader sells it) comes several to an offer, only at max/max durability. Chance per such offer.",
+  "listings.jsonc:itemsPerOffer.traderGunStacks": "Now and then someone flips guns bought from a trader: the exact factory gun at 100/100, several to an offer. Chance per offer of a gun a trader sells.",
   "listings.jsonc:offerCurrency": "How often a price is in roubles, dollars or euros. Only how they compare matters.",
 
   // Condition
   "condition.jsonc:keys": "Keys with some of their uses gone.",
   "condition.jsonc:markedKeys": "Marked keys with some of their uses gone.",
   "condition.jsonc:keycards": "Keycards with some of their uses gone.",
-  "condition.jsonc:meds": "Medkits, surgical kits and painkillers with some of them used. Used ones are always one per offer.",
+  "condition.jsonc:meds": "Medkits, surgical kits and painkillers with some of them used. Used ones are one per offer, apart from the odd flipper's stack.",
   "condition.jsonc:foodAndDrink": "Food and drink with some of it gone.",
   "condition.jsonc:fuel": "Fuel cans with some fuel gone, and the odd empty one.",
   "condition.jsonc:repairKits": "Repair kits that have been used, often worn right down.",
   "condition.jsonc:*.usedChance": "Chance an offer is partly used.",
-  "condition.jsonc:*.usesLeftFalloff": "Lower = more of them down to their last use.",
+  "condition.jsonc:*.usesLeftFalloff": "Lower = more of them down to their last use. 1 = any number left. Above 1 = most used ones are only a few uses down.",
   "condition.jsonc:*.oneUsePricePercent": "Price with one use left, compared with a new one.",
+  "condition.jsonc:*.oneDownChance": "Share of used ones that are only one use down (9/10): used once and sold on.",
   "condition.jsonc:*.lowAmountBias": "Higher = more of them nearly empty.",
+  "condition.jsonc:*.usedPricePercent": "Price of a used one, compared with a full one. Live, a used water costs about a third less than a full one.",
+  "condition.jsonc:*.amountPriceWeight": "How much the amount left changes the price on top. 0 = a used one costs the same whatever is left, 1 = the price follows the amount left. 100% and 1 are SPT's own.",
   "condition.jsonc:fuel.emptyChance": "Chance a can is listed completely empty.",
   "condition.jsonc:fuel.emptyScamChance": "Share of empty cans priced like a full one.",
   "condition.jsonc:guns": "Guns are worn like players use them, and the price follows the durability.",
   "condition.jsonc:guns.wornChanceByRarity": "Chance a gun is worn, by how rare it is.",
   "condition.jsonc:guns.maxWear": "Most a worn gun can be below its max durability.",
-  "condition.jsonc:guns.lowMaxChance": "Chance a gun's max durability has been lowered by repairs.",
+  "condition.jsonc:guns.lowMaxChance": "Chance a worn gun's max durability has been lowered by repairs. A gun that isn't worn keeps its full max.",
   "condition.jsonc:guns.lowMaxMin": "Lowest a lowered max durability goes.",
   "condition.jsonc:guns.lowMaxMax": "Highest a lowered max durability goes.",
+  "condition.jsonc:guns.repairBuffChance": "Chance a gun with a lowered max has a repair kit bonus (the gold background). Very rare.",
+  "condition.jsonc:guns.bossGunGroundShare": "Guns only bosses and their guards carry, which no trader sells (M60E6, PKP, Mk 43): share listed as the factory gun as found. People farm the boss and list them.",
+  "condition.jsonc:guns.bossGunWear": "How often the other boss guns are worn, next to other guns. 0.15 = 15% as often.",
+  "condition.jsonc:keys.usedChanceByRarity": "Chance of a used key times this, by how rare the key is. Cheap common keys are bought for one quest and sold on unused.",
   "condition.jsonc:guns.wearByBuild": "How worn each kind of build is. 1 = normal, 2 = much more, 0.5 = half as much.",
 
   // Weapons
@@ -632,15 +686,24 @@ const DESC = {
   "armor.jsonc:sidePlateChance": "Chance armour that takes side plates has them.",
   "armor.jsonc:bestKitChance": "Chance of class 4 front and back with class 6 sides, all mint.",
   "armor.jsonc:flippedDownChance": "Chance a face shield, visor or night vision is listed flipped down.",
+  "armor.jsonc:helmetAttachmentChance": "Chance a helmet comes with something on it, like a Bastion's armor plate, a shroud or ears.",
+  "armor.jsonc:helmetDamage": "Helmets are rarely wrecked. 1 = as often badly damaged as other armor, 0 = never.",
+  "armor.jsonc:bossHelmetChance": "Chance a helmet a boss or guard can wear comes off one: a good max (88-100%) but a low current (20-55%), as they were shot until they dropped.",
+  "armor.jsonc:repairBuffChance": "Chance a piece with a lowered max has a repair kit bonus (the gold background). Very rare.",
   "armor.jsonc:conditionByRarity": "How likely each condition is for armour and plates, by how rare the item is. Only how they compare matters.",
 
   // Market
   "market.jsonc:offerExpiry": "How long an offer stays up. Each one is found partway through its time.",
   "market.jsonc:offerExpiry.minMinutes": "Shortest, in minutes.",
-  "market.jsonc:offerExpiry.maxMinutes": "Longest, in minutes.",
+  "market.jsonc:offerExpiry.maxMinutes": "Longest, in minutes. Big stacks can be up this long.",
+  "market.jsonc:offerExpiry.hours": "How long people list for, in hours, and how often. Live, nearly everyone picks 12 or 24. Empty = any time between shortest and longest.",
+  "market.jsonc:offerExpiry.longStackMin": "A stack of at least this many is a big stack.",
+  "market.jsonc:offerExpiry.longChance": "Chance a big stack is listed for days (a day and a half up to the longest).",
+  "market.jsonc:offerExpiry.freshness": "How recently offers went up when you find them. 1 = anywhere in their time, higher = most just listed, so few show the red time.",
   "market.jsonc:simulatedSales": "Other players buying: good deals go fast, overpriced ones hardly ever.",
   "market.jsonc:simulatedSales.everyMinutes": "How often they buy, in minutes.",
   "market.jsonc:simulatedSales.normalSellChancePerHour": "Chance an offer at the normal price sells within an hour.",
+  "market.jsonc:simulatedSales.topSellChancePerHour": "The cheapest few offers of every item sell this often per hour for an everyday item (busy items more, dear and rare ones less) and are relisted fresh, so the market keeps moving while you're not looking. 0 = off.",
   "market.jsonc:simulatedSales.dealSpeedup": "How much faster an offer 20% under the normal price sells.",
   "market.jsonc:soldBeforeYouChance": "Chance a gun or barter item you try to buy was already bought by someone else.",
   "market.jsonc:barterOffers": "Offers that want items instead of money.",
@@ -681,7 +744,11 @@ const DESC = {
   "prices.jsonc:sellers.quickSellChance": "Chance an offer is a quick sell, listed cheap.",
   "prices.jsonc:sellers.quickSellMinPercent": "Smallest quick sell discount.",
   "prices.jsonc:sellers.quickSellMaxPercent": "Biggest quick sell discount.",
-  "prices.jsonc:sellers.roundPriceChance": "Chance a seller types an easy number like 80,000, 79,999 or 81,111 instead of an exact price.",
+  "prices.jsonc:sellers.roundPriceChance": "Chance a seller types an easy number like 80,000, 79,999, 79,500, 44,900, 44,444 or 29,750 instead of an exact price.",
+  "prices.jsonc:sellers.trollChance": "Chance an offer is listed at a silly price nobody pays. These sit at the end of the list.",
+  "prices.jsonc:sellers.trollGunChance": "The same for guns. Live, gun lists have the most.",
+  "prices.jsonc:sellers.trollMinMultiplier": "Smallest troll price, in times the normal price.",
+  "prices.jsonc:sellers.trollMaxMultiplier": "Biggest troll price, in times the normal price.",
   "prices.jsonc:guns": "Guns are priced against what traders sell the parts for.",
   "weapons.jsonc:presets.nearStockMin": "Extra offers of each gun as it comes from the factory, on top of the rest. Now and then one has a cheap red dot or holo added, or no magazine; nothing else. Listed a bit cheaper than other guns.",
   "prices.jsonc:guns.offerMinPercent": "Other sellers list guns from this far under what they are worth...",
@@ -785,6 +852,9 @@ const ADVANCED = [
   "prices.jsonc:floor.logTraderProfitLoops", "prices.jsonc:drift.stepPercent", "prices.jsonc:drift.updateMinutes",
   "prices.jsonc:sellers.wornOverpriceChance", "prices.jsonc:sellers.overpriceMinPercent", "prices.jsonc:sellers.overpriceMaxPercent",
   "prices.jsonc:sellers.quickSellMinPercent", "prices.jsonc:sellers.quickSellMaxPercent",
+  "prices.jsonc:sellers.trollMinMultiplier", "prices.jsonc:sellers.trollMaxMultiplier", "condition.jsonc:*.amountPriceWeight",
+  "market.jsonc:offerExpiry.longStackMin", "market.jsonc:offerExpiry.freshness", "condition.jsonc:guns.bossGunWear",
+  "condition.jsonc:keys.usedChanceByRarity", "armor.jsonc:helmetDamage", "armor.jsonc:bossHelmetChance",
   "economy.jsonc:wipeCycle.levelStep", "economy.jsonc:wipeCycle.endLevel",
   "selling.jsonc:saleDelay.noDelayChance", "selling.jsonc:flipPenalty.windowMinutes", "selling.jsonc:flipPenalty.purchasesForMaxPenalty",
   "selling.jsonc:flipPenalty.fenceMultiplier"
@@ -792,6 +862,7 @@ const ADVANCED = [
 
 // Never shown: they do nothing where they appear (shared setting types), or have their own switch.
 const HIDDEN = [
+  "condition.jsonc:markedKeys.usedChanceByRarity", "condition.jsonc:keycards.usedChanceByRarity",
   "condition.jsonc:meds.emptyChance", "condition.jsonc:meds.emptyScamChance", "condition.jsonc:foodAndDrink.emptyChance",
   "condition.jsonc:foodAndDrink.emptyScamChance", "condition.jsonc:repairKits.emptyChance", "condition.jsonc:repairKits.emptyScamChance",
   "weapons.jsonc:presets.ground.scope", "weapons.jsonc:presets.ground.muzzle", "weapons.jsonc:presets.ground.suppressor",
@@ -799,7 +870,7 @@ const HIDDEN = [
   "weapons.jsonc:presets.ground.factory", "weapons.jsonc:presets.ground.barrelSwap", "weapons.jsonc:presets.ground.stripMin",
   "weapons.jsonc:presets.ground.stripMax", "weapons.jsonc:presets.ground.statFocus", "weapons.jsonc:presets.ground.colourMatch",
   "weapons.jsonc:presets.ground.bestOf", "weapons.jsonc:presets.ground.goodMagazineChance",
-  "armor.jsonc:enabled"
+  "armor.jsonc:enabled", "flea.jsonc:allowedModItems"
 ];
 
 // Settings that are one of a few choices: value, name.
@@ -889,6 +960,99 @@ const $ = (id) => document.getElementById(id);
 function store(key, value) {
   try { if (value === undefined) return localStorage.getItem(key); localStorage.setItem(key, value); } catch (e) { return null; }
 }
+// ---------- languages ----------
+// The page is written in English. A language file (/betterflea/i18n/<code>.json) maps each English text to its
+// translation; "{0}" in a text stands for a number or name filled in when the page is drawn. Text is translated as
+// it appears on the page, and the setting tables up front so search works in the chosen language.
+
+const LANGS = [["en", "English"], ["ru", "Русский"], ["zh", "简体中文"], ["de", "Deutsch"], ["fr", "Français"], ["es", "Español"],
+  ["pt", "Português (Brasil)"], ["pl", "Polski"], ["ja", "日本語"], ["ko", "한국어"]];
+const LANG = (() => {
+  const saved = store("betterflea.lang");
+  if (saved && LANGS.some(l => l[0] === saved)) return saved;
+  const browser = (navigator.language || "en").toLowerCase();
+  return (LANGS.find(l => browser.startsWith(l[0])) || LANGS[0])[0];
+})();
+let words = null;
+let patterns = [];
+
+// The server sends item names in the page's language too.
+const plainFetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => LANG === "en" || !String(url).startsWith("/betterflea/api")
+  ? plainFetch(url, opts)
+  : plainFetch(url, Object.assign({}, opts, { headers: Object.assign({}, opts.headers, { "X-BetterFlea-Lang": LANG }) }));
+
+function T(text) {
+  if (!words || typeof text !== "string") return text;
+  const core = text.trim();
+  if (!core) return text;
+  const lead = text.slice(0, text.indexOf(core)), trail = text.slice(text.indexOf(core) + core.length);
+  if (Object.prototype.hasOwnProperty.call(words, core)) return lead + words[core] + trail;
+  for (const p of patterns) {
+    const m = core.match(p.re);
+    if (m) return lead + p.out.replace(/\{(\d+)\}/g, (all, n) => p.slots.has(+n) ? T(m[p.slots.get(+n)]) : all) + trail;
+  }
+  // Text the page joins from several sentences: each one on its own.
+  const sentences = core.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  if (sentences.length > 1) {
+    const done = sentences.map(T);
+    if (done.some((d, i) => d !== sentences[i])) return lead + done.join(/^(zh|ja)$/.test(LANG) ? "" : " ") + trail;
+  }
+  return text;
+}
+
+function translateNode(node) {
+  if (node.nodeType === 3) {
+    const next = T(node.nodeValue);
+    if (next !== node.nodeValue) node.nodeValue = next;
+    return;
+  }
+  if (node.nodeType !== 1 || node.tagName === "SCRIPT" || node.tagName === "STYLE" || node.tagName === "CODE") return;
+  for (const a of ["placeholder", "title", "aria-label"]) {
+    const v = node.getAttribute(a);
+    if (v) { const next = T(v); if (next !== v) node.setAttribute(a, next); }
+  }
+  for (const child of node.childNodes) translateNode(child);
+}
+
+async function loadLanguage() {
+  const select = $("lang");
+  for (const [code, name] of LANGS) select.appendChild(new Option(name, code, false, code === LANG));
+  select.onchange = () => { store("betterflea.lang", select.value); location.reload(); };
+  if (LANG === "en") return;
+  try {
+    const file = await (await fetch("/betterflea/i18n/" + LANG + ".json", { cache: "no-cache" })).json();
+    words = {};
+    // Keys are looked up trimmed: a fragment like " The Wipe Cycle is off…" also stands on its own.
+    for (const [key, out] of Object.entries(file.strings || {})) words[key] = out;
+    for (const [key, out] of Object.entries(file.strings || {})) if (!(key.trim() in words)) words[key.trim()] = out.trim();
+  } catch (e) { words = null; return; }
+  document.documentElement.lang = LANG;
+  for (const [key, out] of Object.entries(words)) {
+    if (!/\{\d+\}/.test(key)) continue;
+    const slots = new Map();
+    let group = 0;
+    const source = key.split(/(\{\d+\})/).map(part => {
+      const m = part.match(/^\{(\d+)\}$/);
+      if (!m) return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      slots.set(+m[1], ++group);
+      return "([\\s\\S]+?)";
+    }).join("");
+    patterns.push({ re: new RegExp("^" + source + "$"), out, slots, size: key.length });
+  }
+  patterns.sort((a, b) => b.size - a.size);
+  for (const table of [ABOUT, LABELS, DESC]) for (const k of Object.keys(table)) table[k] = T(table[k]);
+  for (const k of Object.keys(CHOICES)) for (const c of CHOICES[k]) c[1] = T(c[1]);
+  for (const style of STYLES) for (const f of ["name", "short", "about"]) style[f] = T(style[f]);
+  translateNode(document.body);
+  new MutationObserver(changes => {
+    for (const c of changes) {
+      if (c.type === "characterData") translateNode(c.target);
+      else for (const n of c.addedNodes) translateNode(n);
+    }
+  }).observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
 function clone(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
 function stable(v) {
   if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
@@ -1323,7 +1487,7 @@ function buildNode(f, path) {
   const value = getAt(f.values, path);
   const def = getAt(f.defaults, path);
   if (inList(ITEM_LISTS, f.file, path)) return itemList(f, path, value || [], def);
-  if (f.file === "flea.jsonc" && path.join(".") === "bannedModItems") return modBans(f, path, value || {}, def);
+  if (f.file === "flea.jsonc" && path.join(".") === "bannedModItems") return modItems(f, path, value || {}, def);
   if (f.file === "weapons.jsonc" && path.join(".") === "moddedParts.disabledMods") return moddedPartMods(f, path, value || [], def);
   if (inList(LEVEL_TABLES, f.file, path)) return levelTable(f, path, value || {}, def);
   if (inList(PRICE_TABLES, f.file, path)) return priceTable(f, path, value || {}, def);
@@ -1855,7 +2019,7 @@ function settingsIndex() {
         const v = value[key];
         // A section's own on/off switch sits on the section's row, so the section stands for it.
         if (inList(HIDDEN, f.file, p) || (key === "enabled" && path.length && typeof v === "boolean")) continue;
-        const special = inList(ITEM_LISTS, f.file, p) || inList(LEVEL_TABLES, f.file, p) || inList(PRICE_TABLES, f.file, p) || (f.file === "flea.jsonc" && p.join(".") === "bannedModItems") || (f.file === "weapons.jsonc" && p.join(".") === "moddedParts.disabledMods");
+        const special = inList(ITEM_LISTS, f.file, p) || inList(LEVEL_TABLES, f.file, p) || inList(PRICE_TABLES, f.file, p) || (f.file === "flea.jsonc" && (p.join(".") === "bannedModItems" || p.join(".") === "allowedModItems")) || (f.file === "weapons.jsonc" && p.join(".") === "moddedParts.disabledMods");
         out.push({ f, path: p, label: labelFor(f.file, p), desc: lookup(DESC, f.file, p) || "" });
         if (isObject(v) && !special && !inList(OPEN_TABLES, f.file, p)) walk(p, v);
       }
@@ -2152,37 +2316,75 @@ function moddedPartMods(f, path, value, def) {
 }
 
 // One card per mod: a switch for everything it adds, and a toggle per type of item.
-function modBans(f, path, value, def) {
-  const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
-  row.append(label(f, path, true), resetButton(f, path, value, def));
+// One card per mod, for both settings: leave its items as the mod sets them, ban them from the flea, or let on the
+// ones the mod itself keeps off (allowedModItems). For the whole mod or per type.
+function modItems(f, path, value, def) {
+  const allowPath = ["allowedModItems"];
+  const allowed = getAt(f.values, allowPath) || {};
+  const allowedDef = getAt(f.defaults, allowPath) || {};
+  const changed = !same(value, def || {}) || !same(allowed, allowedDef);
+  const row = make("div", "row wide" + (changed ? " changed" : ""));
+  const reset = resetButton(f, path, value, def);
+  reset.disabled = !changed;
+  reset.onclick = (e) => { e.stopPropagation(); setAt(f.values, allowPath, clone(allowedDef)); change(f, path, clone(def || {})); };
+  row.append(label(f, path, true), reset);
   const control = make("div", "control mods");
+  const mods = (state.mods || []).filter(mod => mod.items > 0 || mod.banned > 0);
   if (!state.mods) control.appendChild(make("span", "none", "Looking for mods…"));
-  else if (!state.mods.length && !(state.skippedMods || []).length) control.appendChild(make("span", "none", "No server mods that add items are installed."));
-  for (const mod of state.mods || []) {
+  else if (!mods.length && !(state.skippedMods || []).length) control.appendChild(make("span", "none", "No server mods that add items are installed."));
+  for (const mod of mods) {
     const bans = value[mod.name] || [];
-    const all = bans.some(ban => ban.toLowerCase() === "all");
-    const set = (list) => {
-      const copy = clone(value);
-      if (list.length) copy[mod.name] = list; else delete copy[mod.name];
-      change(f, path, copy);
+    const allows = allowed[mod.name] || [];
+    const isAll = (list) => list.some(x => x.toLowerCase() === "all");
+    const whole = isAll(allows) ? "allow" : isAll(bans) ? "ban" : "";
+    // Writes both settings at once; a type is banned or allowed, never both.
+    const save = (nextBans, nextAllows) => {
+      const b = clone(value), a = clone(allowed);
+      if (nextBans.length) b[mod.name] = nextBans; else delete b[mod.name];
+      if (nextAllows.length) a[mod.name] = nextAllows; else delete a[mod.name];
+      setAt(f.values, allowPath, a);
+      change(f, path, b);
     };
-    const card = make("div", "mod" + (all ? " banned" : ""));
+    const card = make("div", "mod" + (whole ? " " + whole : ""));
     const head = make("div", "mod-head");
     const name = make("div");
-    name.append(make("b", "", mod.name), make("span", "n", count(mod.items) + " items"));
-    const banAll = make("label", "pick");
-    banAll.append("Ban all", toggleSwitch(all, (on) => set(on ? ["all"] : [])));
-    head.append(name, banAll);
-    const types = make("div", "types");
-    for (const type of mod.types) {
-      const on = all || bans.includes(type.name);
-      const b = make("button", "type" + (on ? " on" : ""), (on ? "✕ " : "") + typeLabel(type.name) + " · " + count(type.items));
-      b.disabled = all;
-      b.title = all ? "Everything from this mod is banned" : on ? "Banned from the flea. Click to allow." : "Click to ban these from the flea.";
-      b.onclick = () => set(on ? bans.filter(ban => ban !== type.name) : bans.concat(type.name));
-      types.appendChild(b);
+    name.append(make("b", "", mod.name), make("span", "n", count(mod.items + mod.banned) + " items"));
+    if (mod.banned > 0) name.append(make("span", "n", count(mod.banned) + " flea-banned by the mod"));
+    const modes = [["", "As the mod sets"], ["ban", "Ban all"]].concat(mod.banned > 0 ? [["allow", "Allow all"]] : []);
+    head.append(name, segmented(modes, whole, (mode) => save(mode === "ban" ? ["all"] : [], mode === "allow" ? ["all"] : [])));
+    card.appendChild(head);
+
+    // Per type, folded away until wanted.
+    const types = new Map();
+    for (const t of mod.types) types.set(t.name, { name: t.name, items: t.items, banned: 0 });
+    for (const t of mod.bannedTypes || []) {
+      const e = types.get(t.name) || { name: t.name, items: 0, banned: 0 };
+      e.banned = t.items;
+      types.set(t.name, e);
     }
-    card.append(head, types);
+    const key = "modtypes:" + mod.name;
+    const perType = bans.some(x => x.toLowerCase() !== "all") || allows.some(x => x.toLowerCase() !== "all");
+    const open = state.open.has(key) || perType;
+    const toggle = make("button", "link", (open && !whole ? "▾ " : "▸ ") + "By type");
+    toggle.onclick = () => { if (state.open.has(key)) state.open.delete(key); else state.open.add(key); render(); };
+    toggle.disabled = !!whole;
+    card.appendChild(toggle);
+    if (open && !whole) {
+      const list = make("div", "type-rows");
+      for (const t of [...types.values()].sort((x, y) => (y.items + y.banned) - (x.items + x.banned))) {
+        const line = make("div", "type-row");
+        const what = make("div");
+        what.append(make("span", "", typeLabel(t.name)), make("span", "n", count(t.items + t.banned) + " items"));
+        if (t.banned) what.append(make("span", "n", count(t.banned) + " flea-banned by the mod"));
+        const mode = allows.includes(t.name) ? "allow" : bans.includes(t.name) ? "ban" : "";
+        const options = [["", "As the mod sets"], ["ban", "Ban"]].concat(t.banned ? [["allow", "Allow"]] : []);
+        line.append(what, segmented(options, mode, (m) => save(
+          bans.filter(x => x !== t.name).concat(m === "ban" ? [t.name] : []),
+          allows.filter(x => x !== t.name).concat(m === "allow" ? [t.name] : []))));
+        list.appendChild(line);
+      }
+      card.appendChild(list);
+    }
     control.appendChild(card);
   }
   for (const mod of state.skippedMods || []) {
@@ -2194,6 +2396,17 @@ function modBans(f, path, value, def) {
   }
   row.appendChild(control);
   return row;
+}
+
+// A few buttons, one picked.
+function segmented(options, current, onPick) {
+  const wrap = make("div", "seg");
+  for (const [v, name] of options) {
+    const b = make("button", (v === current ? "on " : "") + (v || "default"), name);
+    b.onclick = () => { if (v !== current) onPick(v); };
+    wrap.appendChild(b);
+  }
+  return wrap;
 }
 
 // ---------- inputs ----------
@@ -2462,7 +2675,7 @@ for (const b of document.querySelectorAll("[data-close]")) b.onclick = () => b.c
 document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); saveAll(); } });
 window.addEventListener("beforeunload", (e) => { if (dirtyFiles().length) { e.preventDefault(); e.returnValue = ""; } });
 
-load().catch((e) => {
+loadLanguage().then(load).catch((e) => {
   const main = $("main");
   main.innerHTML = "";
   const d = document.createElement("div");

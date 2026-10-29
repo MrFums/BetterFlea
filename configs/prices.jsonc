@@ -34,11 +34,17 @@
     "overpriceChance": 0.1,          // chance an offer asks too much, whatever its condition
     "wornOverpriceChance": 0.3,      // extra chance for worn items: all of it at 0% left, half at 50% left
     "overpriceMinPercent": 10,       // how much too much. A worn item asks up to about half its missing condition more on top
-    "overpriceMaxPercent": 30,
+    "overpriceMaxPercent": 50,
     "quickSellChance": 0.004,        // chance an offer is a quick sell. Keep it rare: with dozens of offers per item, 0.004 puts one on about 1 item in 5
     "quickSellMinPercent": 10,       // how far under the normal price. Never under the price floor above
     "quickSellMaxPercent": 25,
-    "roundPriceChance": 0.2          // chance a seller types an easy number (80000, 79999, 81111, 8250) instead of an exact price
+    "roundPriceChance": 0.75,        // chance a seller types an easy number (80000, 79999, 79500, 44900, 44444, 29750) instead of an exact price
+    // Troll prices: now and then someone lists an item at a silly price nobody pays, at the end of the list (an NL545
+    // at 2,950,000). Live, gun lists have the most.
+    "trollChance": 0.004,            // chance an offer is a troll price
+    "trollGunChance": 0.04,          // the same for guns
+    "trollMinMultiplier": 5,         // how many times the normal price
+    "trollMaxMultiplier": 15
   },
 
   // How far an ordinary offer's price strays from normal, in percent (before drift and the sellers above). SPT's own is

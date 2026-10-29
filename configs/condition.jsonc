@@ -6,19 +6,24 @@
 {
   // Keys and keycards:
   //   usedChance          = chance that an offer is partly used. 0.4 = 40%.
-  //   usesLeftFalloff     = from 0 to 1. Lower = more keys with only 1 use left.
+  //   usesLeftFalloff     = from 0 to 2. Lower = more keys with only 1 use left. 1 = any number left.
+  //                         Above 1 = most used keys are only a few uses down.
   //   oneUsePricePercent  = price of a key with 1 use left, in % of a new key.
+  // Live, mechanical keys are nearly all new (a few at 39/40) and marked keys are nearly all used, most at 1 or 2 uses left.
   "keys": {                        // normal keys, not marked keys
     "enabled": true,
-    "usedChance": 0.4,
-    "usesLeftFalloff": 0.97,
-    "oneUsePricePercent": 20
+    "usedChance": 0.12,
+    "usesLeftFalloff": 1.05,      // per use on a 10-use key, stretched over longer ones (a 40-use key)
+    "oneUsePricePercent": 20,
+    // usedChance times this by how rare the key is: cheap common keys are bought for one quest and sold on unused
+    "usedChanceByRarity": { "Common": 0.5, "Rare": 1, "Superrare": 2 }
   },
   "markedKeys": {
     "enabled": true,
-    "usedChance": 0.45,
-    "usesLeftFalloff": 0.9,
-    "oneUsePricePercent": 20
+    "usedChance": 0.88,
+    "usesLeftFalloff": 0.6,          // about 40% at 1 use left, 24% at 2, 15% at 3, 9% at 4, then fewer down to 9
+    "oneUsePricePercent": 35,
+    "oneDownChance": 0.1             // share of used ones only one use down (9/10): used once and sold on
   },
   "keycards": {
     "enabled": true,
@@ -30,29 +35,43 @@
   // Meds, food, fuel and repair kits:
   //   usedChance     = chance that an offer is partly used.
   //   lowAmountBias  = 1 means any amount left. Higher = more offers that are low. Never less than about 15% left.
+  //   usedPricePercent  = price of a used one, in % of a full one.
+  //   amountPriceWeight = how much the amount left counts on top, from 0 to 1. 0 = a used one costs the same whatever is
+  //                       left, 1 = the price follows the amount left. 100 and 1 = SPT's own.
   // As set, about 1 offer in 9 is low (under 40% left) and about 70% are full. Meds with only a few uses (CALOK-B,
   // splints) are used much less often and nearly always just one use down.
+  // Live, a used water costs about a third less than a full one whether 18/60 or 55/60 is left, and a part-full fuel can
+  // nearly as much as a full one.
+  // Live, meds and food are nearly always listed full.
   "meds": {
     "enabled": true,
-    "usedChance": 0.3,
-    "lowAmountBias": 1.3
+    "usedChance": 0.12,
+    "lowAmountBias": 1.3,
+    "usedPricePercent": 90,
+    "amountPriceWeight": 0.5
   },
   "foodAndDrink": {
     "enabled": true,
-    "usedChance": 0.35,
-    "lowAmountBias": 1.3
+    "usedChance": 0.08,
+    "lowAmountBias": 1.3,
+    "usedPricePercent": 68,
+    "amountPriceWeight": 0.15
   },
   "fuel": {
     "enabled": true,
     "usedChance": 0.5,
     "lowAmountBias": 1.5,
+    "usedPricePercent": 85,
+    "amountPriceWeight": 0.2,
     "emptyChance": 0.06,           // chance a can is listed empty. Mostly the cheapest fuel offers...
     "emptyScamChance": 0.3         // ...but this share of empty ones is priced like a full can, for whoever doesn't check
   },
   "repairKits": {
     "enabled": true,
     "usedChance": 0.55,           // people sell these worn down for a bit of cash
-    "lowAmountBias": 2.0
+    "lowAmountBias": 2.0,
+    "usedPricePercent": 100,
+    "amountPriceWeight": 1
   },
 
   // Guns look used, not repaired. Price follows the durability.
@@ -60,9 +79,14 @@
     "enabled": true,
     "wornChanceByRarity": { "Common": 0.9, "Rare": 0.65, "Superrare": 0.35 }, // share of guns a little below max, by rarity. Common guns are usually worn
     "maxWear": 40,         // how far below max a worn gun can be. Most are only a few points down
-    "lowMaxChance": 0.25,  // share of guns whose max is lowered (parts that can't be fully repaired)
-    "lowMaxMin": 55,       // the lowered max is picked at random between these
-    "lowMaxMax": 95,
+    "lowMaxChance": 0.85,  // share of worn guns whose max is lowered by repairs. A gun that isn't worn keeps its full max
+    "lowMaxMin": 93,       // the lowered max is picked between these, mostly near the top (99, 98, 97...). Around 93 a
+    "lowMaxMax": 99,       // gun starts to jam, so most get sold by then; a few kept going are lower
+    "repairBuffChance": 0.03,  // a gun with a lowered max now and then has a repair kit bonus (the gold background)
+    // Guns only bosses and their guards carry and no trader sells (M60E6, PKP, Mk 43, AK-50): people farm the boss
+    // and list them as found. This share are ground loot (the factory gun, 97-100/100)...
+    "bossGunGroundShare": 0.6,
+    "bossGunWear": 0.15,       // ...and the rest are worn this much as often (0.15 = 15%)
     // How worn each kind of built gun is next to the above (see the tiers in weapons.jsonc). 1 = as above, 2 = much
     // more worn, 0.5 = less. Broken-down and stripped guns have had a hard life; modded and meta builds were looked
     // after. A listed gun is never more than 60 points under its max, or under 10. Ground loot is always 97-100/100.

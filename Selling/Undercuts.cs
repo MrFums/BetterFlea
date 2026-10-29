@@ -99,7 +99,7 @@ internal static class Undercuts
                 continue;
             }
 
-            var condition = UsedListingsGate.IgnoresCondition(tpl) ? 1 : Math.Clamp(_itemHelper.GetItemQualityModifier(items[0]), 0.01, 1);
+            var condition = UsedListingsGate.PriceQuality(items[0]);
             others.Add((offer, cost / condition * quality));
         }
 
@@ -119,6 +119,10 @@ internal static class Undercuts
         if (OrderBook.On && OrderBook.Handles(offer))
         {
             OrderBook.Listed(offer, ratio, FlipPenaltyGate.ExtraWaitMinutes());
+        }
+        else
+        {
+            OrderBook.Rolled(offer, FlipPenaltyGate.ExtraWaitMinutes());
         }
 
         if (!lowest || Settings is not { } settings || ratio is not { } r || profileOffers is null)
@@ -163,7 +167,7 @@ internal static class Undercuts
             }
 
             var root = items[0];
-            var quality = UsedListingsGate.IgnoresCondition(root.Template) ? 1 : Math.Clamp(_itemHelper!.GetItemQualityModifier(root), 0.01, 1);
+            var quality = UsedListingsGate.PriceQuality(root);
             var target = Math.Min(each, items.Count == 1 ? Cheapest(root.Template, quality) ?? each : each);
             var price = Under(target);
 

@@ -46,7 +46,8 @@ public class ConfigManager(
     }
 
     // Defaults a version changed, as (update, file, setting, old default, new default). A setting still at its old
-    // default takes the new one once; one the user changed is left alone.
+    // default takes the new one once; one the user changed is left alone. Old = NaN: a new entry in a table, added
+    // once if it isn't there.
     private static readonly (string Update, string File, string[] Path, double Old, double New)[] ChangedDefaults =
     [
         ("2.3.0", "prices.jsonc", ["sellers", "quickSellChance"], 0.03, 0.004),
@@ -62,7 +63,49 @@ public class ConfigManager(
         ("2.3.0d", "weapons.jsonc", ["presets", "buildDealChance"], 0.02, 0.05),
         ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMinDiscount"], 0.15, 0.2),
         ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMaxDiscount"], 0.3, 0.35),
-        ("2.3.1", "selling.jsonc", ["flipPenalty", "maxExtraMinutes"], 90, 30)
+        ("2.3.1", "selling.jsonc", ["flipPenalty", "maxExtraMinutes"], 90, 30),
+        // From the live flea (FLEA_OBSERVATIONS.md): mechanical keys nearly all full, marked keys nearly all at one use,
+        // lowered max only on used guns and mostly 82-98, more repeated-digit prices and a longer overpriced end.
+        ("2.4.0", "condition.jsonc", ["keys", "usedChance"], 0.4, 0.07),
+        ("2.4.0", "condition.jsonc", ["keys", "usesLeftFalloff"], 0.97, 1.05),
+        ("2.4.0", "condition.jsonc", ["markedKeys", "usedChance"], 0.45, 0.95),
+        ("2.4.0", "condition.jsonc", ["markedKeys", "usesLeftFalloff"], 0.9, 0.6),
+        ("2.4.0", "condition.jsonc", ["markedKeys", "oneUsePricePercent"], 20, 35),
+        ("2.4.0", "condition.jsonc", ["guns", "lowMaxChance"], 0.25, 0.7),
+        ("2.4.0", "condition.jsonc", ["guns", "lowMaxMin"], 55, 80),
+        ("2.4.0", "condition.jsonc", ["guns", "lowMaxMax"], 95, 98),
+        ("2.4.0", "prices.jsonc", ["sellers", "roundPriceChance"], 0.2, 0.4),
+        ("2.4.0", "prices.jsonc", ["sellers", "overpriceMaxPercent"], 30, 50),
+        // The user's own look at the live flea: easier prices, offers listed for 12 or 24 hours (stacks for days), meds
+        // and food nearly always full, a few more edition badges.
+        ("2.4.0b", "prices.jsonc", ["sellers", "roundPriceChance"], 0.4, 0.75),
+        ("2.4.0b", "market.jsonc", ["offerExpiry", "maxMinutes"], 1440, 7200),
+        ("2.4.0b", "market.jsonc", ["sellerBadges", "edgeOfDarknessChance"], 0.2, 0.25),
+        ("2.4.0b", "market.jsonc", ["sellerBadges", "unheardChance"], 0.15, 0.2),
+        ("2.4.0b", "condition.jsonc", ["meds", "usedChance"], 0.3, 0.12),
+        ("2.4.0b", "condition.jsonc", ["foodAndDrink", "usedChance"], 0.35, 0.08),
+        // Marked keys: 0.12 left nearly all at 1 use and none past 3. 0.6 keeps 1 use the most common with a tail to 9.
+        ("2.4.0c", "condition.jsonc", ["markedKeys", "usesLeftFalloff"], 0.12, 0.6),
+        // Mechanical keys: a few more used ones, and further down.
+        ("2.4.0d", "condition.jsonc", ["keys", "usedChance"], 0.04, 0.07),
+        ("2.4.0d", "condition.jsonc", ["keys", "usesLeftFalloff"], 1.15, 1.05),
+        // Marked keys: twice the offers, and more of them new or one use down.
+        ("2.4.0e", "listings.jsonc", ["listings", "categoryMultipliers", "keys.markedKeys"], double.NaN, 2.0),
+        ("2.4.0e", "condition.jsonc", ["markedKeys", "usedChance"], 0.95, 0.88),
+        // Helmets: a flea of near-max helmets looked wrong.
+        ("2.4.0f", "armor.jsonc", ["helmetDamage"], 0.25, 0.5),
+        // Keys: more used, and long keys (40 uses) spread lower.
+        ("2.4.0g", "condition.jsonc", ["keys", "usedChance"], 0.07, 0.12),
+        // Offers: the top of a list mostly at 23h or 11h left.
+        ("2.4.0h", "market.jsonc", ["offerExpiry", "freshness"], 6, 20),
+        // Gun max durability: mostly 96-99, rarely under 93, where a gun starts to jam and people sell it.
+        ("2.4.0i", "condition.jsonc", ["guns", "lowMaxMin"], 80, 93),
+        ("2.4.0i", "condition.jsonc", ["guns", "lowMaxMax"], 98, 99),
+        // Fewer used guns still at 100 max.
+        ("2.4.0j", "condition.jsonc", ["guns", "lowMaxChance"], 0.7, 0.85),
+        // Flip penalty: enough to put flipping off, not to stall a sale.
+        ("2.4.0k", "selling.jsonc", ["flipPenalty", "maxExtraMinutes"], 30, 10),
+        ("2.4.0k", "selling.jsonc", ["flipPenalty", "windowMinutes"], 60, 30)
     ];
 
     private const string UpdatesFile = "applied-updates.json";
@@ -90,7 +133,8 @@ public class ConfigManager(
                 {
                     var section = change.Path[..^1].Aggregate((JsonNode?)values, (node, key) => node?[key]) as JsonObject;
                     var key = change.Path[^1];
-                    if (section?[key] is JsonValue value && value.TryGetValue<double>(out var current) && Math.Abs(current - change.Old) < 1e-9)
+                    if (double.IsNaN(change.Old) ? section is not null && !section.ContainsKey(key)
+                        : section?[key] is JsonValue value && value.TryGetValue<double>(out var current) && Math.Abs(current - change.Old) < 1e-9)
                     {
                         section[key] = change.New;
                         moved++;
@@ -99,7 +143,14 @@ public class ConfigManager(
 
                 var path = Path.Combine(ModPath, ConfigFolder, group.Key);
                 var text = File.ReadAllText(path);
-                var updated = JsoncPort.Apply(text, values, FileDefaults(group.Key));
+                // A new table entry matches its default, and the port leaves those out, so take it out of the defaults.
+                var defaults = FileDefaults(group.Key);
+                foreach (var change in group.Where(change => double.IsNaN(change.Old)))
+                {
+                    (change.Path[..^1].Aggregate(defaults, (node, key) => node?[key]) as JsonObject)?.Remove(change.Path[^1]);
+                }
+
+                var updated = JsoncPort.Apply(text, values, defaults);
                 if (updated != text)
                 {
                     File.WriteAllText(path, updated);
@@ -414,14 +465,26 @@ public class ConfigManager(
         foreach (var settings in new[] { used.Keys, used.MarkedKeys, used.Keycards })
         {
             settings.UsedChance = Math.Clamp(settings.UsedChance, 0.0, 1.0);
-            settings.UsesLeftFalloff = Math.Clamp(settings.UsesLeftFalloff, 0.0, 1.0);
+            settings.UsesLeftFalloff = Math.Clamp(settings.UsesLeftFalloff, 0.0, 2.0);
             settings.OneUsePricePercent = Math.Clamp(settings.OneUsePricePercent, 1.0, 100.0);
+            settings.OneDownChance = Math.Clamp(settings.OneDownChance, 0.0, 1.0);
+            foreach (var rarity in settings.UsedChanceByRarity.Keys.ToList())
+            {
+                settings.UsedChanceByRarity[rarity] = Math.Clamp(settings.UsedChanceByRarity[rarity], 0.0, 100.0);
+            }
         }
+
+        var gunWear = used.Guns;
+        gunWear.RepairBuffChance = Math.Clamp(gunWear.RepairBuffChance, 0.0, 1.0);
+        gunWear.BossGunGroundShare = Math.Clamp(gunWear.BossGunGroundShare, 0.0, 1.0);
+        gunWear.BossGunWear = Math.Clamp(gunWear.BossGunWear, 0.0, 1.0);
 
         foreach (var settings in new[] { used.Meds, used.FoodAndDrink, used.Fuel, used.RepairKits })
         {
             settings.UsedChance = Math.Clamp(settings.UsedChance, 0.0, 1.0);
             settings.LowAmountBias = Math.Clamp(settings.LowAmountBias, 0.1, 10.0);
+            settings.UsedPricePercent = Math.Clamp(settings.UsedPricePercent, 1.0, 100.0);
+            settings.AmountPriceWeight = Math.Clamp(settings.AmountPriceWeight, 0.0, 1.0);
         }
 
         var delay = Mod.PlayerSelling.SaleDelay;
@@ -454,6 +517,9 @@ public class ConfigManager(
         var expiry = Mod.GeneratedOffers.OfferExpiry;
         expiry.MinMinutes = Math.Clamp(expiry.MinMinutes, 5, 10080);
         expiry.MaxMinutes = Math.Clamp(expiry.MaxMinutes, expiry.MinMinutes, 10080);
+        expiry.LongStackMin = Math.Clamp(expiry.LongStackMin, 2, 1000);
+        expiry.LongChance = Math.Clamp(expiry.LongChance, 0.0, 1.0);
+        expiry.Freshness = Math.Clamp(expiry.Freshness, 1.0, 20.0);
 
         var rating = Mod.GeneratedOffers.SellerRating;
         rating.Min = Math.Clamp(rating.Min, 0.01, 10000.0);
@@ -461,7 +527,11 @@ public class ConfigManager(
         rating.NewSellerChance = Math.Clamp(rating.NewSellerChance, 0.0, 1.0);
         rating.RegularChance = Math.Clamp(rating.RegularChance, 0.0, 1.0);
         rating.FlipperChance = Math.Clamp(rating.FlipperChance, 0.0, 1.0);
-        Mod.GeneratedOffers.Armor.FlippedDownChance = Math.Clamp(Mod.GeneratedOffers.Armor.FlippedDownChance, 0.0, 1.0);
+        var armor = Mod.GeneratedOffers.Armor;
+        armor.FlippedDownChance = Math.Clamp(armor.FlippedDownChance, 0.0, 1.0);
+        armor.HelmetAttachmentChance = Math.Clamp(armor.HelmetAttachmentChance, 0.0, 1.0);
+        armor.HelmetDamage = Math.Clamp(armor.HelmetDamage, 0.0, 1.0);
+        armor.RepairBuffChance = Math.Clamp(armor.RepairBuffChance, 0.0, 1.0);
 
         var packs = Mod.GeneratedOffers.Packs;
         packs.ScamChance = Math.Clamp(packs.ScamChance, 0.0, 1.0);
@@ -474,6 +544,7 @@ public class ConfigManager(
         var sales = Mod.GeneratedOffers.SimulatedSales;
         sales.EveryMinutes = Math.Clamp(sales.EveryMinutes, 1.0, 120.0);
         sales.NormalSellChancePerHour = Math.Clamp(sales.NormalSellChancePerHour, 0.0, 0.95);
+        sales.TopSellChancePerHour = Math.Clamp(sales.TopSellChancePerHour, 0.0, 5.0);
         sales.DealSpeedup = Math.Clamp(sales.DealSpeedup, 1.0, 100.0);
 
         var playerGuns = Mod.GeneratedOffers.PlayerGuns;
@@ -483,7 +554,8 @@ public class ConfigManager(
         playerGuns.SuppressorStripChance = Math.Clamp(playerGuns.SuppressorStripChance, 0.0, 1.0);
         playerGuns.LostGunMinMinutes = Math.Max(0.0, playerGuns.LostGunMinMinutes);
         playerGuns.LostGunMaxMinutes = Math.Max(playerGuns.LostGunMinMinutes, playerGuns.LostGunMaxMinutes);
-        foreach (var bulk in new[] { Mod.GeneratedOffers.ItemsPerOffer.GrenadeBulk, Mod.GeneratedOffers.ItemsPerOffer.StimBulk })
+        var stacks = Mod.GeneratedOffers.ItemsPerOffer;
+        foreach (var bulk in new[] { stacks.GrenadeBulk, stacks.StimBulk, stacks.FullStacks, stacks.UsedMedStacks, stacks.StockGunStacks, stacks.TraderGunStacks, stacks.HelmetStacks })
         {
             bulk.Chance = Math.Clamp(bulk.Chance, 0.0, 1.0);
             bulk.Min = Math.Clamp(bulk.Min, 1, 100);
@@ -499,6 +571,10 @@ public class ConfigManager(
         sellers.OverpriceMaxPercent = Math.Clamp(sellers.OverpriceMaxPercent, sellers.OverpriceMinPercent, 80.0);
         sellers.QuickSellMinPercent = Math.Clamp(sellers.QuickSellMinPercent, 0.0, 90.0);
         sellers.QuickSellMaxPercent = Math.Clamp(sellers.QuickSellMaxPercent, sellers.QuickSellMinPercent, 90.0);
+        sellers.TrollChance = Math.Clamp(sellers.TrollChance, 0.0, 1.0);
+        sellers.TrollGunChance = Math.Clamp(sellers.TrollGunChance, 0.0, 1.0);
+        sellers.TrollMinMultiplier = Math.Clamp(sellers.TrollMinMultiplier, 1.0, 50.0);
+        sellers.TrollMaxMultiplier = Math.Clamp(sellers.TrollMaxMultiplier, sellers.TrollMinMultiplier, 50.0);
         var guns = Mod.Prices.Guns;
         guns.TraderPricePercent = Math.Clamp(guns.TraderPricePercent, 10.0, 200.0);
         guns.PriceAtHalfDurabilityPercent = Math.Clamp(guns.PriceAtHalfDurabilityPercent, 1.0, 100.0);

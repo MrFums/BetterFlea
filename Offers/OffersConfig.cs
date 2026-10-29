@@ -69,6 +69,7 @@ public record ListingsConfig
     public Dictionary<string, double> CategoryMultipliers { get; set; } = new()
     {
         ["gear.armorPlates"] = 3.0,
+        ["keys.markedKeys"] = 2.0,
         ["medical.medkits"] = 3.0,
         ["medical.bandagesAndSplints"] = 3.0,
         ["medical.painkillers"] = 3.0,
@@ -245,6 +246,23 @@ public record ArmorOffersConfig
     [JsonPropertyName("flippedDownChance")]
     public double FlippedDownChance { get; set; } = 0.3;
 
+    // A helmet comes with an attachment on it (a Bastion's armor plate, a shroud), as its last owner had it.
+    [JsonPropertyName("helmetAttachmentChance")]
+    public double HelmetAttachmentChance { get; set; } = 0.2;
+
+    // Helmets are rarely badly damaged.
+    // 1 = like the rest, 0 = never badly damaged.
+    [JsonPropertyName("helmetDamage")]
+    public double HelmetDamage { get; set; } = 0.5;
+
+    // A helmet a boss or guard can wear sometimes comes off one: good max, low current (they were shot to death).
+    [JsonPropertyName("bossHelmetChance")]
+    public double BossHelmetChance { get; set; } = 0.25;
+
+    // A piece repaired down (lower max) now and then has a repair kit bonus (the gold background). Very rare.
+    [JsonPropertyName("repairBuffChance")]
+    public double RepairBuffChance { get; set; } = 0.02;
+
     [JsonPropertyName("conditionByRarity")]
     public Dictionary<string, ArmorConditionWeights> ConditionByRarity { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -416,7 +434,24 @@ public record OfferExpiryConfig
     public int MinMinutes { get; set; } = 360;
 
     [JsonPropertyName("maxMinutes")]
-    public int MaxMinutes { get; set; } = 1440;
+    public int MaxMinutes { get; set; } = 7200;
+
+    // How long people list for, in hours, by weight. Live, nearly everyone picks 12 or 24. Empty = any time from
+    // minMinutes to maxMinutes.
+    [JsonPropertyName("hours")]
+    public Dictionary<string, double> Hours { get; set; } = new() { ["12"] = 0.3, ["24"] = 0.7 };
+
+    // A big stack (this many or more of an item that doesn't stack) is often listed for days, up to maxMinutes.
+    [JsonPropertyName("longStackMin")]
+    public int LongStackMin { get; set; } = 10;
+
+    [JsonPropertyName("longChance")]
+    public double LongChance { get; set; } = 0.35;
+
+    // How fresh offers are when found. 1 = anywhere in their time, higher = most just listed, so few show the red
+    // "under 10 hours" time. Deals are fresher still, overpriced offers older.
+    [JsonPropertyName("freshness")]
+    public double Freshness { get; set; } = 20;
 }
 
 public record PackOffersConfig
@@ -488,10 +523,10 @@ public record SellerBadgesConfig
     public bool Enabled { get; set; } = true;
 
     [JsonPropertyName("edgeOfDarknessChance")]
-    public double EdgeOfDarknessChance { get; set; } = 0.20;
+    public double EdgeOfDarknessChance { get; set; } = 0.25;
 
     [JsonPropertyName("unheardChance")]
-    public double UnheardChance { get; set; } = 0.15;
+    public double UnheardChance { get; set; } = 0.20;
 
     [JsonPropertyName("specialChance")]
     public double SpecialChance { get; set; } = 0.001;
@@ -507,6 +542,11 @@ public record SimulatedSalesConfig
 
     [JsonPropertyName("normalSellChancePerHour")]
     public double NormalSellChancePerHour { get; set; } = 0.04;
+
+    // The cheapest few offers of every item sell at this chance per hour for an everyday item (less for dear or rare
+    // ones, more for busy ones) and are relisted fresh, so the market keeps moving while nobody looks. 0 = off.
+    [JsonPropertyName("topSellChancePerHour")]
+    public double TopSellChancePerHour { get; set; } = 0.5;
 
     [JsonPropertyName("dealSpeedup")]
     public double DealSpeedup { get; set; } = 20;
@@ -563,8 +603,34 @@ public record OfferQuantityConfig
     [JsonPropertyName("stimBulk")]
     public BulkOfferConfig StimBulk { get; set; } = new() { Chance = 0.03, Min = 3, Max = 6 };
 
+    // Rarely someone sells off a whole batch of one stim they had stored (a dozen Propitals).
+    [JsonPropertyName("stimBatch")]
+    public BulkOfferConfig StimBatch { get; set; } = new() { Chance = 0.01, Min = 8, Max = 12 };
+
     [JsonPropertyName("fullMedWeights")]
     public List<double> FullMedWeights { get; set; } = new() { 70, 16, 8, 3.5, 1.5, 1 };
+
+    // Now and then someone dumps a big stack of full meds or drinks (an IFAK x30, water x31).
+    [JsonPropertyName("fullStacks")]
+    public BulkOfferConfig FullStacks { get; set; } = new() { Chance = 0.03, Min = 10, Max = 30 };
+
+    // A flipper's stack of used medkits, all at the same amount (four AFAK stacks of 9 to 27 at 324-336/400).
+    [JsonPropertyName("usedMedStacks")]
+    public BulkOfferConfig UsedMedStacks { get; set; } = new() { Chance = 0.03, Min = 5, Max = 27 };
+
+    // Factory guns as found (ground loot) now and then several to an offer: people farming a boss list their haul.
+    [JsonPropertyName("stockGunStacks")]
+    public BulkOfferConfig StockGunStacks { get; set; } = new() { Chance = 0.12, Min = 2, Max = 6 };
+
+    // A trader's gun bought to flip: the exact factory gun at full durability, several to an offer. Chance per offer of
+    // a gun a trader sells.
+    // Helmets that are easy to come by (not superrare, or a trader sells them) now and then several to an offer, only
+    // at max/max durability. Chance per such offer.
+    [JsonPropertyName("helmetStacks")]
+    public BulkOfferConfig HelmetStacks { get; set; } = new() { Chance = 0.05, Min = 2, Max = 5 };
+
+    [JsonPropertyName("traderGunStacks")]
+    public BulkOfferConfig TraderGunStacks { get; set; } = new() { Chance = 0.02, Min = 2, Max = 5 };
 }
 
 public record BulkOfferConfig
@@ -594,22 +660,29 @@ public record UsedListingsConfig
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 
     [JsonPropertyName("keys")]
-    public KeyListingSettings Keys { get; set; } = new() { UsedChance = 0.4, UsesLeftFalloff = 0.97, OneUsePricePercent = 20 };
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public KeyListingSettings Keys { get; set; } = new()
+    {
+        UsedChance = 0.12, UsesLeftFalloff = 1.05, OneUsePricePercent = 20,
+        UsedChanceByRarity = new(StringComparer.OrdinalIgnoreCase) { ["Common"] = 0.5, ["Rare"] = 1, ["Superrare"] = 2 }
+    };
 
     [JsonPropertyName("markedKeys")]
-    public KeyListingSettings MarkedKeys { get; set; } = new() { UsedChance = 0.45, UsesLeftFalloff = 0.9, OneUsePricePercent = 20 };
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public KeyListingSettings MarkedKeys { get; set; } = new() { UsedChance = 0.88, UsesLeftFalloff = 0.6, OneUsePricePercent = 35, OneDownChance = 0.1 };
 
     [JsonPropertyName("keycards")]
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
     public KeyListingSettings Keycards { get; set; } = new() { UsedChance = 0.4, UsesLeftFalloff = 0.9, OneUsePricePercent = 20 };
 
     [JsonPropertyName("meds")]
-    public ResourceListingSettings Meds { get; set; } = new() { UsedChance = 0.3, LowAmountBias = 1.3 };
+    public ResourceListingSettings Meds { get; set; } = new() { UsedChance = 0.12, LowAmountBias = 1.3, UsedPricePercent = 90, AmountPriceWeight = 0.5 };
 
     [JsonPropertyName("foodAndDrink")]
-    public ResourceListingSettings FoodAndDrink { get; set; } = new() { UsedChance = 0.35, LowAmountBias = 1.3 };
+    public ResourceListingSettings FoodAndDrink { get; set; } = new() { UsedChance = 0.08, LowAmountBias = 1.3, UsedPricePercent = 68, AmountPriceWeight = 0.15 };
 
     [JsonPropertyName("fuel")]
-    public ResourceListingSettings Fuel { get; set; } = new() { UsedChance = 0.5, LowAmountBias = 1.5, EmptyChance = 0.06 };
+    public ResourceListingSettings Fuel { get; set; } = new() { UsedChance = 0.5, LowAmountBias = 1.5, EmptyChance = 0.06, UsedPricePercent = 85, AmountPriceWeight = 0.2 };
 
     [JsonPropertyName("repairKits")]
     public ResourceListingSettings RepairKits { get; set; } = new() { UsedChance = 0.55, LowAmountBias = 2.0 };
@@ -634,14 +707,28 @@ public record GunDurabilityConfig
     [JsonPropertyName("maxWear")]
     public double MaxWear { get; set; } = 40;
 
+    // Share of worn guns whose max is lowered. A gun nobody has used has never been repaired.
     [JsonPropertyName("lowMaxChance")]
-    public double LowMaxChance { get; set; } = 0.25;
+    public double LowMaxChance { get; set; } = 0.85;
 
+    // Mostly near lowMaxMax. Around 93 a gun starts to jam, so most are sold before that.
     [JsonPropertyName("lowMaxMin")]
-    public double LowMaxMin { get; set; } = 55;
+    public double LowMaxMin { get; set; } = 93;
 
     [JsonPropertyName("lowMaxMax")]
-    public double LowMaxMax { get; set; } = 95;
+    public double LowMaxMax { get; set; } = 99;
+
+    // A gun repaired down (lower max) now and then has a repair kit bonus (the gold background). Very rare.
+    [JsonPropertyName("repairBuffChance")]
+    public double RepairBuffChance { get; set; } = 0.03;
+
+    // Guns only bosses and their guards carry (M60E6, PKP, Mk 43, AK-50): people farm the boss and list them as
+    // found. This share is listed as ground loot, and the rest are worn this much as often (0.15 = 15%).
+    [JsonPropertyName("bossGunGroundShare")]
+    public double BossGunGroundShare { get; set; } = 0.6;
+
+    [JsonPropertyName("bossGunWear")]
+    public double BossGunWear { get; set; } = 0.15;
 
     [JsonPropertyName("wearByBuild")]
     public Dictionary<string, double> WearByBuild { get; set; } = new(StringComparer.OrdinalIgnoreCase)
@@ -672,6 +759,14 @@ public record KeyListingSettings
 
     [JsonPropertyName("oneUsePricePercent")]
     public double OneUsePricePercent { get; set; } = 25;
+
+    // Share of used keys only one use down (9/10): used once and sold on.
+    [JsonPropertyName("oneDownChance")]
+    public double OneDownChance { get; set; } = 0;
+
+    // usedChance times this, by rarity. Cheap common keys are bought for one quest and sold on new.
+    [JsonPropertyName("usedChanceByRarity")]
+    public Dictionary<string, double> UsedChanceByRarity { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public record ResourceListingSettings
@@ -691,6 +786,14 @@ public record ResourceListingSettings
 
     [JsonPropertyName("emptyScamChance")]
     public double EmptyScamChance { get; set; } = 0.3;
+
+    // Price of a used one, in % of a full one, and how much the amount left counts on top (0 = not at all,
+    // 1 = all of it). 100 and 1 = SPT's own: price follows the amount left.
+    [JsonPropertyName("usedPricePercent")]
+    public double UsedPricePercent { get; set; } = 100;
+
+    [JsonPropertyName("amountPriceWeight")]
+    public double AmountPriceWeight { get; set; } = 1;
 }
 
 // Attachments from server mods on other sellers' gun builds.

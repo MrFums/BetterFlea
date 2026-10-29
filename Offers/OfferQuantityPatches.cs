@@ -91,7 +91,7 @@ internal static class OfferQuantityGate
             return IsBulkGrenade(tpl) && RollBulk(settings.GrenadeBulk) is { } pile ? pile : RollWeighted(settings.GrenadeWeights);
         }
 
-        if (_itemHelper.IsOfBaseclass(tpl, StimBase) && RollBulk(settings.StimBulk) is { } handful)
+        if (_itemHelper.IsOfBaseclass(tpl, StimBase) && (RollBulk(settings.StimBatch) ?? RollBulk(settings.StimBulk)) is { } handful)
         {
             return handful;
         }
@@ -162,8 +162,9 @@ internal static class OfferQuantityGate
     private static readonly MongoId FoodBase = new("5448e8d04bdc2ddf718b4569");
     private static readonly MongoId DrinkBase = new("5448e8d64bdc2dce718b4568");
 
-    // Nobody has three AFAKs all at 322. Once used, big kits, food, fuel and repair kits are one per offer;
-    // few-use meds can still come a couple at a time. Full meds come in ones, or now and then a few (fullMedWeights).
+    // Once used, big kits, food, fuel and repair kits are one per offer, except a flipper's stack of used medkits
+    // (usedMedStacks); few-use meds can still come a couple at a time. Full meds come in ones, or now and then a few
+    // (fullMedWeights); full meds and drinks rarely in a big stack (fullStacks).
     public static void MatchCondition(SPTarkov.Server.Core.Models.Spt.Ragfair.CreateFleaOfferDetails details)
     {
         var settings = _config?.Mod.GeneratedOffers.ItemsPerOffer;
@@ -182,6 +183,19 @@ internal static class OfferQuantityGate
 
         var full = resource.Left >= resource.Max;
         var medical = _itemHelper.IsOfBaseclass(root.Template, MedicalBase);
+        var big = !medical || resource.Max > UsedListingsGate.FewUsesMax || IsSurgical(props);
+
+        // Now and then a big stack: full meds or drinks someone stocked up on, or a flipper's used medkits.
+        var provisions = medical || _itemHelper.IsOfBaseclasses(root.Template, [FoodBase, DrinkBase]);
+        var stack = full && provisions ? RollBulk(settings.FullStacks)
+            : !full && medical && big ? RollBulk(settings.UsedMedStacks)
+            : null;
+        if (stack is { } bigStack)
+        {
+            details.Quantity = bigStack;
+            return;
+        }
+
         if (full && medical)
         {
             details.Quantity = RollWeighted(settings.FullMedWeights);
@@ -193,7 +207,6 @@ internal static class OfferQuantityGate
             return;
         }
 
-        var big = !medical || resource.Max > UsedListingsGate.FewUsesMax || IsSurgical(props);
         details.Quantity = (big, full) switch
         {
             (true, false) => 1,
@@ -203,6 +216,69 @@ internal static class OfferQuantityGate
         };
     }
 
+    // Factory guns as found (ground loot), now and then several to an offer: someone farming a boss lists the haul.
+    public static void StockGunStack(SPTarkov.Server.Core.Models.Spt.Ragfair.CreateFleaOfferDetails details)
+    {
+        var settings = _config?.Mod.GeneratedOffers.ItemsPerOffer;
+        if (details.Creator != SPTarkov.Server.Core.Models.Enums.OfferCreator.FakePlayer || details.SellInOnePiece
+            || settings is not { Enabled: true } || PresetOfferGate.TakeBuildKind() is not ("ground" or "traderflip"))
+        {
+            return;
+        }
+
+        // Only ever several of a gun at 100/100: worn ones each differ, so they can't share an offer.
+        if (details.Items is not [{ Upd.Repairable: { } repairable } gun, ..]
+            || repairable.Durability < repairable.MaxDurability
+            || repairable.MaxDurability < (_itemHelper!.GetItem(gun.Template).Value?.Properties?.MaxDurability ?? 0))
+        {
+            details.Quantity = 1;
+            return;
+        }
+
+        // A trader flip already rolled its chance when the gun was picked.
+        if (PresetOfferGate.TakeBuildKind() == "traderflip")
+        {
+            details.Quantity = RollBulk(settings.TraderGunStacks with { Chance = 1 }) ?? 1;
+            return;
+        }
+
+        if (RollBulk(settings.StockGunStacks) is { } count)
+        {
+            details.Quantity = count;
+        }
+    }
+
+    // Now and then several of a helmet to an offer, only at max/max durability and only one that's easy to come by
+    // (not superrare, or a trader sells it): spares from someone's stash.
+    public static void HelmetStack(SPTarkov.Server.Core.Models.Spt.Ragfair.CreateFleaOfferDetails details)
+    {
+        var settings = _config?.Mod.GeneratedOffers.ItemsPerOffer;
+        if (details.Creator != SPTarkov.Server.Core.Models.Enums.OfferCreator.FakePlayer || details.SellInOnePiece
+            || settings is not { Enabled: true } || details.Items is not [{ } helmet, ..]
+            || !_itemHelper!.IsOfBaseclass(helmet.Template, HeadwearBase))
+        {
+            return;
+        }
+
+        // Caps and hats have no armor: left as they are.
+        var pieces = details.Items.Where(item => item.Upd?.Repairable is not null).ToList();
+        if (pieces.Count == 0 || !pieces.Any(item => int.TryParse(_itemHelper.GetItem(item.Template).Value?.Properties?.ArmorClass?.ToString(), out var armorClass) && armorClass > 0))
+        {
+            return;
+        }
+
+        if (_itemHelper.GetItem(helmet.Template).Value?.Properties?.RarityPvE == "Superrare" && !BetterFlea.Prices.GunPricing.TraderSells(helmet.Template))
+        {
+            details.Quantity = 1;
+            return;
+        }
+
+        var mint = pieces.All(item => item.Upd!.Repairable!.Durability >= item.Upd.Repairable.MaxDurability
+            && item.Upd.Repairable.MaxDurability >= (_itemHelper.GetItem(item.Template).Value?.Properties?.MaxDurability ?? 0));
+        details.Quantity = mint ? RollBulk(settings.HelmetStacks) ?? 1 : 1;
+    }
+
+    private static readonly MongoId HeadwearBase = new("5a341c4086f77401f2541505");
     private const double BigFullSeveralChance = 0.25;
     private const double FewUsedSeveralChance = 0.2;
     private static readonly MongoId MedicalBase = new("543be5664bdc2dd4348b4569");

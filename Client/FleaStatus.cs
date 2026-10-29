@@ -202,16 +202,16 @@ internal static class FleaStatus
 internal static class Tags
 {
 
-    public const string FleaBannedWarning = "Flea banned - cannot be listed";
-    public const string SellingOffWarning = "Player listings are turned off";
-    public const string SellingOffNotice = "Player listings are turned off at the Flea Market.";
-    public const string BoughtFromTraderWarning = "Bought from trader - cannot be listed";
+    public static string FleaBannedWarning => ClientText.Get("Flea banned - cannot be listed");
+    public static string SellingOffWarning => ClientText.Get("Player listings are turned off");
+    public static string SellingOffNotice => ClientText.Get("Player listings are turned off at the Flea Market.");
+    public static string BoughtFromTraderWarning => ClientText.Get("Bought from trader - cannot be listed");
 
-    public static string LevelLockWarning(int level) => "Unlocks on the Flea Market at level " + level;
-    public static string ContainsWarning(string inside) => "Contains " + inside + " - cannot be listed";
-    public static string LevelLockNotice(int level) => "This item can only be sold at the Flea Market from level " + level + ".";
+    public static string LevelLockWarning(int level) => ClientText.Get("Unlocks on the Flea Market at level {0}", level);
+    public static string ContainsWarning(string inside) => ClientText.Get("Contains {0} - cannot be listed", inside);
+    public static string LevelLockNotice(int level) => ClientText.Get("This item can only be sold at the Flea Market from level {0}.", level);
 
     // Tooltips: the heading in bold, the line under it plain, both in the icon's colour.
-    public const string FleaBanned = "<color=#c84b4b><b>Flea banned</b>\nCannot be listed on the Flea Market</color>";
-    public const string BoughtFromTrader = "<color=#d9a441><b>Bought from trader</b>\nCannot be listed on the Flea Market</color>";
+    public static string FleaBanned => $"<color=#c84b4b><b>{ClientText.Get("Flea banned")}</b>\n{ClientText.Get("Cannot be listed on the Flea Market")}</color>";
+    public static string BoughtFromTrader => $"<color=#d9a441><b>{ClientText.Get("Bought from trader")}</b>\n{ClientText.Get("Cannot be listed on the Flea Market")}</color>";
 }

@@ -18,6 +18,7 @@ namespace BetterFlea;
 // Before RagfairCallbacks or the startup offers are made before the blacklist exists.
 [Injectable(TypePriority = OnLoadOrder.RagfairCallbacks - 1)]
 public class BetterFleaLoad(
+    ISptLogger<BetterFleaLoad> logger,
     ConfigManager configManager,
     FleaCategoryFilter categoryFilter,
     MarkedKeyPricing markedKeyPricing,
@@ -31,12 +32,25 @@ public class BetterFleaLoad(
             configManager.Load();
         }
 
-        modSupport.Check();
-        categoryFilter.Apply();
-        markedKeyPricing.Apply();
-
-        ApplyFoundInRaidOnly(configManager, globalTable);
+        // Each step on its own: one failing (say over an odd item from another mod) is logged and skipped, and never
+        // stops the server or another mod loading.
+        Step("mod check", modSupport.Check);
+        Step("flea bans", categoryFilter.Apply);
+        Step("marked key prices", markedKeyPricing.Apply);
+        Step("found in raid only", () => ApplyFoundInRaidOnly(configManager, globalTable));
         return Task.CompletedTask;
+    }
+
+    private void Step(string name, Action step)
+    {
+        try
+        {
+            step();
+        }
+        catch (Exception ex)
+        {
+            logger.Warning($"[BetterFlea] Startup: {name} failed and was skipped ({ex.GetType().Name}: {ex.Message}).");
+        }
     }
 
     private static bool _foundInRaidOnlyIsOurs;

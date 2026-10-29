@@ -38,6 +38,29 @@ than 3x what traders say the item is worth (their cash price, or their sell pric
 an NSPU-M eyecup listed at 10,000 that Prapor sells for 355. A cheap one stands, since bait is never cheap. With
 nothing from traders, it counts only if the other mode's price agrees within 2x. Rounds are left alone.
 
+**A thin day counts near its cheapest listing.** A reading's price is the average of what's listed, and with only a
+few listings that's mostly the ones nobody buys: an AK-545 Mk.3 handguard had one listing at 99,999 for weeks while the
+few at 40-50k sold, so its year averaged 80,700. Buyers take the cheapest. Below 10 listings, a reading counts for no
+more than its cheapest listing times 4/3, which is how far the average sits over the cheapest where there are plenty
+of listings, so thin and well-listed items come out on the same scale. Items with 10 or more listings, and ammo, are
+unchanged. A single odd listing in a year was never a problem: the price is a median of days, so one 200k day among
+3k days doesn't move it.
+
+**Weapons and weapon parts are held to what traders say.** Their worth follows trader prices, unlike keys and
+collectibles. Without 10 or more listings on a typical day:
+
+- One with solid days still gets checked, and counts only up to 2x what traders say it's worth (2.5x is where nine in
+  ten well-listed parts sit). Over that it goes by the trader estimate: a 30,000 HK USP trigger is 1,210.
+- One a trader sells counts up to 2x the trader's price; the trader-price rule below takes most of what's over.
+- The markup for weapon kinds comes from well-listed items only. Counted from all of them, bait gave triggers and
+  hammers 34x the trader sell price, which let the 30,000 trigger pass.
+- A part that comes on a build a trader sells is worth at most twice its share (by handbook price) of the cheapest
+  such build, since anyone can buy the build and take it off: a 10,000 Vityaz metal skeleton stock is 3,640.
+
+Against the index built the old way from the same data: 1,083 items moved more than 10%, 1,047 of them down (median
+-24%). The median item didn't move. Well-listed items, ammo and flea-banned items are unchanged. Guns can rise: a gun is
+its default build less the parts, and the parts got cheaper.
+
 **Flea-banned items ignore their flea history.** If tarkov.dev marks an item banned in a mode, that mode's old prices
 are from before the ban and don't count (a THICC item case at 14.3M on PvE). They go by traders and barters instead.
 

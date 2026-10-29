@@ -106,7 +106,7 @@ internal static class BookPrice
     }
 }
 
-// Order: key curve, then drift, then never below what a trader pays.
+// Order: key curve and used price curve, then drift, then never below what a trader pays.
 internal static class PriceGate
 {
     private static ConfigManager? _config;
@@ -165,7 +165,7 @@ internal static class PriceGate
     // counted = false: only working out a price (a player's listing), no offer is being made.
     public static double Adjust(MongoId tpl, MongoId currency, Item? item, double price, bool counted = true)
     {
-        price *= UsedListingsGate.KeyPriceFactor(tpl, item);
+        price *= UsedListingsGate.KeyPriceFactor(tpl, item) * UsedListingsGate.ResourcePriceFactor(tpl, item);
         price *= DriftFactor(tpl) * (counted ? Demand.Factor(tpl) : Demand.SellerFactor(tpl));
 
         var floor = FloorFor(tpl, item, currency);
@@ -245,6 +245,13 @@ internal static class PriceGate
     public static double MarketFactor(MongoId tpl) => DriftFactor(tpl) * Demand.Factor(tpl);
 
     public static double DriftOf(MongoId tpl) => DriftFactor(tpl);
+
+    // A new one's normal price in this currency, with drift and demand.
+    public static double NewPrice(MongoId tpl, MongoId currency)
+    {
+        var price = BookPrice.Of(tpl) * MarketFactor(tpl);
+        return currency == Money.ROUBLES || _handbook is null ? price : _handbook.FromRoubles(price, currency);
+    }
 
     private static bool Buys(TraderBase trader, MongoId tpl)
     {
@@ -432,7 +439,7 @@ internal static class SellerPricing
     }
 
     // SPT's random spread comes in whole percent steps, so a list of one item had a dozen offers at exactly the same
-    // price. People price to the rouble: each offer moves a little, and now and then a seller lists a rouble under one
+    // price. People price to the rouble: each offer moves a little, and now and then a seller lists a little under one
     // already up, the way people undercut. Never below the floor. Last, after every other change to the price.
     public static void Humanise(CreateFleaOfferDetails details)
     {
@@ -447,15 +454,9 @@ internal static class SellerPricing
         var floor = Math.Ceiling(PriceGate.FloorForItems(items, scheme[0].Template) * units);
         var wanted = price * (1 + (Random.Shared.NextDouble() - 0.5) * 0.016);
 
-        // Some sellers type an easy number instead.
-        if (Random.Shared.NextDouble() < (_config?.Mod.Prices.Sellers.RoundPriceChance ?? 0) && EasyNumber(wanted) is { } easy && easy >= floor)
-        {
-            scheme[0].Count = easy;
-            return;
-        }
-
-        // A rouble under an offer near this price (same money, single offers only).
-        if (!details.SellInOnePiece && items.Count == 1 && Random.Shared.NextDouble() < 0.3 && _offers is not null)
+        // Some sellers undercut an offer near this price (same money, single offers only): 74 444 as 74 443, 74 440,
+        // 74 433. Before the easy numbers, or every 45 000 stays a 45 000.
+        if (!details.SellInOnePiece && items.Count == 1 && Random.Shared.NextDouble() < UndercutChance && _offers is not null)
         {
             var near = new List<double>();
             foreach (var offer in _offers.GetOffersOfType(items[0].Template) ?? [])
@@ -467,16 +468,45 @@ internal static class SellerPricing
                     near.Add(count);
                 }
             }
-            if (near.Count > 0)
+
+            // People undercut the offers that catch the eye: an easy number like 74 444 or 45 000 more than 45 117.
+            var eyeCatching = near.Where(count => count >= 1000 && (count % 100 == 0 || count % 1000 >= 998 || SameDigits(count) == count)).ToList();
+            var target = eyeCatching.Count > 0 && Random.Shared.NextDouble() < 0.7 ? eyeCatching[Random.Shared.Next(eyeCatching.Count)]
+                : near.Count > 0 ? near[Random.Shared.Next(near.Count)] : 0;
+            if (target > 0 && Undercut(target) is { } under && under >= Math.Max(1, floor) && !near.Contains(under))
             {
-                wanted = near[Random.Shared.Next(near.Count)] - 1;
+                scheme[0].Count = under;
+                return;
             }
+        }
+
+        // Some sellers type an easy number instead.
+        if (Random.Shared.NextDouble() < (_config?.Mod.Prices.Sellers.RoundPriceChance ?? 0) && EasyNumber(wanted) is { } easy && easy >= floor)
+        {
+            scheme[0].Count = easy;
+            return;
         }
 
         scheme[0].Count = Math.Max(Math.Max(1, floor), Math.Round(wanted));
     }
 
-    // 79412 as 79000, 79500 or 79999; 81372 as 81111; 8247 as 8250. Null when nothing easy is within 4%.
+    private const double UndercutChance = 0.35;
+
+    // A rouble or two under, a few under, down to the last 0 (74 440), the last two digits one lower (74 433), or 10 under.
+    private static double? Undercut(double price)
+    {
+        var roll = Random.Shared.NextDouble();
+        var under = roll < 0.4 ? price - 1
+            : roll < 0.6 ? price - Random.Shared.Next(2, 10)
+            : roll < 0.75 ? Math.Floor((price - 1) / 10) * 10
+            : roll < 0.88 ? price - 11
+            : price - 10;
+        return under >= 1 && under < price ? under : null;
+    }
+
+    // 79412 as 79000, 79500, 79400, 79250, 79999 or 79998; 81372 as 81111; 43900 as 44444; 8247 as 8250. Live, a list
+    // reads 44 444, 44 900, 45 000, 45 000, 45 998, 45 999, 46 000: easy to type. Repeated digits (13 333, 44 444,
+    // 211 111) are about as common as round numbers. Null when nothing easy is within 4%.
     private static double? EasyNumber(double wanted)
     {
         if (wanted < 1000)
@@ -487,26 +517,56 @@ internal static class SellerPricing
         var step = Math.Pow(10, Math.Floor(Math.Log10(wanted)) - 1);
         var roll = Random.Shared.NextDouble();
         double easy;
-        if (roll < 0.45)
+        if (roll < 0.3)
         {
             easy = Math.Round(wanted / step) * step;
         }
-        else if (roll < 0.7)
+        else if (roll < 0.42)
         {
             easy = Math.Round(wanted / (step / 2)) * (step / 2);
         }
-        else if (roll < 0.85)
+        else if (roll < 0.52)
         {
-            easy = Math.Ceiling(wanted / step) * step - 1;
+            // 29 750, 44 900: a quarter or a tenth of the step.
+            var fine = Random.Shared.NextDouble() < 0.5 ? step / 4 : step / 10;
+            easy = Math.Round(wanted / fine) * fine;
+        }
+        else if (roll < 0.7)
+        {
+            easy = Math.Ceiling(wanted / step) * step - (Random.Shared.NextDouble() < 0.75 ? 1 : 2);
         }
         else
         {
+            // The last digits repeat the one before them (81 111), or all but the first are the same (44 444, 13 333).
             var head = Math.Floor(wanted / step);
             var digit = head % 10;
-            easy = head * step + digit * (step - 1) / 9;
+            var tail = head * step + digit * (step - 1) / 9;
+            var same = SameDigits(wanted);
+            easy = Math.Abs(same / wanted - 1) <= 0.04 && Random.Shared.NextDouble() < 0.5 ? same : tail;
         }
 
         return Math.Abs(easy / wanted - 1) <= 0.04 ? easy : null;
+    }
+
+    // The nearest number whose digits after the first are all the same: 44 444, 13 333, 211 111, 2 777 777.
+    private static double SameDigits(double wanted)
+    {
+        var length = (int)Math.Floor(Math.Log10(wanted));
+        var ones = (Math.Pow(10, length) - 1) / 9;
+        var best = double.MaxValue;
+        for (var lead = 1; lead <= 9; lead++)
+        {
+            for (var digit = 1; digit <= 9; digit++)
+            {
+                var candidate = lead * Math.Pow(10, length) + digit * ones;
+                if (Math.Abs(candidate - wanted) < Math.Abs(best - wanted))
+                {
+                    best = candidate;
+                }
+            }
+        }
+
+        return best;
     }
 
     // The whole market dearer or cheaper. Last, so deals and overpriced offers move with it. Never below the floor.
@@ -531,6 +591,35 @@ internal static class SellerPricing
         }
     }
 
+    // A used key never asks more than a new one's normal price: the spread and worn overpricing put 9/10 and 7/10
+    // marked keys among the dearest new ones, where a buyer only expects 10/10. After the multiplier, before Humanise.
+    private const double ChancerKeyShare = 0.025;
+
+    public static void CapUsedKey(CreateFleaOfferDetails details)
+    {
+        if (details.Creator != OfferCreator.FakePlayer || details.SellInOnePiece || details.Items is not [{ } key]
+            || key.Upd?.Key is null || details.BarterScheme is not [{ Count: { } price } barter] || UsedListingsGate.PriceQuality(key) >= 1)
+        {
+            return;
+        }
+
+        var cap = PriceGate.NewPrice(key.Template, barter.Template) * (_config?.Mod.Prices.PriceMultiplier ?? 1.0) * WipeEconomy.Factor(key.Template);
+
+        // Now and then a chancer lists a used key among the dear new ones, hoping a buyer doesn't check the uses.
+        // About 1 offer in 40 whatever share of the key's offers are used, so one or two to a list.
+        var usedChance = UsedListingsGate.KeySettingsFor(key.Template).UsedChance;
+        if (cap > 0 && usedChance > 0 && Random.Shared.NextDouble() < ChancerKeyShare / usedChance)
+        {
+            barter.Count = Math.Round(cap * (1.0 + Random.Shared.NextDouble() * 0.2));
+            return;
+        }
+
+        if (cap > 0 && price > cap)
+        {
+            barter.Count = Math.Max(Math.Round(cap), Math.Ceiling(PriceGate.FloorForItems(details.Items, barter.Template)));
+        }
+    }
+
     public static void Apply(CreateFleaOfferDetails details)
     {
         var settings = _config?.Mod.Prices.Sellers;
@@ -546,7 +635,7 @@ internal static class SellerPricing
         }
 
         // The worst part decides how worn the offer is.
-        var quality = items.Min(item => UsedListingsGate.IgnoresCondition(item.Template) ? 1.0 : Math.Clamp(_itemHelper.GetItemQualityModifier(item), 0, 1));
+        var quality = items.Min(UsedListingsGate.PriceQuality);
         double Between(double low, double high) => low + Random.Shared.NextDouble() * Math.Max(0, high - low);
 
         var units = details.SellInOnePiece ? Math.Max(1, details.Quantity) : 1;
@@ -556,6 +645,7 @@ internal static class SellerPricing
 
         var quickSell = Math.Clamp(settings.QuickSellChance, 0, 1);
         var overprice = Math.Clamp(settings.OverpriceChance + (1 - quality) * settings.WornOverpriceChance, 0, 1);
+        var troll = Math.Clamp(_itemHelper.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON) ? settings.TrollGunChance : settings.TrollChance, 0, 1);
         var roll = Random.Shared.NextDouble();
         double factor;
         if (details.SellInOnePiece)
@@ -587,7 +677,13 @@ internal static class SellerPricing
         {
             factor = AboveFloor(1 - Between(settings.QuickSellMinPercent, settings.QuickSellMaxPercent) / 100);
         }
-        else if (roll < quickSell + overprice)
+        // Someone lists it at a silly price, 10 times normal (an NL545 at 2,950,000). Nobody buys these; they sit at
+        // the end of the list. Live, gun lists have the most.
+        else if (roll < quickSell + troll)
+        {
+            factor = Between(settings.TrollMinMultiplier, settings.TrollMaxMultiplier);
+        }
+        else if (roll < quickSell + troll + overprice)
         {
             factor = 1 + Between(settings.OverpriceMinPercent, settings.OverpriceMaxPercent) / 100 + (1 - quality) * Between(0.2, 0.5);
             factor = Math.Min(factor, MostOverprice);
@@ -646,6 +742,9 @@ internal static class GunPricing
     }
 
     private static GunPricingConfig? Settings => _config?.Mod.Prices.Guns;
+
+    // Any trader (not Fence) sells it, at any loyalty level or behind a quest SPT gives.
+    public static bool TraderSells(MongoId tpl) => _traders is not null && _traderValues.Value.ContainsKey(tpl);
 
     public static bool Applies(List<Item> items) =>
         Settings is { Enabled: true } && _prices is not null && items.Count > 0 && _itemHelper!.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON);

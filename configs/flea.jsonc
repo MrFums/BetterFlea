@@ -67,6 +67,10 @@
   // Easiest to set on the settings page, which lists the mods that add items.
   "bannedModItems": {},
 
+  // The other way round: items a mod itself keeps off the flea (marked as not sellable there), let on anyway.
+  // ["all"] allows everything that mod bans, or list the types, named as above. Example: { "Some Mod": ["gear.bodyArmor"] }
+  "allowedModItems": {},
+
   // Item unlock levels. Off by default; the Live progression flea style on the settings page turns them on.
   // Like the real flea: some items can only be bought and sold from a certain level (the M4A1 from 25, a
   // graphics card from 40). Uses the real game's levels, updated from tarkov.dev when live prices are on.

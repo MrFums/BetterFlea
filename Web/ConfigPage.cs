@@ -85,7 +85,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     // Settings only read at startup.
     private static readonly Dictionary<string, string[]> RestartPaths = new()
     {
-        ["flea.jsonc"] = ["bannedCategories", "bannedItems", "allowedItems", "enableBsgBlacklist", "bannedModItems"],
+        ["flea.jsonc"] = ["bannedCategories", "bannedItems", "allowedItems", "enableBsgBlacklist", "bannedModItems", "allowedModItems"],
         ["listings.jsonc"] = ["listings.onDemand.enabled"]
     };
 
@@ -95,11 +95,13 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         return (path.Equals(Root, StringComparison.OrdinalIgnoreCase) || path.StartsWith(Root + "/", StringComparison.OrdinalIgnoreCase))
             && !path.Equals(ClientDataRoute.Path, StringComparison.OrdinalIgnoreCase)
             && !path.Equals(ClientDataRoute.LevelsPath, StringComparison.OrdinalIgnoreCase)
-            && !path.Equals(ItemPriceRoute.Path, StringComparison.OrdinalIgnoreCase);
+            && !path.Equals(ItemPriceRoute.Path, StringComparison.OrdinalIgnoreCase)
+            && !path.Equals(FlipNoticeRoute.Path, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task HandleAsync(MongoId sessionId, HttpContext context, CancellationToken cancellationToken)
     {
+        Language.Value = GameLocales.GetValueOrDefault(context.Request.Headers["X-BetterFlea-Lang"].ToString());
         var web = configManager.Mod.Web;
         if (!web.Enabled)
         {
@@ -159,6 +161,10 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
                     AdminLogin.LogOut(context);
                     await SendJson(context, new JsonObject { ["ok"] = true }, cancellationToken);
                     break;
+                case var language when LanguageFile.IsMatch(language) && LanguageExists(language):
+                    context.Response.Headers.CacheControl = "no-cache";
+                    await Send(context, "application/json; charset=utf-8", Resource("i18n." + language[(language.LastIndexOf('/') + 1)..]), cancellationToken);
+                    break;
                 default:
                     context.Response.StatusCode = 404;
                     break;
@@ -194,10 +200,27 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         return new JsonObject { ["version"] = new ModMetadata().Version.ToString(), ["restartNeeded"] = RestartNeeded(), ["files"] = files };
     }
 
+    // The page's language (sent with each request) as the game's locale code; item and category names come from
+    // the game's own text in it, English where it has none.
+    private static readonly AsyncLocal<string?> Language = new();
+
+    private static readonly Dictionary<string, string> GameLocales = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ru"] = "ru", ["zh"] = "ch", ["de"] = "ge", ["fr"] = "fr", ["es"] = "es", ["pt"] = "po", ["pl"] = "pl", ["ja"] = "jp", ["ko"] = "kr"
+    };
+
+    private string Localised(string key, string english)
+    {
+        var language = Language.Value;
+        return language is not null && locales.GetLocaleDb(language) is { } local && local.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text)
+            ? text
+            : english;
+    }
+
     private string ItemName(MongoId tpl)
     {
         var id = tpl.ToString();
-        return (locales.GetLocaleDb("en") ?? []).GetValueOrDefault(id + " Name", id);
+        return Localised(id + " Name", (locales.GetLocaleDb("en") ?? []).GetValueOrDefault(id + " Name", id));
     }
 
     // The Economy tab: live price status, the Wipe Cycle's level, what moves most at a level (?level=30), and one
@@ -306,19 +329,28 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     private JsonObject Mods()
     {
         var mods = new JsonArray();
-        var sellable = ModItems.All
-            .Select(entry => (Item: templates.Items.GetValueOrDefault(entry.Key), Mod: entry.Value))
-            .Where(entry => entry.Item is not null && entry.Item.Properties?.CanSellOnRagfair is not false);
-        foreach (var group in sellable.GroupBy(entry => entry.Mod).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        // Only what the flea could ever have: items in the handbook. Pockets and the like aren't.
+        var listable = templates.Handbook.Items.Select(entry => entry.Id).ToHashSet();
+        var all = ModItems.All
+            .Where(entry => listable.Contains(entry.Key))
+            .Select(entry => (Tpl: entry.Key, Item: templates.Items.GetValueOrDefault(entry.Key), Mod: entry.Value))
+            .Where(entry => entry.Item is not null);
+        JsonArray Types(IEnumerable<(MongoId Tpl, TemplateItem? Item, string Mod)> items) => new(items
+            .GroupBy(entry => FleaCategories.Find(entry.Item!, itemHelper)?.Name ?? FleaCategories.Uncategorised)
+            .OrderByDescending(type => type.Count())
+            .Select(type => (JsonNode)new JsonObject { ["name"] = type.Key, ["items"] = type.Count() }).ToArray());
+        foreach (var group in all.GroupBy(entry => entry.Mod).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var types = group
-                .GroupBy(entry => FleaCategories.Find(entry.Item!, itemHelper)?.Name ?? FleaCategories.Uncategorised)
-                .OrderByDescending(type => type.Count());
+            // Sellable: what can be banned. Flea-banned: what the mod itself keeps off the flea, which can be allowed.
+            var sellable = group.Where(entry => entry.Item!.Properties?.CanSellOnRagfair is not false).ToList();
+            var banned = group.Where(entry => FleaCategoryFilter.WasFleaBanned(entry.Tpl)).ToList();
             mods.Add(new JsonObject
             {
                 ["name"] = group.Key,
-                ["items"] = group.Count(),
-                ["types"] = new JsonArray(types.Select(type => (JsonNode)new JsonObject { ["name"] = type.Key, ["items"] = type.Count() }).ToArray())
+                ["items"] = sellable.Count,
+                ["types"] = Types(sellable),
+                ["banned"] = banned.Count,
+                ["bannedTypes"] = Types(banned)
             });
         }
 
@@ -374,7 +406,11 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         return _catalogue = list;
     }
 
-    // ?q=ledx finds items and categories by name or short name; ?ids=a,b gives the names of those ids.
+    private string LocalName((string Id, string Name, string Short, bool Category) entry) =>
+        Localised(entry.Category ? entry.Id : entry.Id + " Name", entry.Name);
+
+    // ?q=ledx finds items and categories by name or short name (English or the page's language); ?ids=a,b gives the
+    // names of those ids.
     private JsonObject Items(string query, string ids)
     {
         var catalogue = Catalogue();
@@ -390,7 +426,8 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             query = query.Trim();
             matches = query.Length < 2
                 ? []
-                : catalogue.Where(entry => entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || entry.Short.Contains(query, StringComparison.OrdinalIgnoreCase) || entry.Id.Equals(query, StringComparison.OrdinalIgnoreCase))
+                : catalogue.Where(entry => entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || entry.Short.Contains(query, StringComparison.OrdinalIgnoreCase) || entry.Id.Equals(query, StringComparison.OrdinalIgnoreCase)
+                        || Language.Value is not null && LocalName(entry).Contains(query, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(entry => entry.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                     .ThenBy(entry => entry.Category ? 0 : 1)
                     .ThenBy(entry => entry.Name.Length)
@@ -399,7 +436,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
 
         foreach (var (id, name, _, category) in matches)
         {
-            found.Add(new JsonObject { ["id"] = id, ["name"] = name, ["category"] = category });
+            found.Add(new JsonObject { ["id"] = id, ["name"] = LocalName((id, name, "", category)), ["category"] = category });
         }
 
         return new JsonObject { ["items"] = found };
@@ -456,7 +493,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
 
     private static async Task<bool> Allowed(HttpContext context, string path)
     {
-        if (OpenPaths.Contains(path) || AdminLogin.IsAdmin(context))
+        if (OpenPaths.Contains(path) || LanguageFile.IsMatch(path) || AdminLogin.IsAdmin(context))
         {
             return true;
         }
@@ -645,6 +682,12 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     }
 
     private static readonly Dictionary<string, byte[]> Resources = new();
+
+    // The settings page in another language (Web/i18n): /betterflea/i18n/ru.json.
+    private static readonly Regex LanguageFile = new("^" + Regex.Escape(Root) + "/i18n/[a-z]{2}\\.json$", RegexOptions.Compiled);
+
+    private static bool LanguageExists(string path) =>
+        Assembly.GetExecutingAssembly().GetManifestResourceInfo("BetterFlea.web.i18n." + path[(path.LastIndexOf('/') + 1)..]) is not null;
 
     private static byte[] Resource(string name)
     {

@@ -21,6 +21,11 @@ public record FleaConfig
     [JsonPropertyName("bannedModItems")]
     public Dictionary<string, List<string>> BannedModItems { get; set; } = new();
 
+    // Mod name -> "all", or the item types, of that mod's items to let on the flea although the mod marks them as
+    // not sellable there (CanSellOnRagfair false, or on the flea blacklist).
+    [JsonPropertyName("allowedModItems")]
+    public Dictionary<string, List<string>> AllowedModItems { get; set; } = new();
+
     [JsonPropertyName("levelLock")]
     public LevelLockConfig LevelLock { get; set; } = new();
 

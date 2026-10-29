@@ -165,7 +165,7 @@ public record SellerPricingConfig
     public double OverpriceMinPercent { get; set; } = 10;
 
     [JsonPropertyName("overpriceMaxPercent")]
-    public double OverpriceMaxPercent { get; set; } = 30;
+    public double OverpriceMaxPercent { get; set; } = 50;
 
     [JsonPropertyName("quickSellChance")]
     public double QuickSellChance { get; set; } = 0.004;
@@ -177,5 +177,18 @@ public record SellerPricingConfig
     public double QuickSellMaxPercent { get; set; } = 25;
 
     [JsonPropertyName("roundPriceChance")]
-    public double RoundPriceChance { get; set; } = 0.2;
+    public double RoundPriceChance { get; set; } = 0.75;
+
+    // Troll prices: 5 to 15 times normal, at the end of the list. Guns get more of them.
+    [JsonPropertyName("trollChance")]
+    public double TrollChance { get; set; } = 0.004;
+
+    [JsonPropertyName("trollGunChance")]
+    public double TrollGunChance { get; set; } = 0.04;
+
+    [JsonPropertyName("trollMinMultiplier")]
+    public double TrollMinMultiplier { get; set; } = 5;
+
+    [JsonPropertyName("trollMaxMultiplier")]
+    public double TrollMaxMultiplier { get; set; } = 15;
 }

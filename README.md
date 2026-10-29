@@ -32,7 +32,7 @@ Everything can be turned off or tuned in the settings.
 **Fika headless client: do NOT install the BepInEx plugin on it.** It only needs the server mod on the server.
 
 ## How to install
-1. Download `BetterFlea-2.2.0.zip`.
+1. Download the latest `BetterFlea-<version>.zip` from [Releases](https://github.com/MrFums/BetterFlea/releases).
 2. Open your SPT install folder.
 3. Extract the zip into this folder. The 2 parts go to the correct folders by themselves.
 4. Only the server host needs the server component. Obviously. Every REAL player needs the BepInEx plugin.
@@ -53,6 +53,8 @@ Everything is changed on the settings page: open `https://127.0.0.1:6969/betterf
 Every setting is explained right there, and most changes apply as soon as you press Save. Please don't edit the files in the `configs` folder by hand.
 
 Changed something and want it back? Press Reset to default on that tab, or Reset everything in the More menu.
+
+The settings page comes in English, Russian, Chinese (Simplified), German, French, Spanish, Portuguese (Brazil), Polish, Japanese and Korean. It starts in your browser's language; change it with the language box at the top. Item names on the page come in the game's own wording for that language. The texts the game shows (flea-banned and trader tags, level locks) follow the game's own language. The translations were made with AI, so if a wording is off, please report it as an issue.
 
 Forgot the password? Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` and restart the server, then make a new account. Your settings are kept.
 

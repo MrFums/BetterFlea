@@ -77,9 +77,9 @@ internal static class LevelLockUi
         return new ItemAttribute(Attribute.FleaUnlockLevel)
         {
             Name = "Unlocks on flea market",
-            DisplayNameFunc = () => "Unlocks on flea market",
-            StringValue = () => level + " Level",
-            FullStringValue = () => "Can be bought and sold on the Flea Market from level " + level + ".",
+            DisplayNameFunc = () => ClientText.Get("Unlocks on flea market"),
+            StringValue = () => ClientText.Get("{0} Level", level),
+            FullStringValue = () => ClientText.Get("Can be bought and sold on the Flea Market from level {0}.", level),
             DisplayType = () => EItemAttributeDisplayType.Compact
         };
     }

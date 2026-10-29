@@ -39,6 +39,7 @@
         <EmbeddedResource Include="configs\*.jsonc" LogicalName="BetterFlea.configs.%(Filename)%(Extension)" />
         <!-- The settings page at /betterflea. -->
         <EmbeddedResource Include="Web\index.html;Web\icon.png;CHANGELOG.md" LogicalName="BetterFlea.web.%(Filename)%(Extension)" />
+        <EmbeddedResource Include="Web\i18n\*.json" LogicalName="BetterFlea.web.i18n.%(Filename)%(Extension)" />
         <!-- How real flea prices moved through a wipe, per item (Wipe Cycle). -->
         <EmbeddedResource Include="Prices\wipe-curves.json" LogicalName="BetterFlea.data.wipe-curves.json" />
         <!-- Better Flea's own fixed price for every base-game item (Research/tools/price_index.py). -->
@@ -49,7 +50,7 @@
 
     <PropertyGroup>
         <ModOutputDir>$(ServerDir)\user\mods\$(AssemblyName)</ModOutputDir>
-        <Version>2.4.0-beta.2</Version>
+        <Version>2.4.0-beta.3</Version>
     </PropertyGroup>
 
     <!-- Only with -p:ServerDir="C:\path\to\SPT\SPT_Runtime": copies the mod into that server. Without it, it just builds. -->

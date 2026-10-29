@@ -465,6 +465,26 @@ internal static partial class PresetOfferGate
         return result;
     });
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<MongoId, bool> BossGuns = new();
+
+    // Only bosses and their guards carry it (no scav, raider or cultist) and no trader sells it: the M60E6, PKP, Mk 43.
+    // People farm the boss and list what they find, so these are mostly factory guns as found.
+    public static bool IsBossGun(MongoId tpl) => _botTable is not null && BossGuns.GetOrAdd(tpl, static gun =>
+        LootRolesByGun.Value.TryGetValue(gun, out var roles) && roles.Count > 0
+        && roles.All(entry => entry.Role.StartsWith("boss", StringComparison.OrdinalIgnoreCase)
+            || entry.Role.StartsWith("follower", StringComparison.OrdinalIgnoreCase))
+        && !BetterFlea.Prices.GunPricing.TraderSells(gun));
+
+    // Helmets a boss or guard can spawn with. Some on the flea come off one that was shot until it dropped.
+    private static readonly Lazy<HashSet<MongoId>> BossHelmets = new(() => _botTable!.Types
+        .Where(entry => entry.Key.StartsWith("boss", StringComparison.OrdinalIgnoreCase)
+            || entry.Key.StartsWith("follower", StringComparison.OrdinalIgnoreCase))
+        .SelectMany<KeyValuePair<string, BotType?>, MongoId>(entry => entry.Value?.BotInventory?.Equipment is { } equipment
+            && equipment.TryGetValue(EquipmentSlots.Headwear, out var helmets) ? helmets.Keys : [])
+        .ToHashSet());
+
+    public static bool IsBossHelmet(MongoId tpl) => _botTable is not null && BossHelmets.Value.Contains(tpl);
+
     // Each slot filled from the role's own parts at the role's own chance, like SPT gears bots.
     private static (List<Item> Build, string Origin)? LootedBuild(Item gun, TemplateItem template)
     {

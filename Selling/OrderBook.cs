@@ -91,13 +91,118 @@ internal static class OrderBook
     // minute. waitMinutes: the flip penalty.
     public static void Listed(RagfairOffer offer, double? ratio, double waitMinutes)
     {
-        // A rare item takes a few minutes to find a buyer even at a fair price; well under normal, it goes at once.
+        // A rare item takes a few minutes to find a buyer even at a fair price, longer with a slower buyer timer; at a
+        // quick-sell price (safeBelowPercent under normal) it goes at once.
         var rarity = offer.Items?.FirstOrDefault() is { } root ? _itemHelper!.GetItem(root.Template).Value?.Properties?.RarityPvE : null;
-        var first = ratio is <= 0.85 ? 5
-            : rarity == "Superrare" ? 180 + Random.Shared.Next(300)
-            : rarity == "Rare" ? 60 + Random.Shared.Next(120)
+        var timer = Settings is { } settings ? TimerScale(settings) : 1;
+        var first = ratio is { } r && r <= QuickBelow() ? 5
+            : rarity == "Superrare" ? (long)((180 + Random.Shared.Next(300)) * timer)
+            : rarity == "Rare" ? (long)((60 + Random.Shared.Next(120)) * timer)
             : ratio is <= 1 ? 5 : 60;
         NotBefore[offer.Id] = Now() + first + (long)(Math.Max(0, waitMinutes) * 60);
+    }
+
+    // At or under this share of normal an offer is a quick sell: buyers come at the set timer, whatever the item.
+    private static double QuickBelow() =>
+        1 - Math.Clamp(_config?.Mod.PlayerSelling.Undercut.SafeBelowPercent ?? 10, 0, 90) / 100;
+
+    // The buyer timer against its default (6 to 12 s): 1 at the default, 2 at twice as slow.
+    private static double TimerScale(BuyersConfig settings)
+    {
+        var low = Math.Max(0.1, settings.MinMinutes);
+        return Math.Clamp((low + Math.Max(low, settings.MaxMinutes)) / 2 / 0.15, 0.2, 10);
+    }
+
+    // A player's offer buyers can take now at a quick-sell price.
+    private static bool Quick(RagfairOffer offer, double normal, long now) =>
+        offer.RequirementsCost is { } price && price > 0 && now >= NotBefore.GetValueOrDefault(offer.Id)
+        && price / Condition(offer.Items![0]) <= normal * QuickBelow();
+
+    // Guns, armour and anything else these buyers don't take get one roll when listed. A fair one (at most 5% over
+    // normal) that missed gets another every unique wait, so in the end it sells; a dearer one stays as it rolled.
+    // Never over normal by more than that, so relisting can't make money the market wouldn't pay.
+    private const double FairOver = 1.05;
+
+    private static readonly ConcurrentDictionary<MongoId, long> RecheckAt = new();
+
+    // waitMinutes: the flip penalty, so a quick flip waits for its next roll too.
+    public static void Rolled(RagfairOffer offer, double waitMinutes) =>
+        RecheckAt[offer.Id] = Now() + (long)(Math.Max(0, waitMinutes) * 60) + Recheck(offer);
+
+    private static long Recheck(RagfairOffer offer) =>
+        (long)(SaleDelayGate.UniqueWaitMinutes(SaleDelayGate.NormalPrice(offer.Items ?? []) ?? 100000) * 60);
+
+    private static void Rerolls(long now)
+    {
+        var delay = _config?.Mod.PlayerSelling is { Enabled: true } selling && selling.SaleDelay.Enabled ? selling.SaleDelay : null;
+        if (delay is null || _profiles is null || _itemHelper is null)
+        {
+            return;
+        }
+
+        var live = new HashSet<MongoId>();
+        foreach (var (_, profile) in _profiles.GetProfiles())
+        {
+            foreach (var offer in (profile.CharacterData?.PmcData?.RagfairInfo?.Offers ?? []).ToList())
+            {
+                if (offer.EndTime <= now || offer.SellInOnePiece == true || offer.Items is not { Count: > 0 } items
+                    || !MoneyOnly(offer) || (On && Handles(offer)))
+                {
+                    continue;
+                }
+
+                live.Add(offer.Id);
+                // Seen for the first time since the server started: its roll is long done.
+                if (!RecheckAt.TryGetValue(offer.Id, out var due))
+                {
+                    RecheckAt[offer.Id] = now + Recheck(offer);
+                    continue;
+                }
+
+                if (now < due)
+                {
+                    continue;
+                }
+
+                RecheckAt[offer.Id] = now + Recheck(offer);
+                var pending = offer.SellResults?.ToList().Sum(sale => sale.Amount ?? 0) ?? 0;
+                var left = offer.Quantity - pending;
+                if (pending > 0 || left <= 0 || offer.RequirementsCost is not { } price || price <= 0
+                    || SaleDelayGate.NormalPrice(items) is not { } normal || normal <= 0 || price > normal * FairOver)
+                {
+                    continue;
+                }
+
+                // As on listing: a cheaper offer of the same item goes first, unless this one is well under normal.
+                var tpl = items[0].Template;
+                var ratio = price / normal;
+                var chance = SaleDelayGate.BuyerTakes(ratio);
+                if (items.Count == 1 && !_itemHelper.IsOfBaseclass(tpl, BaseClasses.WEAPON) && ratio > QuickBelow()
+                    && Undercuts.Cheapest(tpl, Condition(items[0])) is { } cheapest && cheapest < price)
+                {
+                    chance *= Math.Clamp(delay.CheaperOfferShare, 0, 1);
+                }
+
+                if (Random.Shared.NextDouble() >= chance)
+                {
+                    DebugLog.Write(() => $"Re-roll: {Name(tpl)} at {price:0} RUB (x{ratio:0.00}) found no buyer, next in {RecheckAt[offer.Id] - now} s");
+                    continue;
+                }
+
+                var lot = items.Count > 1 ? 1 : Math.Min(left, SaleDelayGate.LotFor(tpl, left));
+                offer.SellResults ??= [];
+                offer.SellResults.Add(new SellResult { SellTime = now + 5 + Random.Shared.Next(55), Amount = lot });
+                DebugLog.Write(() => $"Re-roll: {Name(tpl)} found a buyer for {lot} at {price:0} RUB (x{ratio:0.00})");
+            }
+        }
+
+        foreach (var id in RecheckAt.Keys)
+        {
+            if (!live.Contains(id))
+            {
+                RecheckAt.TryRemove(id, out _);
+            }
+        }
     }
 
     // Someone bought an offer of the item: a new one goes up a while later.
@@ -113,12 +218,13 @@ internal static class OrderBook
         offer.Requirements?.All(requirement => _itemHelper!.IsOfBaseclass(requirement.TemplateId, BaseClasses.MONEY)) == true;
 
     private static double Condition(Item item) =>
-        UsedListingsGate.IgnoresCondition(item.Template) ? 1 : Math.Clamp(_itemHelper!.GetItemQualityModifier(item), 0.01, 1);
+        UsedListingsGate.PriceQuality(item);
 
     private static void Tick()
     {
         try
         {
+            Rerolls(Now());
             if (Settings is not { } settings || _offers is null || _itemHelper is null)
             {
                 return;
@@ -135,8 +241,15 @@ internal static class OrderBook
             }
             foreach (var tpl in items)
             {
-                var volume = Volume(tpl);
+                // A player's quick sell draws buyers at the set timer, however rare or dear the item.
+                var quick = SaleDelayGate.NormalPrice([new Item { Id = new MongoId(), Template = tpl }]) is { } normal && normal > 0
+                    && mine.Any(entry => entry.Offer.Items![0].Template == tpl && Quick(entry.Offer, normal, now));
+                var volume = quick ? Math.Min(1, Volume(tpl)) : Volume(tpl);
                 var pace = Paces.GetOrAdd(tpl, _ => new Pace(now + Wait(settings, volume), 1, now));
+                if (quick && pace.NextAt - now > Math.Max(0.1, settings.MaxMinutes) * 60 * pace.Slow)
+                {
+                    pace = pace with { NextAt = now + Wait(settings, pace.Slow) };
+                }
 
                 // A busy item can see several buyers between two passes.
                 for (var buyers = 0; buyers < 6 && now >= pace.NextAt; buyers++)
@@ -162,7 +275,7 @@ internal static class OrderBook
     // How much longer than usual buyers take for an item, from what it is. Cheap things trade all the time and dear
     // ones now and then; rare things less again; and the more hideout builds, crafts and quests want it, the busier
     // it is. Wires (about 50,000, common, wanted all over the hideout) trade every few seconds, a LEDX every few minutes.
-    private static double Volume(MongoId tpl)
+    internal static double Volume(MongoId tpl)
     {
         var normal = SaleDelayGate.NormalPrice([new Item { Id = new MongoId(), Template = tpl }]) ?? 20000;
         var price = Math.Clamp(Math.Sqrt(Math.Max(1, normal) / 20000), 0.15, 8);

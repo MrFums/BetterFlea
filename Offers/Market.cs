@@ -94,7 +94,7 @@ internal static class OfferLifecycle
         var normal = gun ? BetterFlea.Prices.GunPricing.Value(items)
             : items.Where(item => !_itemHelper!.IsOfBaseclass(item.Template, BaseClasses.BUILT_IN_INSERTS)).Sum(item => BetterFlea.Prices.BookPrice.Of(item.Template));
         var quality = gun ? BetterFlea.Prices.GunPricing.Condition(items)
-            : items.Min(item => UsedListingsGate.IgnoresCondition(item.Template) ? 1.0 : Math.Clamp(_itemHelper!.GetItemQualityModifier(item), 0.01, 1));
+            : items.Min(UsedListingsGate.PriceQuality);
 
         // Where the wipe, drift or demand has moved an item's price, that price is normal for buyers too.
         normal *= BetterFlea.Prices.WipeEconomy.Factor(items[0].Template) * BetterFlea.Prices.PriceGate.MarketFactor(items[0].Template);
@@ -108,18 +108,75 @@ internal static class OfferLifecycle
     {
         var expiry = _config!.Mod.GeneratedOffers.OfferExpiry;
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var low = Math.Max(10, expiry.MinMinutes) * 60.0;
-        var duration = (long)(low + Random.Shared.NextDouble() * Math.Max(0, Math.Max(expiry.MaxMinutes * 60.0, low) - low));
+        var duration = (long)Duration(offer, expiry);
 
+        // Mostly found soon after listing (live, most show 23h or 11h left, few the red under 10h). Deals fresher
+        // still. A few percent over normal is normal (most sellers ask a little over); only well overpriced offers sit
+        // there and age, and rare items (superrare, keys) a bit, as fewer buyers come for them.
         var lean = DealLean(offer);
         var roll = Random.Shared.NextDouble();
-        var through = justListed ? 0 : lean < 0 ? Math.Pow(roll, 1 + 3 * -lean) : 1 - Math.Pow(roll, 1 + 3 * lean);
+        var freshness = Math.Max(1, expiry.Freshness);
+        var overpriced = Math.Max(0, lean - FairLean) / (1 - FairLean);
+        var exponent = lean < 0 ? freshness * (1 + 3 * -lean) : freshness / (1 + 3 * overpriced);
+        if (offer.Items?.FirstOrDefault() is { } root && (_itemHelper!.GetItem(root.Template).Value?.Properties?.RarityPvE == "Superrare"
+            || root.Upd?.Key is not null))
+        {
+            exponent /= 2;
+        }
+
+        var through = justListed ? 0 : Math.Pow(roll, Math.Max(1, exponent));
 
         // At least a minute old ("now" shows as not available yet), at least five minutes left.
         var age = (long)Math.Clamp(through * duration, 60 + Random.Shared.Next(240), Math.Max(60, duration - 300));
         offer.StartTime = now - age;
         offer.EndTime = offer.StartTime + duration;
     }
+
+    // 5% over normal (a quarter of DealRange).
+    private const double FairLean = 0.25;
+
+    // How many of the cheapest offers of each item turn over at the item's pace.
+    private const int TopOffers = 6;
+
+    // Seconds. Live, people list for 12 or 24 hours; a big stack is often up for days. With no listed time between
+    // minMinutes and maxMinutes (a style with short offers), any time between them.
+    private static double Duration(RagfairOffer offer, OfferExpiryConfig expiry)
+    {
+        var low = Math.Max(10, expiry.MinMinutes) * 60.0;
+        var high = Math.Max(expiry.MaxMinutes * 60.0, low);
+        double Between(double from, double to) => from + Random.Shared.NextDouble() * Math.Max(0, to - from);
+
+        var root = offer.Items?.FirstOrDefault();
+        var count = root?.Upd?.StackObjectsCount ?? 1;
+        var single = root is not null && (_itemHelper!.GetItem(root.Template).Value?.Properties?.StackMaxSize ?? 1) == 1;
+        if (single && count >= Math.Max(2, expiry.LongStackMin) && high > 2 * DaySeconds && Random.Shared.NextDouble() < expiry.LongChance)
+        {
+            return Between(Math.Max(low, 1.5 * DaySeconds), high);
+        }
+
+        var hours = expiry.Hours.Where(entry => double.TryParse(entry.Key, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h) && h > 0 && entry.Value > 0)
+            .Select(entry => (Seconds: double.Parse(entry.Key, System.Globalization.CultureInfo.InvariantCulture) * 3600, Weight: entry.Value))
+            .Where(entry => entry.Seconds >= low && entry.Seconds <= high)
+            .ToList();
+        if (hours.Count == 0)
+        {
+            return Between(low, high);
+        }
+
+        var pick = Random.Shared.NextDouble() * hours.Sum(entry => entry.Weight);
+        foreach (var (seconds, weight) in hours)
+        {
+            pick -= weight;
+            if (pick < 0)
+            {
+                return seconds;
+            }
+        }
+
+        return hours[^1].Seconds;
+    }
+
+    private const double DaySeconds = 86400;
 
     // A real deal doesn't sit there: someone else buys it within a few minutes of it going up.
     // Guns are listed a little under their value as a rule (Gun prices), so only past the cheapest of that is a deal.
@@ -299,15 +356,34 @@ internal static class OfferLifecycle
             var hours = Math.Max(1, settings.EveryMinutes) / 60.0;
             var onDemand = OnDemandOffers.Enabled;
             int sold = 0, deals = 0;
-            foreach (var offer in _offers!.GetOffers())
-            {
-                if (!offer.IsFakePlayerOffer())
-                {
-                    continue;
-                }
+            var offers = _offers!.GetOffers().Where(offer => offer.IsFakePlayerOffer()).ToList();
 
+            // The market keeps moving where the player isn't looking: the cheapest few offers of every item are bought
+            // and relisted by new sellers at the item's own pace, so the top of a list stays freshly listed (23h, 11h
+            // left) however long the server has been up. Wires turn over every hour or so, a LEDX hardly ever.
+            var topRate = new Dictionary<MongoId, double>();
+            if (settings.TopSellChancePerHour > 0)
+            {
+                foreach (var item in offers.Where(offer => offer.SellInOnePiece != true && offer.RequirementsCost > 0 && offer.Items is { Count: > 0 })
+                    .GroupBy(offer => offer.Items![0].Template))
+                {
+                    var rate = Math.Clamp(settings.TopSellChancePerHour / Math.Max(0.05, BetterFlea.Selling.OrderBook.Volume(item.Key)), 0, 0.95);
+                    foreach (var top in item.OrderBy(offer => offer.RequirementsCost).Take(TopOffers))
+                    {
+                        topRate[top.Id] = rate;
+                    }
+                }
+            }
+
+            foreach (var offer in offers)
+            {
                 var lean = DealLean(offer);
                 var perHour = Math.Clamp(settings.NormalSellChancePerHour * Math.Pow(Math.Max(1, settings.DealSpeedup), -lean), 0, 0.95);
+                if (lean <= 2 * FairLean && topRate.TryGetValue(offer.Id, out var top))
+                {
+                    perHour = Math.Max(perHour, top);
+                }
+
                 if (Random.Shared.NextDouble() >= 1 - Math.Pow(1 - perHour, hours))
                 {
                     continue;

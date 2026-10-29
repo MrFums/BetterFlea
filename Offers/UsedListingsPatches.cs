@@ -69,7 +69,7 @@ internal static class UsedListingsGate
         if (upd.Key is not null)
         {
             var max = props.MaximumNumberOfUsage ?? 0;
-            if (RollKeyUsesLeft(max, KeySettingsFor(itemDetails.Id)) is { } left)
+            if (RollKeyUsesLeft(max, KeySettingsFor(itemDetails.Id), props.RarityPvE) is { } left)
             {
                 upd.Key.NumberOfUsages = max - left;
                 GeneratedKeyMaxUses[itemDetails.Id] = max;
@@ -80,8 +80,10 @@ internal static class UsedListingsGate
             var max = props.MaxHpResource ?? 0;
             // A Surv12 wears down over several raids, so any amount is as likely. A CMS (3 uses) is treated like a splint.
             var bigSurgical = max > 5 && OfferQuantityGate.IsSurgical(props);
-            var left = max <= FewUsesMax && !bigSurgical ? RollFewUsesLeft(max, used.Meds)
-                : RollResourceLeft(max, bigSurgical ? used.Meds with { LowAmountBias = 1.0 } : used.Meds);
+            // Nobody bothers listing a half-used AI-2 or Car: the cheaper the med, the rarer a used one.
+            var meds = used.Meds with { UsedChance = used.Meds.UsedChance * Math.Clamp(BuildQuality.HandbookPrice(itemDetails.Id) / CheapMedPrice, 0.2, 1) };
+            var left = max <= FewUsesMax && !bigSurgical ? RollFewUsesLeft(max, meds)
+                : RollResourceLeft(max, bigSurgical ? meds with { LowAmountBias = 1.0 } : meds);
             if (left is { } hp)
             {
                 upd.MedKit.HpResource = hp;
@@ -90,7 +92,9 @@ internal static class UsedListingsGate
         else if (upd.FoodDrink is not null)
         {
             var max = props.MaxResource ?? 0;
-            if (RollResourceLeft(max, used.FoodAndDrink) is { } left)
+            // Sugar is the exception: people eat some and sell the rest on.
+            var food = itemDetails.Id == Sugar ? used.FoodAndDrink with { UsedChance = Math.Min(1, used.FoodAndDrink.UsedChance * SugarUsedFactor) } : used.FoodAndDrink;
+            if (RollResourceLeft(max, food) is { } left)
             {
                 upd.FoodDrink.HpPercent = left;
             }
@@ -123,6 +127,21 @@ internal static class UsedListingsGate
         {
             var gun = used.Guns;
 
+            // A gun someone put a build on has been used, so it's never as new: a found or near-stock one with a build
+            // (an SPT named build, say) is worn like any other. Its wear factor only keeps the wear light.
+            var built = buildKind is "meta" or "player" or "modded" or "budget"
+                || (buildKind is not "traderflip" && PresetOfferGate.HasBuild(itemWithMods));
+            if (built && buildKind is null or "ground" or "nearstock")
+            {
+                buildKind = "player";
+            }
+
+            if (buildKind == "traderflip")
+            {
+                repairable.MaxDurability = repairable.Durability = props.MaxDurability ?? repairable.MaxDurability ?? 100.0;
+                return;
+            }
+
             if (buildKind == "ground")
             {
                 var full = props.MaxDurability ?? repairable.MaxDurability ?? 100.0;
@@ -131,26 +150,45 @@ internal static class UsedListingsGate
                 return;
             }
 
-            // A near-stock gun is one someone got from a drop, a reward or a raid and is selling on: mostly as new.
+            // A near-stock gun is one someone got from a drop, a reward or a raid and is selling on: often as new, or
+            // used a little (and maybe repaired) like any other, only lighter.
+            var lightlyUsed = false;
             if (buildKind == "nearstock")
             {
-                var full = props.MaxDurability ?? repairable.MaxDurability ?? 100.0;
-                repairable.MaxDurability = full;
-                repairable.Durability = Random.Shared.NextDouble() < 0.6
-                    ? full
-                    : full - Math.Round(1 + Math.Pow(Random.Shared.NextDouble(), 2.5) * 14);
-                return;
+                if (Random.Shared.NextDouble() < NearStockNewShare)
+                {
+                    repairable.MaxDurability = repairable.Durability = props.MaxDurability ?? repairable.MaxDurability ?? 100.0;
+                    return;
+                }
+
+                lightlyUsed = true;
             }
 
-            var wearFactor = buildKind is not null && gun.WearByBuild.TryGetValue(buildKind, out var byBuild) ? Math.Max(0, byBuild) : 1;
+            var wearFactor = lightlyUsed ? 0.6
+                : buildKind is not null && gun.WearByBuild.TryGetValue(buildKind, out var byBuild) ? Math.Max(0, byBuild) : 1;
+            if (PresetOfferGate.IsBossGun(itemDetails.Id))
+            {
+                wearFactor *= Math.Clamp(gun.BossGunWear, 0, 1);
+            }
 
             // Factor 2 turns 50% into 75%, 0.4 turns it into 24%.
             double Scaled(double chance) => 1 - Math.Pow(1 - Math.Clamp(chance, 0, 1), wearFactor);
 
+            // Only a gun that's been used has been repaired. Live, most used guns sit at 82-98 max (an SR-25 list had
+            // 12 of 13 lowered); guns nobody uses are 100/100.
+            var wornChance = gun.WornChanceByRarity.TryGetValue(props.RarityPvE ?? "", out var byRarity) ? byRarity : 0.5;
+            var worn = built || lightlyUsed || Random.Shared.NextDouble() < Scaled(wornChance);
             var max = repairable.MaxDurability ?? 100.0;
-            if (Random.Shared.NextDouble() < Scaled(gun.LowMaxChance))
+            // A light wear factor doesn't spare the max: a used gun has been repaired like any other.
+            var lowMaxChance = built || lightlyUsed ? Math.Max(gun.LowMaxChance, Scaled(gun.LowMaxChance)) : Scaled(gun.LowMaxChance);
+            if (worn && Random.Shared.NextDouble() < lowMaxChance)
             {
-                var low = Math.Round(gun.LowMaxMin + Random.Shared.NextDouble() * (gun.LowMaxMax - gun.LowMaxMin));
+                // Mostly near the top (99, 98, 97...), down to lowMaxMin; 1 in 12 was kept going a while past it.
+                var top = Math.Max(gun.LowMaxMin, gun.LowMaxMax);
+                var low = Random.Shared.NextDouble() < 1.0 / 12
+                    ? gun.LowMaxMin - Random.Shared.Next(1, 9)
+                    : top - Math.Floor(Math.Pow(Random.Shared.NextDouble(), 1.5) * (top - gun.LowMaxMin + 1));
+                low = Math.Max(MinGunDurability, Math.Min(low, top));
                 if (low < max)
                 {
                     max = low;
@@ -158,17 +196,51 @@ internal static class UsedListingsGate
             }
 
             repairable.MaxDurability = max;
-            var wornChance = gun.WornChanceByRarity.TryGetValue(props.RarityPvE ?? "", out var byRarity) ? byRarity : 0.5;
             var mostWear = Math.Min(gun.MaxWear * wearFactor, MostGunWear);
-            var wear = Random.Shared.NextDouble() < Scaled(wornChance)
+            // A lowered max means it was repaired, and often sold straight after: full to its new max (97/97).
+            var repaired = max < (props.MaxDurability ?? 100.0) && Random.Shared.NextDouble() < RepairedShare;
+            var wear = worn && !repaired
                 ? Math.Round(1 + Math.Pow(Random.Shared.NextDouble(), 1.6) * Math.Max(0, mostWear - 1))
                 : 0;
             repairable.Durability = Math.Max(MinGunDurability, max - wear);
+            if (max < (props.MaxDurability ?? 100.0) && Random.Shared.NextDouble() < gun.RepairBuffChance)
+            {
+                AddRepairBuff(upd, repairable.Durability ?? max, weapon: true);
+            }
         }
+    }
+
+    // A repair kit's bonus, the way SPT rolls it (configs/repair.json): mostly common, 1 in 6 rare. It works while the
+    // item is above a share of the durability it was repaired to.
+    internal static void AddRepairBuff(Upd upd, double durability, bool weapon)
+    {
+        var rare = Random.Shared.NextDouble() < 1.0 / 6;
+        double Between(double low, double high) => low + Random.Shared.NextDouble() * (high - low);
+        var (type, value) = !weapon ? ("DamageReduction", rare ? Between(0.8, 0.9) : Between(0.9, 0.98))
+            : Random.Shared.NextDouble() < 0.5 ? ("WeaponSpread", rare ? Between(0.8, 0.9) : Between(0.9, 0.99))
+            : ("MalfunctionProtections", rare ? Between(0.75, 0.9) : Between(0.94, 0.96));
+        if (!Enum.TryParse<RepairBuffType>(type, out var buffType))
+        {
+            return;
+        }
+
+        upd.Buff = new UpdBuff
+        {
+            Rarity = rare ? "Rare" : "Common",
+            BuffType = buffType,
+            Value = Math.Round(value, 4),
+            ThresholdDurability = Math.Round(durability * Random.Shared.Next(75, 91) / 100.0, 2)
+        };
     }
 
     private const double MostGunWear = 60;
     private const double MinGunDurability = 10;
+
+    // Share of guns with a lowered max listed straight after a repair, at their new max.
+    private const double RepairedShare = 0.45;
+
+    // Share of near-stock guns listed as new (100/100).
+    private const double NearStockNewShare = 0.4;
 
     private static readonly MongoId Gun = new("5422acb9af1c889c16000029");
 
@@ -204,6 +276,58 @@ internal static class UsedListingsGate
         return oneUse + (1.0 - oneUse) * (Math.Max(1, left) - 1) / (max - 1);
     }
 
+    // SPT scales the price by the amount left. Live sellers price a used one at about the same whatever is left: a
+    // YMXC water at 18/60 and at 55/60 both sit about a third under a full one, a part-full fuel can near a full one.
+    // Empty fuel is priced on its own (EmptyFuelPricing).
+    public static double ResourcePriceFactor(MongoId tpl, Item? item)
+    {
+        if (item?.Upd is not { } upd || _itemHelper is null || _config is null || IgnoresCondition(tpl)
+            || _itemHelper.GetItem(tpl).Value?.Properties is not { } props)
+        {
+            return 1.0;
+        }
+
+        var used = _config.Mod.GeneratedOffers.UsedItems;
+        (double Left, double Max, ResourceListingSettings Settings)? resource =
+            upd.MedKit is { HpResource: { } hp } ? (hp, props.MaxHpResource ?? 0, used.Meds)
+            : upd.FoodDrink is { HpPercent: { } food } ? (food, props.MaxResource ?? 0, used.FoodAndDrink)
+            : upd.RepairKit is { Resource: { } kit } ? (kit, props.MaxRepairResource ?? 0, used.RepairKits)
+            : upd.Resource is { Value: { } fuel } && _itemHelper.IsOfBaseclass(tpl, FleaCategories.Fuel) ? (fuel, props.MaxResource ?? 0, used.Fuel)
+            : null;
+        if (resource is not { } found || !found.Settings.Enabled || found.Max <= 0 || found.Left <= 0 || found.Left >= found.Max)
+        {
+            return 1.0;
+        }
+
+        var vanilla = _itemHelper.GetItemQualityModifier(item);
+        if (vanilla <= 0)
+        {
+            return 1.0;
+        }
+
+        return ResourcePriceCurve(found.Left / found.Max, found.Settings) / vanilla;
+    }
+
+    // Share of a full one's price at this share left.
+    internal static double ResourcePriceCurve(double share, ResourceListingSettings settings)
+    {
+        var weight = Math.Clamp(settings.AmountPriceWeight, 0, 1);
+        return Math.Clamp(settings.UsedPricePercent / 100.0, 0.01, 1.0) * (1 - weight + weight * Math.Clamp(share, 0, 1));
+    }
+
+    // How much of a full, new one's price this item's condition leaves, the way generated offers are priced: key
+    // uses on the key curve, meds, food and fuel on the used price curve. 1 when its condition doesn't count.
+    public static double PriceQuality(Item item)
+    {
+        if (_itemHelper is null || IgnoresCondition(item.Template))
+        {
+            return 1.0;
+        }
+
+        var quality = _itemHelper.GetItemQualityModifier(item) * KeyPriceFactor(item.Template, item) * ResourcePriceFactor(item.Template, item);
+        return Math.Clamp(quality, 0.01, 1);
+    }
+
     internal static bool IgnoresCondition(MongoId tpl) =>
         _ragfairConfig?.Dynamic.IgnoreQualityPriceVarianceBlacklist.Contains(tpl) == true;
 
@@ -216,24 +340,33 @@ internal static class UsedListingsGate
     }
 
     // null = leave it, max = new, otherwise 1..max-1.
-    internal static int? RollKeyUsesLeft(int max, KeyListingSettings settings)
+    internal static int? RollKeyUsesLeft(int max, KeyListingSettings settings, string? rarity = null)
     {
         if (!settings.Enabled || max < 2)
         {
             return null;
         }
 
-        if (Random.Shared.NextDouble() >= settings.UsedChance)
+        var byRarity = rarity is not null && settings.UsedChanceByRarity.TryGetValue(rarity, out var factor) ? Math.Max(0, factor) : 1;
+        if (Random.Shared.NextDouble() >= Math.Min(1, settings.UsedChance * byRarity))
         {
             return max;
         }
 
+        if (Random.Shared.NextDouble() < settings.OneDownChance)
+        {
+            return max - 1;
+        }
+
+        // The falloff is per use on a 10-use key and stretched over longer ones, or a 40-use key compounds it 39
+        // times and never shows below 30.
+        var step = Math.Pow(settings.UsesLeftFalloff, Math.Min(1, 10.0 / max));
         var total = 0.0;
         var weight = 1.0;
         for (var left = 1; left < max; left++)
         {
             total += weight;
-            weight *= settings.UsesLeftFalloff;
+            weight *= step;
         }
 
         var roll = Random.Shared.NextDouble() * total;
@@ -246,7 +379,7 @@ internal static class UsedListingsGate
                 return left;
             }
 
-            weight *= settings.UsesLeftFalloff;
+            weight *= step;
         }
 
         return max - 1;
@@ -272,12 +405,18 @@ internal static class UsedListingsGate
 
     private const double LowestResourceShare = 0.15;
 
+    private static readonly MongoId Sugar = new("59e3577886f774176a362503");
+    private const double SugarUsedFactor = 2;
+
+    // Meds under this handbook price are less often listed used, down to a fifth as often.
+    private const double CheapMedPrice = 30_000;
+
     // CALOK-B, splints, Ibuprofen. A used one is mostly just a use or two down; now and then nearly finished
-    // (an Ibuprofen with 1-4 of 8 left).
+    // (an Ibuprofen with 1-4 of 8 left, mostly 1 or 2: the last pills of a box get sold off).
     public const int FewUsesMax = 10;
-    private const double FewUsesUsedShare = 0.4;
+    private const double FewUsesUsedShare = 0.75;
     private const double FewUsesFurtherDown = 0.25;
-    private const double FewUsesNearlyGone = 0.25;
+    private const double FewUsesNearlyGone = 0.35;
 
     internal static int? RollFewUsesLeft(int max, ResourceListingSettings settings)
     {
@@ -293,7 +432,7 @@ internal static class UsedListingsGate
 
         if (Random.Shared.NextDouble() < FewUsesNearlyGone)
         {
-            return Random.Shared.Next(1, Math.Max(1, max / 2) + 1);
+            return 1 + (int)Math.Floor(Math.Pow(Random.Shared.NextDouble(), 1.8) * Math.Max(1, max / 2));
         }
 
         var left = max - 1;
@@ -378,7 +517,7 @@ public class StartupKeyOfferResync(
                     continue;
                 }
 
-                var left = UsedListingsGate.RollKeyUsesLeft(max, settings) ?? max;
+                var left = UsedListingsGate.RollKeyUsesLeft(max, settings, itemHelper.GetItem(tpl).Value?.Properties?.RarityPvE) ?? max;
                 key.NumberOfUsages = max - left;
 
                 if (!ignoresCondition)

@@ -9,7 +9,7 @@
     "enabled": true,
     "multiplier": 3.0,               // 1 = normal. 3 = triple. 0 = no offers (traders only). Highest: 10.
     "currencyMultiplier": 0.02,      // Dollars, Euros and Roubles on the flea. Live almost never has these. 0 = none. 0.02 = about 1 in 5 Dollars gets 1 offer, Euros almost never.
-    "categoryMultipliers": { "gear.armorPlates": 3.0, "medical.medkits": 3.0, "medical.bandagesAndSplints": 3.0, "medical.painkillers": 3.0, "medical.stimulants": 3.0 }, // extra for a group, on top of everything else (minimums too): plates and meds get 3x
+    "categoryMultipliers": { "gear.armorPlates": 3.0, "keys.markedKeys": 2.0, "medical.medkits": 3.0, "medical.bandagesAndSplints": 3.0, "medical.painkillers": 3.0, "medical.stimulants": 3.0 }, // extra for a group, on top of everything else (minimums too): plates and meds get 3x, marked keys 2x
     "minimumOffers": {               // fewest offers a group gets, whatever multiplier and rarityMultipliers say. "all" = every item
       "all": 30,
       "keys.markedKeys": 20,
@@ -51,8 +51,8 @@
   // How many items are in one offer. Only for items that do not stack (ammo and money use normal SPT).
   //   max      = the most items in one offer
   //   falloff  = from 0 to 1. Lower = more offers with only 1 item.
-  // Used items (an AFAK at 322, a juice at 8/40) are always 1 per offer; full medkits, drinks and fuel only rarely come
-  // several to an offer.
+  // Used items (an AFAK at 322, a juice at 8/40) are 1 per offer, except now and then a flipper's stack of used medkits;
+  // full medkits, drinks and fuel only rarely come several to an offer.
   "itemsPerOffer": {
     "enabled": true,
     "armoredRigsSingle": true,                 // true = armored rigs always have 1 per offer
@@ -63,7 +63,13 @@
     "ammoBoxes": { "max": 3, "falloff": 0.5 },     // ammo boxes: usually 1, sometimes up to 3
     "grenadeWeights": [1, 4, 3, 1, 0.5, 0.25, 0.1, 0.05], // F1, RGD-5, M67 etc. Chance weight for 1, 2, 3... per offer. Here 2s and 3s are most common
     "grenadeBulk": { "chance": 0.04, "min": 6, "max": 12 }, // now and then a pile of the grenades people stock up on (F-1, RGD-5, M67, Zarya, VOGs, smokes)
-    "stimBulk": { "chance": 0.03, "min": 3, "max": 6 }      // now and then a handful of the same stim
+    "stimBulk": { "chance": 0.03, "min": 3, "max": 6 },     // now and then a handful of the same stim
+    "stimBatch": { "chance": 0.01, "min": 8, "max": 12 },   // rarely a whole stored batch of one stim
+    "fullStacks": { "chance": 0.03, "min": 10, "max": 30 }, // now and then a big stack of full meds, food or drinks (an IFAK x30, water x31)
+    "usedMedStacks": { "chance": 0.03, "min": 5, "max": 27 }, // now and then a flipper's stack of used medkits, all with the same amount left
+    "stockGunStacks": { "chance": 0.12, "min": 2, "max": 6 }, // factory guns as found, now and then several to an offer (a boss farmer's haul)
+    "helmetStacks": { "chance": 0.05, "min": 2, "max": 5 },  // easy-to-get helmets at max/max durability, now and then several to an offer
+    "traderGunStacks": { "chance": 0.02, "min": 2, "max": 5 } // a trader's gun bought to flip: the factory gun at 100/100, several to an offer
   },
 
   // Which currency an offer's price is shown in. Only the ratios matter.
