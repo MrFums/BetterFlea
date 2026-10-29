@@ -439,6 +439,55 @@ internal static class SellerPricing
         _offers = offers;
     }
 
+    // Nobody lists a wrecked helmet or plate at what it's worth: a 4/13 Bastion is worth about 11k, but its seller
+    // looks at the list and goes a bit under the cheapest decent one (39k). A poor deal, but the cheapest on the list.
+    // Armour, helmets and anything else with durability under half a new one's worth; not guns. Never under its worth.
+    // After the multiplier, before Humanise.
+    private const double JunkQuality = 0.5;
+    private const double JunkMinShare = 0.85;
+    private const double JunkMaxShare = 0.97;
+
+    // With no decent offer up yet, about what the cheapest of them goes for.
+    private const double JunkFallbackShare = 0.75;
+
+    public static void PriceJunk(CreateFleaOfferDetails details)
+    {
+        if (details.Creator != OfferCreator.FakePlayer || details.SellInOnePiece || _itemHelper is null || _offers is null
+            || details.Items is not { Count: > 0 } items || details.BarterScheme is not [{ Count: { } price } barter]
+            || !_itemHelper.IsOfBaseclass(barter.Template, BaseClasses.MONEY) || _itemHelper.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON)
+            || !items.Any(item => item.Upd?.Repairable is not null) || items.Min(UsedListingsGate.PriceQuality) >= JunkQuality)
+        {
+            return;
+        }
+
+        var cheapest = double.MaxValue;
+        foreach (var offer in _offers.GetOffersOfType(items[0].Template) ?? [])
+        {
+            if (offer.CreatedBy == OfferCreator.FakePlayer && offer.SellInOnePiece != true && offer.Items is { Count: > 0 } listed
+                && offer.RequirementsCost is { } cost && cost > 0
+                && offer.Requirements?.All(requirement => _itemHelper.IsOfBaseclass(requirement.TemplateId, BaseClasses.MONEY)) == true
+                && listed.Min(UsedListingsGate.PriceQuality) >= JunkQuality)
+            {
+                cheapest = Math.Min(cheapest, cost);
+            }
+        }
+
+        var anchor = cheapest < double.MaxValue ? cheapest
+            : PriceGate.NewPrice(items[0].Template, Money.ROUBLES) * JunkFallbackShare * (_config?.Mod.Prices.PriceMultiplier ?? 1.0);
+        var wanted = BetterFlea.Offers.BuildQuality.FromRoubles(anchor * (JunkMinShare + Random.Shared.NextDouble() * (JunkMaxShare - JunkMinShare)), barter.Template);
+        if (wanted > price)
+        {
+            barter.Count = Math.Round(wanted);
+            if (Interlocked.Increment(ref _junkLogged) <= 12)
+            {
+                var (name, quality, found) = (_itemHelper.GetItem(items[0].Template).Value?.Name, items.Min(UsedListingsGate.PriceQuality), cheapest < double.MaxValue);
+                DebugLog.Summary(() => $"Junk price: {name} at {quality:P0} condition {price:0} -> {wanted:0} ({(found ? "under the cheapest decent offer" : "no decent offer up")}, {anchor:0})");
+            }
+        }
+    }
+
+    private static int _junkLogged;
+
     // SPT's random spread comes in whole percent steps, so a list of one item had a dozen offers at exactly the same
     // price. People price to the rouble: each offer moves a little, and now and then a seller lists a little under one
     // already up, the way people undercut. Never below the floor. Last, after every other change to the price.

@@ -2047,6 +2047,7 @@ public class OfferPricingPatch : AbstractPatch
 
             BetterFlea.Prices.SellerPricing.ApplyMultiplier(details);
             BetterFlea.Prices.SellerPricing.CapUsedKey(details);
+            BetterFlea.Prices.SellerPricing.PriceJunk(details);
             BetterFlea.Prices.SellerPricing.Humanise(details);
         }
 
