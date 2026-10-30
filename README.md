@@ -20,6 +20,8 @@ Everything can be turned off or tuned in the settings.
 
 **Recommended with Better Flea:** [Price Index](https://sp-mod.com/mod/3228/price-index) shows what your loot is worth in game, and [Flogger](https://sp-mod.com/mod/3227/flogger) quick sells it to the flea or the best trader. Both read Better Flea's own prices (2.3.0 or newer), so what you see and what you sell match the flea.
 
+**The full guide:** [Docs](Docs/README.md) explains every setting, how SPT and Better Flea price items (handbook, trader cuts, the flea fee, guns, armour), how the SPT quest tree locks trader items, selling, advice for mod authors and the API.
+
 ## What you need
 - SPT 4.1.x. Fika compatible.
 - Better Flea has 2 parts. **The server needs part 1. Every real player needs part 2.**

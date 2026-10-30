@@ -29,6 +29,7 @@ version before relying on it.
 | Page | What's in it |
 |---|---|
 | [../README.md](../README.md) | What every setting does, install, routes for other mods |
+| [../Docs](../Docs/README.md) | The full guide: every setting, prices, guns, armour, the quest tree, selling, mod authors, API |
 | [../CHANGELOG.md](../CHANGELOG.md) | Every change, version by version, with the reason for it |
 | [price-index.md](price-index.md) | How Better Flea's built-in price for every base-game item is worked out |
 | [price-history.md](price-history.md) | A year of flea price history and how it's turned into one price |
