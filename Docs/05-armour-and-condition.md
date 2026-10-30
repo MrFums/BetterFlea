@@ -63,6 +63,8 @@ goes a bit under what decent ones usually cost.
 
 ## How armour offers are made
 
+![Plate carriers](../imageExamples/flea-armour-plates.gif)
+
 - **Plates:** 60% both, 12% front only, 8% back only, 20% none. 20% of plated ones mix a class 3 and a class 4; 15% are
   both class 3. 30% of armour that takes side plates has them. 5% are the best kit: class 4 front and back, class 6
   sides, all mint.
@@ -79,6 +81,8 @@ goes a bit under what decent ones usually cost.
 - **Repair kit bonus:** a repaired piece now and then has the gold background.
 
 ## Keys
+
+![Marked keys with uses left](../imageExamples/flea-marked-keys.gif)
 
 Live, mechanical keys are nearly all new and marked keys are nearly all used.
 

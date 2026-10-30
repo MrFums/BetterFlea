@@ -77,6 +77,8 @@ The same value is what a player's own gun listing is measured against, so the sa
 
 ## How a gun offer is built
 
+![Gun builds](../imageExamples/flea-gun-builds.gif)
+
 Each gun offer is one of eight tiers, picked by weight. Cheap guns lean to the first tiers, dear guns to modded builds:
 nobody leaves a dear gun stock or strips it bare.
 

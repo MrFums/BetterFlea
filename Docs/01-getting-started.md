@@ -17,6 +17,15 @@ server forbids, but gets SPT's error message instead of a small warning.
 **Fika:** install the server mod on the server and the plugin on every player's game. Don't install the plugin on a
 Fika headless client.
 
+## Which version
+
+| Better Flea | SPT |
+|---|---|
+| 1.0.0 to 2.4.0 | 4.1.x |
+
+Every release so far is for SPT 4.1. The server mod says which SPT versions it supports, and SPT won't load it on
+another.
+
 ## Install
 
 1. Download `BetterFlea-<version>.zip` from [Releases](https://github.com/MrFums/BetterFlea/releases).
@@ -24,6 +33,8 @@ Fika headless client.
 3. Start the server. Better Flea writes its settings into `SPT_Runtime/user/mods/BetterFlea/configs/` the first time.
 
 ## The settings page
+
+![Settings page tour](../imageExamples/web-ui.gif)
 
 Open `https://127.0.0.1:6969/betterflea` on the server PC, or click it under **Mod Pages** in the SPT launcher. From
 another PC, use the server's address instead of `127.0.0.1`.
@@ -45,6 +56,8 @@ Please change settings on the page, not in the `configs` files. The page checks 
 and applies most changes without a restart. If you do edit a file by hand, restart the server afterwards.
 
 ## Flea styles
+
+![Flea styles](../imageExamples/web-styles.png)
 
 A flea style sets many settings at once. Pick one with **Flea style** at the top of the settings page, then fine-tune
 on the tabs.

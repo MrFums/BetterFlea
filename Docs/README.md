@@ -20,6 +20,13 @@ New here? Read [Getting started](01-getting-started.md), then jump to [I want to
 | 8 | [Modded items, and advice for mod authors](08-modded-items.md) | How Better Flea handles other mods' items, and how to price yours so it works everywhere |
 | 9 | [API for other mods](09-api.md) | The routes your mod can call, with request and reply shapes |
 | 10 | [FAQ and troubleshooting](10-faq.md) | Common questions and problems |
+| 11 | [What Better Flea changes in SPT](11-what-better-flea-changes.md) | Every patched SPT and game method, the data it changes, and how to work alongside it. For mod authors |
+| 12 | [How the market works](12-market.md) | Where offers come from, offers made on demand, expiry, other buyers, deals, packs, barters, sellers |
+| 13 | [Bans in depth](13-bans.md) | The three layers that stop an item, why a restart is needed, what's never sellable, mods' own bans |
+| 14 | [Item unlock levels](14-unlock-levels.md) | Where the levels come from, modded items, your own levels, buying and selling below the level |
+| 15 | [The Wipe Cycle](15-wipe-cycle.md) | Prices that follow the wipe: which level, and what moves each item |
+| 16 | [The client plugin](16-client-plugin.md) | Icons, greyed-out items, the F12 settings, playing without it |
+| 17 | [Ready-made setups](17-server-setups.md) | Settings for hardcore, casual, co-op, no flipping, traders only, low memory and heavily modded servers |
 
 Deeper research, with the data behind it, is in [../Research](../Research/README.md). Every change, version by
 version, is in [../CHANGELOG.md](../CHANGELOG.md).
@@ -30,7 +37,10 @@ version, is in [../CHANGELOG.md](../CHANGELOG.md).
 |---|---|
 | Make the flea feel like live, unlock levels and all | Pick the **Live progression** [flea style](01-getting-started.md#flea-styles) |
 | Turn Better Flea's changes off without uninstalling | Flea style **Base SPT** |
-| Run on a low-memory PC | Flea style **Low memory**, or [on-demand offers](02-settings-reference.md#listings-tab) |
+| Run on a low-memory PC | Flea style **Low memory**, or [on-demand offers](12-market.md#where-offers-come-from) |
+| Set up a hardcore, casual or co-op server quickly | [Ready-made setups](17-server-setups.md) |
+| Know why a ban didn't take | [Bans in depth](13-bans.md) |
+| Check my mod won't clash with Better Flea | [What Better Flea changes in SPT](11-what-better-flea-changes.md) |
 | Ban guns, ammo or a whole kind of item | [Bans tab](02-settings-reference.md#bans-tab): banned categories |
 | Ban one item, or allow one that's banned | [Bans tab](02-settings-reference.md#bans-tab): banned items, allowed items |
 | Ban everything another mod adds | [Bans tab](02-settings-reference.md#bans-tab): Mod items |
