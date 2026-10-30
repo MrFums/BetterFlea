@@ -43,6 +43,11 @@ public record PriceFloorConfig
 
     [JsonPropertyName("logTraderProfitLoops")]
     public bool LogTraderProfitLoops { get; set; } = false;
+
+    // Not supported. No floor for an item one trader sells for less than another pays (and its parts): the profit is
+    // there through the traders anyway, so the flea may go under it. Selling flea buys to a trader then pays too.
+    [JsonPropertyName("ignoreForTraderLoops")]
+    public bool IgnoreForTraderLoops { get; set; } = false;
 }
 
 public record GunPricingConfig

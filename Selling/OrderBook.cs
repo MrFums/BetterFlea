@@ -118,10 +118,12 @@ internal static class OrderBook
         offer.RequirementsCost is { } price && price > 0 && now >= NotBefore.GetValueOrDefault(offer.Id)
         && price / Condition(offer.Items![0]) <= normal * QuickBelow();
 
-    // Guns, armour and anything else these buyers don't take get one roll when listed. A fair one (at most 5% over
-    // normal) that missed gets another every unique wait, so in the end it sells; a dearer one stays as it rolled.
-    // Never over normal by more than that, so relisting can't make money the market wouldn't pay.
-    private const double FairOver = 1.05;
+    // Guns, armour and anything else these buyers don't take get one roll when listed. One that missed meets another
+    // buyer every half unique wait, each as likely to take it as the price says, so a fair one sells soon, a dear one
+    // later or not before it expires; past neverSellsPercent, never.
+    // Wrecked armour keeps the roll it got when listed: a hard sell that often doesn't sell at all. A plain item these
+    // buyers take gets the same once it's past what they pay (PastBuyers). An item the player bought lately
+    // (FlipPenaltyGate.BoughtLately) gets nothing past expensivePercent, so buying to sell far over doesn't pay.
 
     private static readonly ConcurrentDictionary<MongoId, long> RecheckAt = new();
 
@@ -129,8 +131,19 @@ internal static class OrderBook
     public static void Rolled(RagfairOffer offer, double waitMinutes) =>
         RecheckAt[offer.Id] = Now() + (long)(Math.Max(0, waitMinutes) * 60) + Recheck(offer);
 
-    private static long Recheck(RagfairOffer offer) =>
-        (long)(SaleDelayGate.UniqueWaitMinutes(SaleDelayGate.NormalPrice(offer.Items ?? []) ?? 100000) * 60);
+    internal const double BuyerGap = 0.5;
+
+    // A plain offer priced past what the order book's buyers ever pay (expensivePercent over normal).
+    private static bool PastBuyers(RagfairOffer offer) =>
+        offer.RequirementsCost is { } price && price > 0 && SaleDelayGate.NormalPrice(offer.Items ?? []) is { } normal && normal > 0
+        && price > normal * (1 + (_config?.Mod.PlayerSelling.SaleDelay.ExpensivePercent ?? 15) / 100.0);
+
+    private static long Recheck(RagfairOffer offer)
+    {
+        var items = offer.Items ?? [];
+        var normal = SaleDelayGate.NormalPrice(items) ?? 100000;
+        return (long)(SaleDelayGate.UniqueWaitMinutes(normal) * BuyerGap * 60);
+    }
 
     private static void Rerolls(long now)
     {
@@ -141,12 +154,12 @@ internal static class OrderBook
         }
 
         var live = new HashSet<MongoId>();
-        foreach (var (_, profile) in _profiles.GetProfiles())
+        foreach (var (player, profile) in _profiles.GetProfiles())
         {
             foreach (var offer in (profile.CharacterData?.PmcData?.RagfairInfo?.Offers ?? []).ToList())
             {
                 if (offer.EndTime <= now || offer.SellInOnePiece == true || offer.Items is not { Count: > 0 } items
-                    || !MoneyOnly(offer) || (On && Handles(offer)))
+                    || !MoneyOnly(offer) || (On && Handles(offer) && !PastBuyers(offer)))
                 {
                     continue;
                 }
@@ -168,7 +181,7 @@ internal static class OrderBook
                 var pending = offer.SellResults?.ToList().Sum(sale => sale.Amount ?? 0) ?? 0;
                 var left = offer.Quantity - pending;
                 if (pending > 0 || left <= 0 || offer.RequirementsCost is not { } price || price <= 0
-                    || SaleDelayGate.NormalPrice(items) is not { } normal || normal <= 0 || price > normal * FairOver)
+                    || SaleDelayGate.NormalPrice(items) is not { } normal || normal <= 0 || BetterFlea.Prices.SellerPricing.IsWrecked(items))
                 {
                     continue;
                 }
@@ -176,7 +189,12 @@ internal static class OrderBook
                 // As on listing: a cheaper offer of the same item goes first, unless this one is well under normal.
                 var tpl = items[0].Template;
                 var ratio = price / normal;
-                var chance = SaleDelayGate.BuyerTakes(ratio);
+                var chance = SaleDelayGate.BuyerTakes(ratio, !FlipPenaltyGate.BoughtLately(player, items));
+                if (chance <= 0)
+                {
+                    continue;
+                }
+
                 if (items.Count == 1 && !_itemHelper.IsOfBaseclass(tpl, BaseClasses.WEAPON) && ratio > QuickBelow()
                     && Undercuts.Cheapest(tpl, Condition(items[0])) is { } cheapest && cheapest < price)
                 {
@@ -216,6 +234,25 @@ internal static class OrderBook
 
     private static bool MoneyOnly(RagfairOffer offer) =>
         offer.Requirements?.All(requirement => _itemHelper!.IsOfBaseclass(requirement.TemplateId, BaseClasses.MONEY)) == true;
+
+    internal static BuyersConfig? BuyerSettings => Settings;
+
+    // Every player's offers that are up, with the player's name. For the settings page.
+    internal static IEnumerable<(string Player, RagfairOffer Offer)> AllPlayerOffers()
+    {
+        var now = Now();
+        foreach (var (_, profile) in _profiles?.GetProfiles() ?? [])
+        {
+            var name = profile.CharacterData?.PmcData?.Info?.Nickname ?? "?";
+            foreach (var offer in (profile.CharacterData?.PmcData?.RagfairInfo?.Offers ?? []).ToList())
+            {
+                if (offer.EndTime > now && offer.Items is { Count: > 0 })
+                {
+                    yield return (name, offer);
+                }
+            }
+        }
+    }
 
     private static double Condition(Item item) =>
         UsedListingsGate.PriceQuality(item);

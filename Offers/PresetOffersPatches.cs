@@ -787,9 +787,10 @@ internal static partial class PresetOfferGate
 
     public static ModdedPartsConfig ModdedParts => _config!.Mod.GeneratedOffers.ModdedParts;
 
+    // Which mod a part is from is only asked with a mod switched off: finding out reads every mod's files.
     private static bool IsTurnedOff(MongoId tpl, ModdedPartsConfig settings) =>
         !BetterFlea.Prices.LivePrices.IsBaseGame(tpl)
-        && (settings.Percent <= 0 || BetterFlea.Flea.ModItems.ModOf(tpl) is { } mod
+        && (settings.Percent <= 0 || settings.DisabledMods.Count > 0 && BetterFlea.Flea.ModItems.ModOf(tpl) is { } mod
             && settings.DisabledMods.Contains(mod, StringComparer.OrdinalIgnoreCase));
 
     private static Slot? SlotOn(MongoId parentTpl, string? slotName) =>

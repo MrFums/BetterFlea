@@ -154,7 +154,23 @@ I would personally recommend setting the marked key price to 1.5 as I feel marke
 ## 6. Player selling
 I've tried to balance flipping, it's far too overpowered and it's very easy to just buy from Fence and resell. The trader item lock is off by default - turn it on and any item bought from a trader cannot be sold on the flea. Purchases are remembered while it's off too, so turning it on mid-wipe also locks what was bought before.
 
-- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute, the normal price takes a few minutes, overpriced rarely sells, and more than 15% over never does. "Normal" goes by what's in your item: armour with one plate is priced as armour with one plate.
+- How fast your offer sells depends on your price. Cheaper than normal sells in under a minute and the normal price takes a few minutes. Overpriced still sells, just later: buyers keep coming, and the dearer it is, the fewer of them want it. At twice the normal price or more it never sells (Never sells percent, Selling tab). "Normal" goes by what's in your item: armour with one plate is priced as armour with one plate, and worn armour as worn armour.
+- Something you bought (from a trader or the flea) in the last 48 hours doesn't get that: more than 15% over normal, it never sells. So buying at the normal price and listing it far over isn't a way to make money. Loot sells as above.
+- The average the game shows when you list is the normal price of a new one. For a worn or stripped item it's too high. Price Index shows the normal price for your exact item. For example, a worn Trooper with no plates is worth about 47k, while the game's average said about 66k (a new one):
+
+| Listed at | Over normal | Sells before the 12 hour offer ends | Usual wait |
+|---|---|---|---|
+| 47k | 0% | always | a few minutes |
+| 52k | 10% | always | about 30 minutes |
+| 56k | 20% | always | about an hour |
+| 66k | 40% | almost always | about 2 hours |
+| 75k | 60% | about 5 in 6 | about 3.5 hours |
+| 85k | 80% | about 1 in 3 | about 5 hours |
+| 94k or more | 100% or more | never | |
+
+Dearer items wait longer: a 200k item takes about 1.5 to 2 times as long. To see this for your own item, open the settings page's Economy tab: Item lookup has the table for any item, and Offers on the flea has it for each offer you have up, worn and plated as it is.
+
+- Wrecked armour (under half its worth, all parts together) is a hard sell even at the normal price: about 4 in 10 never sell, and the rest take about 3 times as long. Overpriced, it almost never sells.
 - Price against the market. If another seller already has the item cheaper, most buyers go to them, and their offers sell before yours.
 - A pile of one item often only partly sells: buyers take one or two, or a round lot of ammo.
 - Undercutting: list the cheapest offer and now and then someone lists a rouble (or a round number) under you a few minutes later and takes most of your buyers. List well under the normal price and it sells before anyone bothers.

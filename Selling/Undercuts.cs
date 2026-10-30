@@ -183,7 +183,8 @@ internal static class Undercuts
                 upd.StackObjectsCount = quantity;
             }
 
-            if (price < PriceGate.FloorForItems([copyRoot], Money.ROUBLES))
+            // The whole item, as traders would buy it: its plates and inserts, and a helmet's condition from its inserts.
+            if (price < PriceGate.FloorForItems(copy, Money.ROUBLES))
             {
                 return;
             }

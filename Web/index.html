@@ -32,7 +32,7 @@
 
   header { position: sticky; top: 0; z-index: 5; background: rgba(11, 12, 16, 0.95); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
   /* One line on wide screens: the search box shrinks to make room for "Unsaved changes", so nothing jumps down a line. */
-  .bar { max-width: 1060px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+  .bar { max-width: 1060px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .bar > * { flex-shrink: 0; }
   @media (max-width: 980px) { .bar { flex-wrap: wrap; } }
   .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
@@ -44,8 +44,8 @@
   .pill.ok { color: var(--green); border-color: var(--green-dark); background: var(--green-soft); }
   .pill.new { color: var(--bg); background: var(--warn); border-color: var(--warn); font-weight: 600; }
   /* Always takes its space, only shown with changes, so nothing in the bar ever moves. */
-  .status { font-size: 12.5px; color: var(--warn); white-space: nowrap; visibility: hidden; }
-  .status.dirty { visibility: visible; }
+  .status { font-size: 12.5px; color: var(--warn); white-space: nowrap; display: none; }
+  .status.dirty { display: inline; }
   /* Messages after Save, Discard or Import float under the bar, so they never push the buttons around. */
   .bar { position: relative; }
   .toast { position: absolute; right: 16px; top: calc(100% + 8px); max-width: min(460px, calc(100vw - 32px)); background: var(--panel-2); border: 1px solid var(--line);
@@ -185,7 +185,8 @@
   .add { display: flex; gap: 8px; padding: 10px 14px 10px 0; border-top: 1px solid var(--line); }
   .remove { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; }
   .remove:hover { color: var(--bad); border-color: var(--bad); }
-  .bar > .search { position: relative; flex: 0 1 300px; min-width: 140px; }
+  .bar > .search { position: relative; flex: 1 1 12em; min-width: 12em; max-width: 300px; }
+  .bar > #lang { max-width: 10em; }
   .search input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
   .search input:focus { outline: none; border-color: var(--green-dark); }
   .search-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
@@ -278,7 +279,7 @@
   .notes h4 { margin: 12px 0 6px; font-size: 13px; }
   .notes p { color: var(--muted); margin: 0 0 8px; }
   code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 12px; }
-  @media (max-width: 760px) { .cards, .movers { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .cards, .movers { grid-template-columns: minmax(0, 1fr); } }
 
   footer { max-width: 1060px; margin: 0 auto; padding: 20px 16px 40px; color: var(--muted); font-size: 12.5px; display: flex; gap: 16px; flex-wrap: wrap; }
 
@@ -291,6 +292,17 @@
   body.guest main { grid-template-columns: minmax(0, 1fr); }
   body.guest main > .notice { margin: 0; }
   .card.economy, .card.lookup { margin-bottom: 12px; }
+  .odds { margin: 12px 0 14px; }
+  .odds-wrap { overflow-x: auto; }
+  .odds-table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin-top: 6px; }
+  .odds-table th { text-align: left; color: var(--faint); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  .odds-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .odds-table tr.here td { background: var(--green-soft); }
+  .odds .notes { color: var(--muted); font-size: 12px; margin-top: 6px; display: grid; gap: 2px; }
+  details.offer { border-top: 1px solid var(--line); padding: 8px 0; }
+  details.offer summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  details.offer summary .n { color: var(--faint); font-size: 12px; }
+  details.offer summary .when { color: var(--muted); font-size: 12.5px; }
   .econ-row .synced { color: var(--muted); font-size: 12px; margin-top: 2px; }
   body.guest .search, body.guest #status, body.guest #discard, body.guest #save, body.guest #menu { display: none; }
   #loginDialog label { display: block; margin: 10px 0 4px; color: var(--text); font-size: 13px; }
@@ -302,10 +314,30 @@
   .onoff.on { color: var(--bg); background: var(--green); }
   .onoff.off { color: var(--muted); background: var(--line); }
 
+  /* Unsaved changes, Discard and Save: part of the top bar, or a bar along the bottom on a phone. */
+  .actions { display: contents; }
+  .actions > * { flex-shrink: 0; }
+  @media (max-width: 760px) {
+    /* No blur here: it would make the fixed bar below sit in the header instead of the screen. */
+    header { position: relative; backdrop-filter: none; background: var(--bg); }
+    .bar { gap: 8px; }
+    .bar > .brand { order: 1; flex: 1 1 auto; min-width: 0; }
+    .bar > #update { order: 2; }
+    .bar > .search { order: 3; flex: 1 1 100%; min-width: 0; max-width: none; }
+    .bar > #lang, .bar > .menu, .bar > #account { order: 4; }
+    .actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; align-items: center; justify-content: flex-end;
+      gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(11, 12, 16, 0.95);
+      backdrop-filter: blur(6px); border-top: 1px solid var(--line); }
+    .actions .status { margin-right: auto; }
+    .actions:has(#save:disabled), body.guest .actions { display: none; }
+    body:has(#save:not(:disabled)) { padding-bottom: 64px; }
+    .toast { position: fixed; top: auto; bottom: 76px; left: 16px; right: 16px; max-width: none; }
+  }
+
   .loading { grid-column: 1 / -1; color: var(--muted); padding: 40px 0; text-align: center; }
   @media (max-width: 760px) {
-    main { grid-template-columns: 1fr; }
-    nav { flex-direction: row; overflow-x: auto; position: static; }
+    main { grid-template-columns: minmax(0, 1fr); }
+    nav { flex-direction: row; overflow-x: auto; position: static; min-width: 0; }
     nav button { white-space: nowrap; }
     .row { grid-template-columns: minmax(0, 1fr) 32px; }
     .row > .control, .row > .meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
@@ -325,9 +357,11 @@
       <div class="search-results" id="searchResults" hidden></div>
     </div>
     <a class="pill" id="update">Checking for updates…</a>
-    <span class="status" id="status">Unsaved changes</span>
-    <button class="btn" id="discard" disabled>Discard</button>
-    <button class="btn primary" id="save" disabled>Save</button>
+    <div class="actions">
+      <span class="status" id="status">Unsaved changes</span>
+      <button class="btn" id="discard" disabled>Discard</button>
+      <button class="btn primary" id="save" disabled>Save</button>
+    </div>
     <select class="btn" id="lang" aria-label="Language"></select>
     <div class="menu" id="menu">
       <button class="btn" id="menuButton">More ▾</button>
@@ -336,6 +370,8 @@
         <button id="import">Import settings…</button>
         <hr>
         <button id="resetAll">Reset everything to default</button>
+        <hr>
+        <button id="logout"></button>
       </div>
     </div>
     <button class="btn" id="account" hidden></button>
@@ -471,6 +507,7 @@ const LABELS = {
   "prices.jsonc:markedKeyMultiplier": "Marked key price",
   "prices.jsonc:floor": "Price floor",
   "prices.jsonc:floor.logTraderProfitLoops": "Log trader price loops",
+  "prices.jsonc:floor.ignoreForTraderLoops": "No floor for trader loops (not supported)",
   "prices.jsonc:drift": "Price drift",
   "prices.jsonc:sellers": "Seller pricing",
   "prices.jsonc:guns": "Gun prices",
@@ -751,6 +788,7 @@ const DESC = {
   "prices.jsonc:floor": "Offers never go below what a trader pays, so nothing can be bought here and sold to a trader for profit.",
   "prices.jsonc:floor.marginPercent": "How far above the trader's price the cheapest offer is.",
   "prices.jsonc:floor.logTraderProfitLoops": "At startup, list items one trader sells for less than another buys them. Only listed, never changed.",
+  "prices.jsonc:floor.ignoreForTraderLoops": "Not supported. Items one trader sells for less than another trader pays (and what comes with them) get no floor, so their offers can go under what a trader pays. Worn ones get cheaper than a new one from the trader, and buying on the flea and selling to a trader then makes money.",
   "prices.jsonc:drift": "Prices slowly wander over time. Only new offers get the new price.",
   "prices.jsonc:drift.maxDriftPercent": "Furthest a price can wander from normal.",
   "prices.jsonc:drift.stepPercent": "Biggest single move.",
@@ -797,7 +835,8 @@ const DESC = {
   "selling.jsonc:saleDelay.noDelayChance": "Chance of no wait at all for offers at or under the normal price.",
   "selling.jsonc:saleDelay.uniqueMinMinutes": "A gun, armour or anything with durability at the normal price waits this long for a buyer (between this and the longest), for an item of about 100,000 roubles. Dearer ones wait longer; cheaper than normal, much less.",
   "selling.jsonc:saleDelay.slowSaleMaxHours": "An offer priced over normal has a lower chance to sell. When it does sell, the buyer can come any time up to this many hours after listing: the lower the chance, the later on average. Offers at or under normal aren't affected.",
-  "selling.jsonc:saleDelay.expensivePercent": "This far over the normal price, only 1 in 20 buyers is interested. Any dearer never sells.",
+  "selling.jsonc:saleDelay.expensivePercent": "This far over the normal price, only 1 in 20 buyers is interested. Dearer offers still sell now and then, but wait much longer and may expire first.",
+  "selling.jsonc:saleDelay.neverSellsPercent": "This far over the normal price an offer never sells. 100 = twice the normal price.",
   "selling.jsonc:flipPenalty": "Buy lots of one item and list it straight away, and buyers take longer to turn up. Needs Sale speed on.",
   "selling.jsonc:flipPenalty.windowMinutes": "How long a purchase counts, in minutes.",
   "selling.jsonc:flipPenalty.freePurchases": "Purchases of one item before it counts.",
@@ -868,7 +907,7 @@ const ADVANCED = [
   "market.jsonc:barterOffers.valueMin", "market.jsonc:barterOffers.valueMax",
   "market.jsonc:sellerRating.min", "market.jsonc:sellerRating.max", "market.jsonc:sellerRating.everydayMax",
   "market.jsonc:packs.min", "market.jsonc:packs.max", "market.jsonc:packs.hugeMin", "market.jsonc:packs.hugeMax",
-  "prices.jsonc:floor.logTraderProfitLoops", "prices.jsonc:drift.stepPercent", "prices.jsonc:drift.updateMinutes",
+  "prices.jsonc:floor.logTraderProfitLoops", "prices.jsonc:floor.ignoreForTraderLoops", "prices.jsonc:drift.stepPercent", "prices.jsonc:drift.updateMinutes",
   "prices.jsonc:sellers.wornOverpriceChance", "prices.jsonc:sellers.overpriceMinPercent", "prices.jsonc:sellers.overpriceMaxPercent",
   "prices.jsonc:sellers.quickSellMinPercent", "prices.jsonc:sellers.quickSellMaxPercent",
   "prices.jsonc:sellers.trollMinMultiplier", "prices.jsonc:sellers.trollMaxMultiplier", "condition.jsonc:*.amountPriceWeight",
@@ -1158,10 +1197,10 @@ async function load() {
   const auth = await (await fetch(API + "/auth", { cache: "no-store" })).json();
   if (!auth.account) { askLogin(true); return; }
   if (!auth.admin) { startGuest(); return; }
-  const account = $("account");
-  account.hidden = false;
-  account.textContent = "Log out " + auth.user;
-  account.onclick = async () => { await fetch(API + "/logout", { method: "POST" }); location.reload(); };
+  // In the More menu, so the top bar fits on one line.
+  const logout = $("logout");
+  logout.textContent = "Log out " + auth.user;
+  logout.onclick = async () => { await fetch(API + "/logout", { method: "POST" }); location.reload(); };
   const res = await fetch(API + "/settings", { cache: "no-store" });
   if (res.status === 401) { startGuest(); return; }
   if (!res.ok) throw new Error("the server said " + res.status);
@@ -2366,6 +2405,7 @@ function economyPanel() {
   wrap.appendChild(wipe);
 
   wrap.appendChild(itemLookup(e, d));
+  wrap.appendChild(offersCard());
   return wrap;
 }
 
@@ -2430,6 +2470,7 @@ function itemLookup(e, d) {
     facts.append(make("div", "", "Better Flea price: " + indexText), make("div", "", "Live price: " + liveText),
       make("div", "", (d.stockBuild ? "Actual value (default build): " : "Actual value: ") + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
     look.appendChild(facts);
+    if (d.odds) look.appendChild(oddsTable(d.odds, "Selling one (as found, not bought):"));
     look.appendChild(make("div", "s", "Through a wipe (with the Wipe Cycle on):"));
     const chart = make("div", "chart");
     look.appendChild(chart);
@@ -2438,6 +2479,65 @@ function itemLookup(e, d) {
   }
   return look;
 }
+// How an offer of an item sells at a range of prices against its normal price (SaleOdds on the server): how often
+// before the offer ends, and the usual wait. listed: a player's own price, its row marked.
+function oddsTable(o, title, listed) {
+  const box = make("div", "odds");
+  if (title) box.appendChild(make("div", "s", title));
+  const table = make("table", "odds-table");
+  const head = make("tr");
+  for (const h of ["Listed at", "Over normal", "Sells", "Usual wait"]) head.appendChild(make("th", "", h));
+  table.appendChild(head);
+  const near = listed ? o.rows.reduce((a, b) => Math.abs(b.ratio - listed / o.normal) < Math.abs(a.ratio - listed / o.normal) ? b : a) : null;
+  for (const r of o.rows) {
+    const row = make("tr", r === near ? "here" : "");
+    const over = Math.round((r.ratio - 1) * 100);
+    row.append(make("td", "", count(r.price) + " ₽"), make("td", "", (over > 0 ? "+" : "") + over + "%"),
+      make("td", "", r.sells >= 0.995 ? "Always" : r.sells <= 0.005 ? "Never" : Math.round(r.sells * 100) + "%"),
+      make("td", "", r.minutes == null ? "–" : r.minutes < 1 ? "Under a minute" : duration(r.minutes * 60)));
+    table.appendChild(row);
+  }
+  const scroll = make("div", "odds-wrap");
+  scroll.appendChild(table);
+  box.appendChild(scroll);
+  const notes = make("div", "notes");
+  notes.append(make("div", "", "Normal price: " + count(o.normal) + " ₽. Sells: how often it sells before the " + o.hours + " hour offer ends, if no other seller has it cheaper."));
+  if (o.wrecked) notes.appendChild(make("div", "", "Wrecked: a hard sell even at the normal price, and it only gets one buyer's look."));
+  if (o.plain) notes.appendChild(make("div", "", "Up to a little over normal, buyers come at this item's own pace and buy the cheapest offers first."));
+  notes.appendChild(make("div", "", "Bought from a trader or the flea in the last 48 hours? Then it never sells more than 15% over normal."));
+  box.appendChild(notes);
+  return box;
+}
+
+// Every player's offers that are up, each with how it sells at other prices. Guests see it too.
+function offersCard() {
+  const card = make("div", "card lookup");
+  card.appendChild(make("h3", "", "Offers on the flea"));
+  const body = make("div");
+  body.appendChild(make("div", "hint", "Loading…"));
+  card.appendChild(body);
+  fetch(API + "/offers").then(r => r.json()).then(d => {
+    body.innerHTML = "";
+    if (!d.offers || !d.offers.length) { body.appendChild(make("div", "s", "No player offers are up right now.")); return; }
+    body.appendChild(make("div", "s", "Players' offers that are up. Open one to see how it would sell at other prices."));
+    for (const o of d.offers) {
+      const item = make("details", "offer");
+      const sum = make("summary");
+      sum.append(make("b", "", o.name), make("span", "n", o.player), make("span", "", count(o.price) + " ₽" + (o.quantity > 1 ? " × " + o.quantity : "")));
+      if (o.odds) {
+        const over = Math.round((o.price / o.odds.normal - 1) * 100);
+        sum.appendChild(make("span", "n", (over > 0 ? "+" : "") + over + "%"));
+      }
+      sum.appendChild(make("span", "when", o.sellsAt ? (o.sellsAt <= d.now ? "Sold" : "A buyer comes in " + duration(o.sellsAt - d.now))
+        : "No buyer yet, ends in " + duration(Math.max(0, o.endsAt - d.now))));
+      item.appendChild(sum);
+      item.appendChild(o.odds ? oddsTable(o.odds, "", o.price) : make("div", "s", "No odds: sale delays are off."));
+      body.appendChild(item);
+    }
+  }).catch(() => { body.innerHTML = ""; body.appendChild(make("div", "s", "Couldn't load the offers.")); });
+  return card;
+}
+
 // ---------- mod items ----------
 
 async function loadMods() {

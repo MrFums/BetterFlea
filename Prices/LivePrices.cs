@@ -52,12 +52,22 @@ internal static class LivePrices
     private static Action<string>? _warn;
     private static readonly Lazy<Cache?> Index = new(ReadIndex);
 
+    // The index prices what can be traded in the real game somehow (flea, trader or barter); what it has no price for
+    // can't be (money, secure containers, prestige and Arena rewards, the developer's balaclava).
+    public static bool IndexPrices(MongoId tpl) => Index.Value?.Prices.ContainsKey(tpl.ToString()) == true;
+
+    private static readonly Lazy<HashSet<string>> BackportItems = new(() => Index.Value?.Backport?.ToHashSet() ?? []);
+
+    // One of the base-game items only WTT ContentBackport adds, known without reading any mod's files.
+    public static bool IsBackport(MongoId tpl) => BackportItems.Value.Contains(tpl.ToString());
+
     // Known: every item tarkov.dev has, priced or not (base-game items, wherever they come from).
     // Levels: the level each item can be bought from on the real flea, where it needs one (LevelLock).
     // Backport: the price index's items that only WTT ContentBackport adds (SPT 4.1.6 doesn't have them yet).
     // TraderCuts: each trader's cut when buying from a player in the live game (SPT's buy_price_coef), by trader id.
+    // TraderLevelCuts: the same by loyalty level, for a trader whose cut changes with it (Ref).
     public record Cache(string[] Modes, long Fetched, Dictionary<string, double> Prices, string[]? Known = null, Dictionary<string, int>? Levels = null,
-        string[]? Backport = null, Dictionary<string, double>? TraderCuts = null);
+        string[]? Backport = null, Dictionary<string, double>? TraderCuts = null, Dictionary<string, double[]>? TraderLevelCuts = null);
 
     private static LivePricesConfig Settings => _config!.Mod.Economy.LivePrices;
 
@@ -84,12 +94,20 @@ internal static class LivePrices
 
     // SPT 4.1's own cuts. A trader whose cut is something else was changed by another mod (SVM's trader markup, say),
     // and keeps that mod's cut.
-    private static readonly Dictionary<string, double> SptDefaultCuts = new()
+    private static readonly Dictionary<string, double[]> SptDefaultCuts = new()
     {
-        ["54cb50c76803fa8b248b4571"] = 50, ["54cb57776803fa99248b456e"] = 37, ["579dc571d53a0658a154fbec"] = 60,
-        ["58330581ace78e27b8b10cee"] = 51, ["5935c25fb3acc3127c3d8cd9"] = 55, ["5a7c2eca46aef81a7ca2145d"] = 44,
-        ["5ac3b934156ae10c4430e83c"] = 38, ["5c0647fdd443bc2504c2d371"] = 40
+        ["54cb50c76803fa8b248b4571"] = [50], ["54cb57776803fa99248b456e"] = [37], ["579dc571d53a0658a154fbec"] = [60],
+        ["58330581ace78e27b8b10cee"] = [51], ["5935c25fb3acc3127c3d8cd9"] = [55], ["5a7c2eca46aef81a7ca2145d"] = [44],
+        ["5ac3b934156ae10c4430e83c"] = [38], ["5c0647fdd443bc2504c2d371"] = [40], ["6617beeaa9cfa777ca915b7c"] = [50, 44, 44, 38]
     };
+
+    // SVM writes one cut for every loyalty level, so its default for Ref (56% at every level) isn't a change anyone made.
+    private static readonly Dictionary<string, double[]> SvmDefaultCuts = new() { ["6617beeaa9cfa777ca915b7c"] = [44] };
+
+    // A cut by loyalty level: the last one given covers the levels after it.
+    private static double AtLevel(double[] cuts, int level) => cuts[Math.Min(level, cuts.Length - 1)];
+
+    private static bool Matches(double?[] levels, double[] cuts) => levels.Select((level, i) => level == AtLevel(cuts, i)).All(same => same);
 
     // Traders whose cut another mod changed: their cut is left alone. For the settings page.
     public static IReadOnlyList<string> CutsSetByMod =>
@@ -97,7 +115,7 @@ internal static class LivePrices
 
     // Live trader prices: what traders pay a player, with each trader's live cut (Therapist keeps 49%, not SPT's 37%).
     // Null puts SPT's back. Players pick it up when they next log in.
-    private static void UseTraderCuts(Dictionary<string, double>? cuts)
+    private static void UseTraderCuts(Dictionary<string, double>? cuts, Dictionary<string, double[]>? levelCuts = null)
     {
         if (_traders is null)
         {
@@ -109,7 +127,8 @@ internal static class LivePrices
             _sptCuts = _traders.Values.Where(trader => trader.Base?.LoyaltyLevels is not null)
                 .ToDictionary(trader => trader.Base!.Id, trader => trader.Base!.LoyaltyLevels!.Select(level => level.BuyPriceCoefficient).ToArray());
             _cutsSetByMod = _sptCuts
-                .Where(entry => SptDefaultCuts.TryGetValue(entry.Key.ToString(), out var cut) && entry.Value.Any(level => level != cut))
+                .Where(entry => SptDefaultCuts.TryGetValue(entry.Key.ToString(), out var cut) && !Matches(entry.Value, cut)
+                    && !(SvmDefaultCuts.TryGetValue(entry.Key.ToString(), out var svm) && Matches(entry.Value, svm)))
                 .Select(entry => entry.Key).ToHashSet();
             if (_cutsSetByMod.Count > 0)
             {
@@ -129,9 +148,11 @@ internal static class LivePrices
                 continue;
             }
 
+            var id = trader.Base.Id.ToString();
             for (var i = 0; i < levels.Count && i < spt.Length; i++)
             {
-                levels[i].BuyPriceCoefficient = cuts?.TryGetValue(trader.Base.Id.ToString(), out var cut) == true ? cut : spt[i];
+                levels[i].BuyPriceCoefficient = levelCuts?.TryGetValue(id, out var byLevel) == true && byLevel.Length > 0 ? AtLevel(byLevel, i)
+                    : cuts?.TryGetValue(id, out var cut) == true ? cut : spt[i];
             }
         }
 
@@ -335,7 +356,8 @@ internal static class LivePrices
             _indexApplied = index;
         }
 
-        UseTraderCuts(index && !_fallback && IndexSettings.LiveTraderPrices ? cache.TraderCuts : null);
+        var liveCuts = index && !_fallback && IndexSettings.LiveTraderPrices;
+        UseTraderCuts(liveCuts ? cache.TraderCuts : null, liveCuts ? cache.TraderLevelCuts : null);
 
         // Modded items' levels go by price.
         Flea.LevelLock.Forget();

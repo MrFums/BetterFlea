@@ -120,6 +120,8 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             switch (path)
             {
                 case Root:
+                    // Always asked for again, or a browser keeps showing the page from before an update.
+                    context.Response.Headers.CacheControl = "no-cache";
                     await Send(context, "text/html; charset=utf-8", Resource("index.html"), cancellationToken);
                     break;
                 case Root + "/icon.png":
@@ -137,6 +139,9 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
                     break;
                 case Root + "/api/economy":
                     await SendJson(context, Wipe(context.Request.Query["level"].ToString(), context.Request.Query["id"].ToString()), cancellationToken);
+                    break;
+                case Root + "/api/offers":
+                    await SendJson(context, Offers(), cancellationToken);
                     break;
                 case Root + "/api/mods":
                     await SendJson(context, Mods(), cancellationToken);
@@ -293,6 +298,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             var fleaPrice = BetterFlea.Selling.SaleDelayGate.NormalPrice(build is { Count: > 1 } ? build : [new Item { Id = new MongoId(), Template = tpl }]);
             result["fleaPrice"] = fleaPrice is { } f ? Math.Round(f) : null;
             result["stockBuild"] = build is { Count: > 1 };
+            result["odds"] = Odds(build is { Count: > 1 } ? build : [new Item { Id = new MongoId(), Template = tpl }]);
             var lookup = LivePrices.Lookup(tpl);
             result["sptPrice"] = lookup.Spt is { } s ? Math.Round(s) : null;
             result["livePrice"] = lookup.Live;
@@ -322,6 +328,46 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             }).ToArray())
         };
         return result;
+    }
+
+    // How a player's offer of these items sells at a range of prices (BetterFlea.Selling.SaleOdds). Null with sale
+    // delays off.
+    private JsonObject? Odds(List<Item> items)
+    {
+        if (BetterFlea.Selling.SaleOdds.For(items, itemHelper) is not { } table)
+        {
+            return null;
+        }
+
+        return new JsonObject
+        {
+            ["normal"] = table.Normal, ["wrecked"] = table.Wrecked, ["plain"] = table.Plain, ["hours"] = table.Hours,
+            ["rows"] = new JsonArray(table.Rows.Select(row => (JsonNode)new JsonObject
+            {
+                ["ratio"] = row.Ratio, ["price"] = row.Price, ["sells"] = Math.Round(row.Sells, 3),
+                ["minutes"] = row.MedianMinutes is { } m ? Math.Round(m) : null
+            }).ToArray())
+        };
+    }
+
+    // Every player's offers that are up: what each is, its price against its normal, when it sells if a buyer is
+    // already lined up, and its odds at other prices.
+    private JsonObject Offers()
+    {
+        var list = new JsonArray();
+        foreach (var (player, offer) in BetterFlea.Selling.OrderBook.AllPlayerOffers().Take(30))
+        {
+            var items = offer.Items!;
+            var odds = Odds(items);
+            var sale = offer.SellResults?.ToList().Where(result => result.SellTime is not null).Min(result => result.SellTime);
+            list.Add(new JsonObject
+            {
+                ["player"] = player, ["name"] = ItemName(items[0].Template), ["price"] = offer.RequirementsCost is { } cost ? Math.Round(cost) : null,
+                ["quantity"] = offer.Quantity, ["endsAt"] = offer.EndTime, ["sellsAt"] = sale, ["odds"] = odds
+            });
+        }
+
+        return new JsonObject { ["offers"] = list, ["now"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
     }
 
     // Server mods that add items: how many, and of which types (the bannedCategories names). Items that can never be
@@ -494,7 +540,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     // Anyone can see the flea's stats and look items up; the settings need the admin login (AdminLogin).
     private static readonly HashSet<string> OpenPaths = new(StringComparer.Ordinal)
     {
-        Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview", Root + "/api/items", Root + "/api/economy",
+        Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview", Root + "/api/items", Root + "/api/economy", Root + "/api/offers",
         Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
     };
 

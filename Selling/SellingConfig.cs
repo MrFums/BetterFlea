@@ -58,6 +58,9 @@ public record SaleDelayConfig
     [JsonPropertyName("expensivePercent")]
     public double ExpensivePercent { get; set; } = 15;
 
+    [JsonPropertyName("neverSellsPercent")]
+    public double NeverSellsPercent { get; set; } = 100;
+
     // Share of buyers left when a cheaper offer of the same item is already on the market.
     [JsonPropertyName("cheaperOfferShare")]
     public double CheaperOfferShare { get; set; } = 0.35;

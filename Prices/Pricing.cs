@@ -199,7 +199,7 @@ internal static class PriceGate
         }
 
         var bestBuy = BestTraderBuyPrice(tpl);
-        if (bestBuy <= 0)
+        if (bestBuy <= 0 || (settings.IgnoreForTraderLoops && TraderLoopItems().Contains(tpl)))
         {
             return 0;
         }
@@ -240,7 +240,58 @@ internal static class PriceGate
         });
     }
 
-    public static void ForgetTraderPrices() => BestBuyPrices.Clear();
+    public static void ForgetTraderPrices()
+    {
+        BestBuyPrices.Clear();
+        _traderLoopItems = null;
+    }
+
+    private static volatile HashSet<MongoId>? _traderLoopItems;
+    private static readonly MongoId Fence = new("579dc571d53a0658a154fbec");
+
+    // Items a trader sells, with everything that comes with them, for less than the best trader pays for it all (a
+    // mod's trader selling a helmet under what Ragman pays for it). Money offers only; not Fence, whose stock changes.
+    private static HashSet<MongoId> TraderLoopItems()
+    {
+        if (_traderLoopItems is { } known)
+        {
+            return known;
+        }
+
+        var loops = new HashSet<MongoId>();
+        foreach (var (traderId, trader) in _traders ?? [])
+        {
+            if (traderId == Fence || trader.Assort?.Items is not { Count: > 0 } assort || trader.Assort.BarterScheme is not { } schemes)
+            {
+                continue;
+            }
+
+            var children = assort.Where(entry => entry.ParentId is not null).ToLookup(entry => entry.ParentId!);
+            foreach (var root in assort.Where(entry => entry.ParentId == "hideout"))
+            {
+                if (!schemes.TryGetValue(root.Id, out var options) || options.FirstOrDefault() is not [{ Count: > 0 } payment]
+                    || !_itemHelper!.IsOfBaseclass(payment.Template, BaseClasses.MONEY))
+                {
+                    continue;
+                }
+
+                var tree = new List<Item> { root };
+                for (var i = 0; i < tree.Count; i++)
+                {
+                    tree.AddRange(children[tree[i].Id.ToString()]);
+                }
+
+                var cost = payment.Template == Money.ROUBLES ? payment.Count!.Value : _handbook!.InRoubles(payment.Count!.Value, payment.Template);
+                if (tree.Sum(entry => BestTraderBuyPrice(entry.Template)) > cost)
+                {
+                    loops.UnionWith(tree.Select(entry => entry.Template));
+                }
+            }
+        }
+
+        DebugLog.Summary(() => $"Price floor: {loops.Count} item(s) in a trader-to-trader loop have no floor (ignoreForTraderLoops).");
+        return _traderLoopItems = loops;
+    }
 
     // Where the market has an item right now: drift and demand. 1 = normal.
     public static double MarketFactor(MongoId tpl) => DriftFactor(tpl) * Demand.Factor(tpl);
@@ -441,9 +492,13 @@ internal static class SellerPricing
 
     // Nobody lists a wrecked helmet or plate at what it's worth: a 4/13 Bastion is worth about 11k, but its seller
     // looks at the list and goes a bit under the cheapest decent one (39k). A poor deal, but the cheapest on the list.
-    // Armour, helmets and anything else with durability under half a new one's worth; not guns. Never under its worth.
-    // After the multiplier, before Humanise.
+    // Armour, helmets and anything else with durability under half a new one's worth, all its parts together
+    // (WearQuality); not guns. Never under its worth. After the multiplier, before Humanise.
     private const double JunkQuality = 0.5;
+
+    public static bool IsWrecked(IReadOnlyList<Item> items) =>
+        items.Count > 0 && _itemHelper is not null && !_itemHelper.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON)
+        && UsedListingsGate.WearQuality(items) < JunkQuality;
     private const double JunkMinShare = 0.85;
     private const double JunkMaxShare = 0.97;
 
@@ -454,8 +509,7 @@ internal static class SellerPricing
     {
         if (details.Creator != OfferCreator.FakePlayer || details.SellInOnePiece || _itemHelper is null || _offers is null
             || details.Items is not { Count: > 0 } items || details.BarterScheme is not [{ Count: { } price } barter]
-            || !_itemHelper.IsOfBaseclass(barter.Template, BaseClasses.MONEY) || _itemHelper.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON)
-            || !items.Any(item => item.Upd?.Repairable is not null) || items.Min(UsedListingsGate.PriceQuality) >= JunkQuality)
+            || !_itemHelper.IsOfBaseclass(barter.Template, BaseClasses.MONEY) || !IsWrecked(items))
         {
             return;
         }
@@ -466,7 +520,7 @@ internal static class SellerPricing
             if (offer.CreatedBy == OfferCreator.FakePlayer && offer.SellInOnePiece != true && offer.Items is { Count: > 0 } listed
                 && offer.RequirementsCost is { } cost && cost > 0
                 && offer.Requirements?.All(requirement => _itemHelper.IsOfBaseclass(requirement.TemplateId, BaseClasses.MONEY)) == true
-                && listed.Min(UsedListingsGate.PriceQuality) >= JunkQuality)
+                && UsedListingsGate.WearQuality(listed) >= JunkQuality)
             {
                 cheapest = Math.Min(cheapest, cost);
             }
@@ -480,7 +534,7 @@ internal static class SellerPricing
             barter.Count = Math.Round(wanted);
             if (Interlocked.Increment(ref _junkLogged) <= 12)
             {
-                var (name, quality, found) = (_itemHelper.GetItem(items[0].Template).Value?.Name, items.Min(UsedListingsGate.PriceQuality), cheapest < double.MaxValue);
+                var (name, quality, found) = (_itemHelper.GetItem(items[0].Template).Value?.Name, UsedListingsGate.WearQuality(items), cheapest < double.MaxValue);
                 DebugLog.Summary(() => $"Junk price: {name} at {quality:P0} condition {price:0} -> {wanted:0} ({(found ? "under the cheapest decent offer" : "no decent offer up")}, {anchor:0})");
             }
         }

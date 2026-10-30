@@ -4,6 +4,7 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Helpers.Items;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
+using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Spt.Tables;
 
@@ -16,6 +17,7 @@ public class FleaCategoryFilter(
     ConfigManager configManager,
     TemplateTable templates,
     RagfairConfig ragfairConfig,
+    ItemConfig itemConfig,
     ItemHelper itemHelper)
 {
     public void Apply()
@@ -46,10 +48,12 @@ public class FleaCategoryFilter(
 
             // With BSG's bans off, SPT only stops keeping the game's banned items off its own offers: the item still
             // says it can't go on the flea, so the game wouldn't let a player list one and showed it as banned. A
-            // mod's own ban was decided above (Decide). Quest items stay off.
-            if (decision is null && !config.EnableBsgBlacklist && item.Properties.CanSellOnRagfair == false && item.Properties.QuestItem != true)
+            // mod's own ban was decided above (Decide). Quest items, and what nobody can sell anywhere, stay off.
+            if (decision is null && !config.EnableBsgBlacklist && item.Properties.CanSellOnRagfair == false && item.Properties.QuestItem != true
+                && !NeverSold(item.Id))
             {
                 item.Properties.CanSellOnRagfair = true;
+                LiftInserts(item, items);
                 lifted++;
                 continue;
             }
@@ -62,6 +66,7 @@ public class FleaCategoryFilter(
             if (decision.Value)
             {
                 item.Properties.CanSellOnRagfair = true;
+                LiftInserts(item, items);
                 ragfairConfig.Dynamic.Blacklist.Custom.Remove(entry.Id);
                 forced++;
             }
@@ -72,6 +77,8 @@ public class FleaCategoryFilter(
                 blocked++;
             }
         }
+
+        var unlisted = KeepUnreleasedOff(items, allowed);
 
         var missing = allowed.Concat(banned)
             .Where(id => !items.ContainsKey(id) && !HandbookTree.IsCategory(id))
@@ -87,7 +94,55 @@ public class FleaCategoryFilter(
         var breakdown = string.Join(", ", bannedPerCategory.OrderBy(x => x.Key).Select(x => $"{x.Key} {x.Value}"));
         DebugLog.Summary(() =>
             $"Flea filter applied: {blocked} banned, {forced} forced allowed " +
-            $"(bsgBlacklist={config.EnableBsgBlacklist}, {lifted} of the game's bans lifted)" + (blocked > 0 ? $" - {breakdown}" : string.Empty));
+            $"(bsgBlacklist={config.EnableBsgBlacklist}, {lifted} of the game's bans lifted, {unlisted} dev and test items kept off)" + (blocked > 0 ? $" - {breakdown}" : string.Empty));
+    }
+
+    // SPT keeps some items out of the game altogether (its item blacklist: the developer's balaclava, test items,
+    // shrapnel, parts the game doesn't have yet), but their data still lets a player list one. Those the real game
+    // doesn't trade (no price in the index) can't be, unless allowed by id. Whatever BSG's bans are set to. Base-game
+    // items only: mods put their own items on it to keep them out of bots' loot.
+    private int KeepUnreleasedOff(Dictionary<MongoId, TemplateItem> items, HashSet<MongoId> allowed)
+    {
+        var count = 0;
+        foreach (var tpl in itemConfig.Blacklist)
+        {
+            if (!allowed.Contains(tpl) && !ModItems.IsModded(tpl) && items.TryGetValue(tpl, out var item) && item.Properties is { CanSellOnRagfair: true } props
+                && !BetterFlea.Prices.LivePrices.IndexPrices(tpl))
+            {
+                props.CanSellOnRagfair = false;
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    // Turning off BSG's bans is for what the real flea bans (the Blackjack 50, M995), not for what can't be sold at all:
+    // money, dogtags (only kills supply the dogtag barters), secure containers and armbands, or anything the real
+    // game can't trade anywhere (no price in the index: the developer's balaclava, prestige and Arena rewards).
+    private static readonly MongoId[] NeverSoldKinds =
+    [
+        BaseClasses.MONEY,
+        BaseClasses.MOB_CONTAINER,
+        new("5b3f15d486f77432d0509248") // armbands
+    ];
+
+    private bool NeverSold(MongoId tpl) =>
+        itemHelper.IsOfBaseclasses(tpl, NeverSoldKinds) || itemHelper.IsDogtag(tpl) || !BetterFlea.Prices.LivePrices.IndexPrices(tpl);
+
+    // A helmet or armour can't be listed while any of its built-in inserts is banned, and the inserts aren't in the
+    // handbook, so the loop above never reaches them (the Champion's helmet's top plate).
+    private void LiftInserts(TemplateItem item, Dictionary<MongoId, TemplateItem> items)
+    {
+        foreach (var tpl in item.Properties?.Slots?.SelectMany(slot => slot.Properties?.Filters ?? [])
+                     .SelectMany(filter => filter.Filter ?? []) ?? [])
+        {
+            if (items.TryGetValue(tpl, out var part) && part.Properties is { CanSellOnRagfair: false } props
+                && itemHelper.IsOfBaseclass(tpl, BaseClasses.BUILT_IN_INSERTS))
+            {
+                props.CanSellOnRagfair = true;
+            }
+        }
     }
 
     // The parts that can change while the server runs. Bans are only applied at startup.
@@ -188,10 +243,10 @@ public class FleaCategoryFilter(
 
         var category = FleaCategories.Find(item, itemHelper);
         var flea = configManager.Mod.Flea;
-        // Only asked when a mod setting is used, or BSG's bans are off: finding which mod added an item reads every
-        // mod's files.
-        var mod = flea.BannedModItems.Count > 0 || flea.AllowedModItems.Count > 0 || (!flea.EnableBsgBlacklist && WasFleaBanned(tpl))
-            ? ModItems.ModOf(tpl) : null;
+        // Only asked when a mod setting is used: finding which mod added an item reads every mod's files, which can
+        // take a while with a lot of mods. Whether an item is a mod's at all is known without it.
+        var modded = ModItems.IsModded(tpl);
+        var mod = modded && (flea.BannedModItems.Count > 0 || flea.AllowedModItems.Count > 0) ? ModItems.ModOf(tpl) : null;
 
         // A mod's own flea ban, lifted. Allowed beats banned, as above.
         if (mod is not null && WasFleaBanned(tpl) && ModListHas(flea.AllowedModItems, mod, category?.Name))
@@ -200,11 +255,11 @@ public class FleaCategoryFilter(
         }
 
         // Turning off BSG's bans lifts the game's own, not a mod's: SPT's switch covers both, so a mod's stays here.
-        // WTT ContentBackport's items are the game's, with the game's bans.
-        if (mod is not null && !flea.EnableBsgBlacklist && WasFleaBanned(tpl)
-            && !mod.Contains("ContentBackport", StringComparison.OrdinalIgnoreCase))
+        // WTT ContentBackport's items are the game's, with the game's bans (the price index knows which they are).
+        if (modded && !flea.EnableBsgBlacklist && WasFleaBanned(tpl) && !BetterFlea.Prices.LivePrices.IsBackport(tpl)
+            && mod?.Contains("ContentBackport", StringComparison.OrdinalIgnoreCase) != true)
         {
-            reason = "mod " + mod + " (its own ban)";
+            reason = "mod " + (mod ?? "items") + " (their own ban)";
             return false;
         }
 

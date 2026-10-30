@@ -7,7 +7,8 @@
 
   // How fast a player's offer sells depends on its price against the normal price.
   // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: longer and
-  // less likely, and past expensivePercent over the normal price it never sells. The normal price goes by what's in
+  // less likely: past expensivePercent over the normal price only now and then, after a long wait, and past
+  // neverSellsPercent over it never sells. The normal price goes by what's in
   // the item: its parts, plates and their condition, and where the market has the item right now.
   "saleDelay": {
     "enabled": true,
@@ -17,7 +18,8 @@
     "uniqueMinMinutes": 5,           // a gun, armour or anything with durability at the normal price waits this long for a buyer
     "uniqueMaxMinutes": 20,          // (random between) at about 100,000 roubles; dearer ones longer (a 500,000 gun about twice as long)
     "slowSaleMaxHours": 4,           // an offer with a low chance to sell (priced over normal) that does sell finds its buyer any time up to this many hours later
-    "expensivePercent": 15,          // this much over the normal price, only 1 in 20 buyers is still interested; any dearer never sells
+    "expensivePercent": 15,          // this much over the normal price, only 1 in 20 buyers is still interested; dearer still sells now and then, much later
+    "neverSellsPercent": 100,        // this much over the normal price (100 = twice it), it never sells
     "cheaperOfferShare": 0.35        // another seller already has it cheaper: this share of buyers is left. Not for offers well under normal (undercut.safeBelowPercent)
   },
 

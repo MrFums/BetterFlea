@@ -119,8 +119,8 @@ tool again.
 
 What a trader pays a player is a cut of the item's base price (SPT's handbook, which matches the live game's base
 price for 88% of items). SPT's cuts are out of date: its traders pay 10 to 16 points more than live ones. Worked out
-from tarkov.dev's trader sell prices over base prices (median over every item; the same at every loyalty level and in
-PvP and PvE):
+from tarkov.dev's trader sell prices over base prices (median over every item; the same in PvP and PvE, and at every
+loyalty level except Ref's):
 
 | Trader | Live pays | SPT pays |
 |---|--:|--:|
@@ -129,7 +129,7 @@ PvP and PvE):
 | Jaeger | 48% | 60% |
 | Mechanic | 45% | 56% |
 | Prapor | 40% | 50% |
-| Arena | 40% | 50 to 62% |
+| Arena (Ref) | 40%, 45%, 45%, 50% | 50%, 56%, 56%, 62% |
 | Skier | 39% | 49% |
 | Peacekeeper | 36% | 45% |
 | Fence | 24% | 40% |
@@ -137,6 +137,15 @@ PvP and PvE):
 A portable defibrillator: live Therapist pays 114,546, SPT's 141,498. With **Live trader prices** on (part of Better
 Flea pricing, on by default), traders take their live cut. Shipped in the index as `TraderCuts`. Modded traders keep
 their own.
+
+Ref is the one trader whose cut changes with loyalty level, live and in SPT. tarkov.dev only has his level 1 price, so
+his steps (5, 5 and 10 points over level 1) come from the wiki's Trading page, shipped as `TraderLevelCuts`.
+
+These are the live cuts since patch 1.1 (August 2026), when BSG cut every trader's price by about 20% (Fence's by
+more). SPT's cuts are the 0.16.9 ones, the game version SPT 4.1 is built on: the wiki's Trading page had exactly
+SPT's numbers until then. About 10% of base prices also changed in live after 0.16.9 (meds 20% cheaper, cosmetic
+masks 5,000, some armour reworked), and SPT has the 0.16.9 ones, so for those items a trader takes the live cut of
+the old base price.
 
 ## Crafts and barters
 

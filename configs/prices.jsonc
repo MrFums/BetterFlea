@@ -15,7 +15,8 @@
   "floor": {
     "enabled": true,
     "marginPercent": 10,             // the cheapest offer is this % more than the trader price
-    "logTraderProfitLoops": false    // true = at start, write in the server log the items that one trader sells for less than another trader pays
+    "logTraderProfitLoops": false,   // true = at start, write in the server log the items that one trader sells for less than another trader pays
+    "ignoreForTraderLoops": false    // NOT SUPPORTED. true = no floor for items one trader sells for less than another pays (and their parts), so flea offers can go under it
   },
 
   // Prices go up and down a little over time. Only new offers get the new price.

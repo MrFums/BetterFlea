@@ -492,6 +492,7 @@ public class ConfigManager(
         delay.MaxMinutes = Math.Max(0.0, delay.MaxMinutes);
         delay.NoDelayChance = Math.Clamp(delay.NoDelayChance, 0.0, 1.0);
         delay.ExpensivePercent = Math.Clamp(delay.ExpensivePercent, 10.0, 500.0);
+        delay.NeverSellsPercent = Math.Clamp(delay.NeverSellsPercent, delay.ExpensivePercent + 5, 1000.0);
         if (delay.MinMinutes > delay.MaxMinutes)
         {
             logger.Warning("[BetterFlea] saleDelay.minMinutes (configs/selling.jsonc) is above maxMinutes, swapping them.");

@@ -64,6 +64,9 @@ internal static class ModItems
 
     public static bool IsBaseItem(MongoId tpl) => _baseItems.Contains(tpl);
 
+    // An item a mod added: not in the item list noted before other mods loaded. False if that list couldn't be noted.
+    public static bool IsModded(MongoId tpl) => _baseItems.Count > 0 && !_baseItems.Contains(tpl);
+
     public static string? ModOf(MongoId tpl) =>
         _baseItems.Contains(tpl) ? null : _modById.Value.GetValueOrDefault(tpl.ToString().ToLowerInvariant());
 

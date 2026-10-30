@@ -67,21 +67,34 @@ internal static class SaleDelayGate
     [ThreadStatic] private static MongoId? _listedTpl;
     [ThreadStatic] private static bool _plain;
     [ThreadStatic] private static double? _normalUsed;
+    [ThreadStatic] private static bool _wrecked;
+
+    // Wrecked armour or a wrecked helmet (SellerPricing.IsWrecked) is a hard sell even at its normal price: fewer
+    // buyers want it at all (each roll keeps this share of them, so about 4 in 10 never sell), and the ones who do
+    // take this many times longer to come. Over normal it's harder still, as for anything.
+    internal const double WreckedBuyerShare = 0.6;
+    internal const double WreckedWaitMultiplier = 3;
+
+    [ThreadStatic] private static bool _bought;
 
     // How the listing went: its price against normal, and whether no other seller was cheaper. Null ratio = not judged.
     public static (double? Ratio, bool Lowest) Outcome => (_priceRatio, _lowest);
 
     // packUnits: how many of the item a pack offer sells at once (its price is for all of them). 1 otherwise.
-    public static void BeginListing(List<Item>? listed, ItemHelper itemHelper, int packUnits)
+    // bought: the player bought it lately (FlipPenaltyGate.BoughtLately), so it gets no long tail: buying at normal and
+    // listing far over isn't a way to make money.
+    public static void BeginListing(List<Item>? listed, ItemHelper itemHelper, int packUnits, bool bought = false)
     {
         EndListing();
         _packUnits = Math.Max(1, packUnits);
+        _bought = bought;
         if (listed is not { Count: > 0 })
         {
             return;
         }
 
         _listedTpl = listed[0].Template;
+        _wrecked = _packUnits == 1 && BetterFlea.Prices.SellerPricing.IsWrecked(listed);
         // Only what the order book's buyers take (OrderBook.Handles): a lone gun or thing with durability (glasses,
         // a bare helmet) gets the roll, or nothing would ever buy it.
         _plain = listed.Count == 1 && _packUnits == 1 && listed[0].Upd?.Repairable is null
@@ -132,16 +145,35 @@ internal static class SaleDelayGate
         _listedTpl = null;
         _plain = false;
         _normalUsed = null;
+        _wrecked = false;
+        _bought = false;
     }
 
     // Chance a buyer takes an offer at this price against normal: certain up to normal, falling to 1 in 20 at
-    // expensivePercent over, never past that.
-    public static double BuyerTakes(double ratio)
+    // expensivePercent over, then on to none at neverSellsPercent over. It's a buyer's chance, and buyers keep coming
+    // (the order book's re-rolls), so a dear offer (a worn armour at what new ones go for) still sells, just later:
+    // a 47k armour at 40% over in about 2 hours, at 80% over 1 in 3 before it expires.
+    // tail false: nothing past expensivePercent (an item the player bought lately).
+    public static double BuyerTakes(double ratio, bool tail = true)
     {
         var over = ratio - 1;
-        var limit = Math.Max(0.01, (_config?.Mod.PlayerSelling.SaleDelay.ExpensivePercent ?? 15) / 100.0);
-        return over <= 0 ? 1 : over > limit ? 0 : Math.Exp(-Math.Log(20) / limit * over);
+        var settings = _config?.Mod.PlayerSelling.SaleDelay;
+        var limit = Math.Max(0.01, (settings?.ExpensivePercent ?? 15) / 100.0);
+        var never = Math.Max(limit + 0.05, (settings?.NeverSellsPercent ?? 100) / 100.0);
+        return over <= 0 ? 1
+            : over <= limit ? Math.Exp(-Math.Log(20) / limit * over)
+            : over >= never || !tail ? 0
+            : 0.05 * Math.Pow((never - over) / (never - limit), 2);
     }
+
+    // How much longer than at the normal price a buyer takes at this price: about a tenth 10% under, 4x at 15% over,
+    // 13x at 40% over.
+    public static double WaitScale(double ratio)
+    {
+        var past = (ratio - 0.85) / 0.15;
+        return past <= 0 ? 0.03 : Math.Max(0.03, past * past);
+    }
+
 
     public static int LotFor(MongoId tpl, int left)
     {
@@ -199,7 +231,7 @@ internal static class SaleDelayGate
 
     // A buyer who might come at any time over slowSaleMaxHours, as often as the chance says: a sure sale comes now,
     // a 50% one mostly in the first part, a 15% one about anywhere in it.
-    private static long SlowSaleSeconds(double chance, double maxHours)
+    internal static long SlowSaleSeconds(double chance, double maxHours)
     {
         if (chance >= 0.999 || chance <= 0 || maxHours <= 0)
         {
@@ -270,6 +302,10 @@ internal static class SaleDelayGate
         }
 
         total *= (_config?.Mod.Prices.PriceMultiplier ?? 1.0) * BetterFlea.Prices.WipeEconomy.Factor(root.Template);
+
+        // Never under what traders pay for all of it, as with generated offers: built-in inserts aren't priced above,
+        // but a trader pays for them (a worn helmet was normal at 46k with Ragman paying 73k and every offer over that).
+        total = Math.Max(total, BetterFlea.Prices.PriceGate.FloorForItems(parts, Money.ROUBLES));
         return total > 0 ? total : null;
     }
 
@@ -295,7 +331,7 @@ internal static class SaleDelayGate
         _normalUsed = normal / Math.Max(1, _packUnits);
         DebugLog.Write(() => $"Sale check: listed {listedPrice:0} RUB against a normal {normal:0} (SPT's average says {normalPrice:0}), x{ratio:0.00}");
 
-        var chance = 100 * BuyerTakes(ratio);
+        var chance = 100 * BuyerTakes(ratio, !_bought) * (_wrecked ? WreckedBuyerShare : 1);
         if (chance <= 0)
         {
             return 0;
@@ -310,7 +346,7 @@ internal static class SaleDelayGate
             DebugLog.Write(() => $"Sale check: another seller has it for {_cheapest:0} RUB, cheaper than {listedPrice:0}");
         }
 
-        return chance < 1 ? 0 : Math.Round(chance);
+        return chance < 0.1 ? 0 : Math.Round(chance, 1);
     }
 
     public static void Bind(ConfigManager configManager, GlobalTable globalTable, ItemHelper itemHelper, RagfairPriceService prices,
@@ -324,7 +360,7 @@ internal static class SaleDelayGate
     }
 
     // How much longer a dear unique item takes than a cheap one: 1 at 100,000 roubles, with the root of the price.
-    private static double Dearness(double? normal = null) =>
+    internal static double Dearness(double? normal = null) =>
         Math.Clamp(Math.Sqrt(Math.Max(1, normal ?? _normalUsed ?? 100000) / 100000), 0.5, 3);
 
     // One wait at the normal price for a unique item worth this much: uniqueMinMinutes to uniqueMaxMinutes, longer
@@ -356,13 +392,11 @@ internal static class SaleDelayGate
             return;
         }
 
-        // 1 at the normal price; about a tenth of that 10% under, and 4x at 15% over.
-        var past = (ratio - 0.85) / 0.15;
-        var scale = past <= 0 ? 0.03 : Math.Max(0.03, past * past);
+        var scale = WaitScale(ratio);
         var (low, high) = unique
             ? (settings.UniqueMinMinutes * Dearness(), settings.UniqueMaxMinutes * Dearness())
             : (settings.MinMinutes, settings.MaxMinutes);
-        var waitMinutes = (low + Random.Shared.NextDouble() * Math.Max(0, high - low)) * scale + flipMinutes;
+        var waitMinutes = (low + Random.Shared.NextDouble() * Math.Max(0, high - low)) * scale * (_wrecked ? WreckedWaitMultiplier : 1) + flipMinutes;
         var waitSeconds = (long)Math.Round(waitMinutes * 60.0);
         if (waitSeconds <= 0)
         {
@@ -380,6 +414,11 @@ internal static class SaleDelayGate
             sales.RemoveAll(sale => sale.SellTime > end);
         }
     }
+
+    // How long a player's offer is up, in hours (12 in SPT).
+    internal static double OfferHours => _globals?.Configuration?.RagFair?.OfferDurationTimeInHour is > 0 and var hours ? (int)hours : 12;
+
+    internal static SaleDelayConfig? Settings => _config?.Mod.PlayerSelling is { Enabled: true } selling && selling.SaleDelay.Enabled ? selling.SaleDelay : null;
 
     private static long? OfferEndsAt()
     {
@@ -484,13 +523,19 @@ internal static class FlipPenaltyGate
     // already had. Items that stack aren't kept: a stack can be split or merged, so those go by item type.
     private static readonly ConcurrentDictionary<MongoId, ConcurrentDictionary<string, long>> BoughtItems = new();
 
+    // Player -> item id -> when it was bought, for NoTailHours whatever the flip penalty's settings, so an item bought
+    // to sell on gets no long tail (SaleDelayGate.BuyerTakes): past expensivePercent over normal it never sells.
+    private static readonly ConcurrentDictionary<MongoId, ConcurrentDictionary<string, long>> HeldItems = new();
+    private const double NoTailHours = 48;
+
     private static readonly MongoId AmmoBox = new("543be5cb4bdc2deb348b4568");
 
     [ThreadStatic] private static Purchase? _pendingPurchase;
     [ThreadStatic] private static HashSet<string>? _ownedBefore;
     [ThreadStatic] private static (MongoId Player, MongoId Tpl)? _listing;
 
-    private sealed record Purchase(MongoId Tpl, double Count, long At);
+    // Counted: for the flip penalty. Not counted, it only marks the items as bought (HeldItems).
+    private sealed record Purchase(MongoId Tpl, double Count, long At, bool Counted = true);
 
     // Player -> item -> [count, when] per purchase. Items: player -> bought item id -> when.
     public sealed class PurchaseFile
@@ -498,6 +543,8 @@ internal static class FlipPenaltyGate
         public Dictionary<string, Dictionary<string, List<double[]>>> Players { get; set; } = new();
 
         public Dictionary<string, Dictionary<string, long>> Items { get; set; } = new();
+
+        public Dictionary<string, Dictionary<string, long>> Held { get; set; } = new();
     }
 
     private static int _dirty;
@@ -523,12 +570,22 @@ internal static class FlipPenaltyGate
             }
         }
 
-        foreach (var (player, items) in DataFiles.Read<PurchaseFile>(FileName)?.Items ?? [])
+        var saved = DataFiles.Read<PurchaseFile>(FileName);
+        foreach (var (player, items) in saved?.Items ?? [])
         {
             var bought = BoughtItems.GetOrAdd(new MongoId(player), _ => new());
             foreach (var (id, at) in items)
             {
                 bought[id] = at;
+            }
+        }
+
+        foreach (var (player, items) in saved?.Held ?? [])
+        {
+            var held = HeldItems.GetOrAdd(new MongoId(player), _ => new());
+            foreach (var (id, at) in items)
+            {
+                held[id] = at;
             }
         }
 
@@ -591,6 +648,22 @@ internal static class FlipPenaltyGate
             }
         }
 
+        foreach (var (player, held) in HeldItems)
+        {
+            foreach (var (id, at) in held)
+            {
+                if (now - at >= NoTailHours * 3600)
+                {
+                    held.TryRemove(id, out _);
+                }
+            }
+
+            if (!held.IsEmpty)
+            {
+                file.Held[player.ToString()] = new Dictionary<string, long>(held);
+            }
+        }
+
         DataFiles.Write(FileName, file);
     }
 
@@ -602,13 +675,16 @@ internal static class FlipPenaltyGate
     {
         _pendingPurchase = null;
         _ownedBefore = null;
-        if (Settings is not { } settings)
+        var settings = Settings;
+        var held = _config?.Mod.PlayerSelling.SaleDelay.Enabled == true;
+        if (settings is null && !held)
         {
             return;
         }
 
         var fromFlea = string.Equals(request.Type, FleaPurchase, StringComparison.OrdinalIgnoreCase);
-        if (fromFlea && !settings.CountFleaPurchases)
+        var counted = settings is not null && (!fromFlea || settings.CountFleaPurchases);
+        if (!counted && !held)
         {
             return;
         }
@@ -620,8 +696,8 @@ internal static class FlipPenaltyGate
 
         if (tpl is { } found && request.Count is > 0)
         {
-            var weight = !fromFlea && request.TransactionId == Traders.FENCE ? settings.FenceMultiplier : 1.0;
-            _pendingPurchase = new Purchase(found, request.Count.Value * weight, Now());
+            var weight = !fromFlea && request.TransactionId == Traders.FENCE ? settings?.FenceMultiplier ?? 1.0 : 1.0;
+            _pendingPurchase = new Purchase(found, request.Count.Value * weight, Now(), counted);
             _ownedBefore = pmcData.Inventory?.Items?.Select(item => item.Id.ToString()).ToHashSet();
         }
     }
@@ -637,21 +713,34 @@ internal static class FlipPenaltyGate
             return;
         }
 
-        var list = History.GetOrAdd(player, _ => new()).GetOrAdd(purchase.Tpl, _ => new());
-        lock (list)
+        if (purchase.Counted)
         {
-            list.Add(purchase);
+            var list = History.GetOrAdd(player, _ => new()).GetOrAdd(purchase.Tpl, _ => new());
+            lock (list)
+            {
+                list.Add(purchase);
+            }
         }
 
         // Attachments too, so parts stripped off a bought gun wait like the gun.
         if (before is not null)
         {
-            var bought = BoughtItems.GetOrAdd(player, _ => new());
+            var bought = purchase.Counted ? BoughtItems.GetOrAdd(player, _ => new()) : null;
+            var held = HeldItems.GetOrAdd(player, _ => new());
+            if (Stacks(purchase.Tpl))
+            {
+                held[StackKey(purchase.Tpl)] = purchase.At;
+            }
+
             foreach (var item in pmcData.Inventory?.Items ?? [])
             {
-                if (!before.Contains(item.Id.ToString()) && !Stacks(item.Template))
+                if (!before.Contains(item.Id.ToString()))
                 {
-                    bought[item.Id.ToString()] = purchase.At;
+                    held[item.Id.ToString()] = purchase.At;
+                    if (bought is not null && !Stacks(item.Template))
+                    {
+                        bought[item.Id.ToString()] = purchase.At;
+                    }
                 }
             }
         }
@@ -676,7 +765,8 @@ internal static class FlipPenaltyGate
         var packUnits = offerRequest.SellInOnePiece == true
             ? (int)(offerRequest.Items ?? []).Sum(id => pmcData.Inventory!.Items!.FirstOrDefault(i => i.Id == id)?.Upd?.StackObjectsCount ?? 1)
             : 1;
-        SaleDelayGate.BeginListing(item is null ? null : pmcData.Inventory!.Items!.GetItemWithChildren(item.Id), _itemHelper!, packUnits);
+        var tree = item is null ? null : pmcData.Inventory!.Items!.GetItemWithChildren(item.Id);
+        SaleDelayGate.BeginListing(tree, _itemHelper!, packUnits, tree is not null && BoughtLately(player, tree));
     }
 
     public static void EndListing()
@@ -815,6 +905,21 @@ internal static class FlipPenaltyGate
             return list.Sum(p => p.Count * (1.0 - (now - p.At) / window));
         }
     }
+
+    // Any of these items (an offer's, or what's being listed) bought by the player in the last NoTailHours. A stack
+    // goes by its item type, since stacks split and merge under new ids.
+    public static bool BoughtLately(MongoId player, IEnumerable<Item> items)
+    {
+        if (!HeldItems.TryGetValue(player, out var held) || held.IsEmpty)
+        {
+            return false;
+        }
+
+        var since = Now() - NoTailHours * 3600;
+        return items.Any(item => held.TryGetValue(Stacks(item.Template) ? StackKey(item.Template) : item.Id.ToString(), out var at) && at > since);
+    }
+
+    private static string StackKey(MongoId tpl) => "type:" + tpl;
 
     // A stack can't be told apart from one bought, so it counts as bought.
     private static bool RecentlyBought(MongoId player, Item item)

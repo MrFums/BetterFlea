@@ -652,10 +652,16 @@ for entry in PVP.values():
             if offer.get("priceRUB") and offer.get("trader"):
                 _kept.setdefault(offer["trader"], []).append(offer["priceRUB"] / base)
 trader_cuts = {trader: round(100 - statistics.median(kept) * 100) for trader, kept in sorted(_kept.items()) if len(kept) >= 50}
+# Ref is the one trader who pays more at higher loyalty levels (live 40%, 45%, 45%, 50%; 0.16.9 and SPT 50%, 56%, 56%,
+# 62%). tarkov.dev only has his level 1 price, so the steps come from the wiki's Trading page (August 2026, patch 1.1).
+REF = "6617beeaa9cfa777ca915b7c"
+trader_level_cuts = {}
+if REF in trader_cuts:
+    trader_level_cuts[REF] = [trader_cuts[REF], trader_cuts[REF] - 5, trader_cuts[REF] - 5, trader_cuts[REF] - 10]
 
 index = {"Modes": ["betterflea"], "Fetched": int(time.time()), "Prices": prices, "Known": known, "Levels": levels,
-         "Backport": backport, "TraderCuts": trader_cuts}
-print("trader cuts", trader_cuts)
+         "Backport": backport, "TraderCuts": trader_cuts, "TraderLevelCuts": trader_level_cuts}
+print("trader cuts", trader_cuts, "by level", trader_level_cuts)
 with open(os.path.join(ROOT, "Prices", "price-index.json"), "w", encoding="utf-8", newline="\n") as f:
     json.dump(index, f, separators=(",", ":"))
 

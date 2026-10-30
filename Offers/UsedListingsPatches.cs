@@ -329,6 +329,37 @@ internal static class UsedListingsGate
         return Math.Clamp(quality, 0.01, 1);
     }
 
+    // How worn something with durability is as a whole (a helmet with its inserts, armour with its plates): its parts'
+    // average condition by what each is worth, pulled down when one part is far worse than the rest, so a good carrier
+    // with one wrecked plate is worse than the average says but not wrecked. 1 with nothing worn.
+    public static double WearQuality(IEnumerable<Item> items)
+    {
+        double weight = 0, total = 0, worst = 1;
+        foreach (var item in items)
+        {
+            if (item.Upd?.Repairable is not { MaxDurability: > 0 })
+            {
+                continue;
+            }
+
+            var quality = PriceQuality(item);
+            var worth = Math.Max(1, BetterFlea.Prices.BookPrice.Of(item.Template));
+            total += quality * worth;
+            weight += worth;
+            worst = Math.Min(worst, quality);
+        }
+
+        if (weight <= 0)
+        {
+            return 1.0;
+        }
+
+        // A part more than 20 points under the average takes half of the rest off: average 80% with one part at 10%
+        // is 55%, and 60% with one at 5% is 42%.
+        var average = total / weight;
+        return Math.Clamp(average - 0.5 * Math.Max(0, average - worst - 0.2), 0.01, 1);
+    }
+
     // Most helmets and body armour keep their durability in built-in inserts and none in the shell (a 6/14 helmet is
     // its inserts added up), and SPT prices an offer by the shell's condition, skipping the inserts: a 6/14 helmet
     // cost what a new one does. A shell without durability of its own goes by its inserts together, on the same curve
