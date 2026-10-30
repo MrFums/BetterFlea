@@ -15,8 +15,6 @@ Chances run from 0 (never) to 1 (always): 0.25 is 25%. Percents are percents: 10
 
 ## Bans tab
 
-![Bans tab](../imageExamples/web-bans.png)
-
 `configs/flea.jsonc`. What can be bought and sold on the flea. **Bans need a server restart, and a game restart for
 players**, because the game reads which items can be sold only when it starts.
 
@@ -145,8 +143,6 @@ as a full one. That's what `usedPricePercent` and `amountPriceWeight` copy.
 ---
 
 ## Weapons tab
-
-![Weapons tab](../imageExamples/web-weapons.png)
 
 `configs/weapons.jsonc`. How gun offers are built. The full story is in [Guns and attachments](04-guns-and-attachments.md).
 
@@ -316,8 +312,6 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 ---
 
 ## Economy tab
-
-![Economy tab](../imageExamples/web-economy.png)
 
 `configs/economy.jsonc`, plus tools: **Item lookup** (any item's prices, its sale odds and its price through a wipe),
 **Offers on the flea** (every player's offer that's up, with its odds), and the Wipe Cycle and price index status.

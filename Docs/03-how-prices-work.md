@@ -135,11 +135,13 @@ Rules the index follows that matter for players:
 
 ### Live prices
 
-![Live prices](../imageExamples/web-liveprices.png)
-
 The other option: every item starts from tarkov.dev's 24-hour average for PvP, PvE or the season. Prices are saved,
 so an outage uses the last ones. One day's prices are noisy (on one day, one item in five was 3x apart between PvP and
 PvE; over a year, 53 of 2,868), which is why the index is the default.
+
+![Live prices](../imageExamples/web-liveprices.png)
+
+*Live prices on the Economy tab.*
 
 ### Your prices
 
@@ -160,8 +162,10 @@ The unsupported **No floor for trader loops** setting (Prices tab, advanced) dro
 
 ## Seeing it all for one item
 
-![Item lookup](../imageExamples/web-itemlookup.png)
-
 Economy tab, **Item lookup**: search an item to see its base price now, SPT's price, Better Flea's price, the live
 price, its actual value as one would be listed, its [sale odds](07-selling.md#sale-odds), and how its price would move
 through a wipe.
+
+![Item lookup](../imageExamples/web-itemlookup.png)
+
+*Item lookup on the Economy tab.*

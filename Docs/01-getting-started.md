@@ -34,10 +34,12 @@ another.
 
 ## The settings page
 
-![Settings page tour](../imageExamples/web-ui.gif)
-
 Open `https://127.0.0.1:6969/betterflea` on the server PC, or click it under **Mod Pages** in the SPT launcher. From
 another PC, use the server's address instead of `127.0.0.1`.
+
+![Settings page tour](../imageExamples/web-ui.gif)
+
+*The settings page: flea stats, every setting explained, flea styles and Better Flea's prices.*
 
 - **First visit:** you make an admin account. Changing settings needs that login. Anyone else who opens the page
   sees the flea's stats, Item lookup and the offers on the flea, but can't change anything.
@@ -57,10 +59,12 @@ and applies most changes without a restart. If you do edit a file by hand, resta
 
 ## Flea styles
 
-![Flea styles](../imageExamples/web-styles.png)
-
 A flea style sets many settings at once. Pick one with **Flea style** at the top of the settings page, then fine-tune
 on the tabs.
+
+![Flea styles](../imageExamples/web-styles.png)
+
+*Flea style at the top of the settings page changes everything at once.*
 
 | Style | What it's for |
 |---|---|
