@@ -20,6 +20,11 @@ internal static class SaleOdds
 
     public static Table? For(List<Item> items, ItemHelper itemHelper)
     {
+        if (items.Count > 0 && SaleDelayGate.Fixed is { } set)
+        {
+            return Fixed(set, items);
+        }
+
         if (items.Count == 0 || SaleDelayGate.Settings is not { } settings || SaleDelayGate.NormalPrice(items) is not { } normal || normal <= 0)
         {
             return null;
@@ -50,6 +55,27 @@ internal static class SaleOdds
         }
 
         return new Table(Math.Round(normal), wrecked, plain, hours, rows);
+    }
+
+    // Set sale times: sells as often as the price says, in the middle of its rarity's wait on average.
+    private static Table? Fixed(SaleTimeConfig set, List<Item> items)
+    {
+        if (SaleDelayGate.NormalPrice(items) is not { } normal || normal <= 0)
+        {
+            return null;
+        }
+
+        var hours = SaleDelayGate.OfferHours;
+        var (low, high) = SaleDelayGate.FixedWindow(set, items[0].Template);
+        var rows = new List<Row>();
+        foreach (var ratio in Ratios)
+        {
+            var minutes = (low + high) / 2 * SaleDelayGate.FixedScale(set, ratio);
+            var sells = minutes <= hours * 60 ? SaleDelayGate.FixedChance(set, ratio) : 0;
+            rows.Add(new Row(ratio, Math.Round(normal * ratio), sells, sells > 0 ? minutes : null));
+        }
+
+        return new Table(Math.Round(normal), false, false, hours, rows);
     }
 
     // Gear and anything else the order book doesn't take: one roll when listed (its buyer comes after a wait), then

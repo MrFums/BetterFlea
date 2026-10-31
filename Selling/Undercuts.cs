@@ -116,6 +116,12 @@ internal static class Undercuts
             return;
         }
 
+        // Set sale times timed it when it went up; nobody undercuts it.
+        if (SaleDelayGate.Fixed is not null)
+        {
+            return;
+        }
+
         if (OrderBook.On && OrderBook.Handles(offer))
         {
             OrderBook.Listed(offer, ratio, FlipPenaltyGate.ExtraWaitMinutes());

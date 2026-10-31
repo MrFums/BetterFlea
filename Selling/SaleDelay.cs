@@ -188,6 +188,11 @@ internal static class SaleDelayGate
     // at all: the order book's buyers sell it when they get to it.
     public static List<SellResult>? RollForSale(double? sellChancePercent, int count, bool oneGo)
     {
+        if (Fixed is { } set)
+        {
+            return FixedSale(set, sellChancePercent, count, oneGo);
+        }
+
         var settings = _config?.Mod.PlayerSelling.SaleDelay;
         if (settings is null || !settings.Enabled || oneGo || count < 1 || _listedTpl is not { } tpl
             || _itemHelper is null || _ragfairConfig is null)
@@ -226,6 +231,81 @@ internal static class SaleDelayGate
         }
 
         DebugLog.Write(() => $"Sale roll: {count} listed, buyers for {count - left} ({string.Join(", ", sales.Select(sale => sale.Amount))})");
+        return sales;
+    }
+
+    // Set sale times (saleTime), or null with them off.
+    internal static SaleTimeConfig? Fixed =>
+        _config?.Mod.PlayerSelling is { Enabled: true } selling && selling.SaleTime.Enabled ? selling.SaleTime : null;
+
+    // The wait in minutes, shortest and longest, for an item of this rarity under set sale times.
+    internal static (double Min, double Max) FixedWindow(SaleTimeConfig set, MongoId tpl)
+    {
+        var (low, high) = _itemHelper?.GetItem(tpl).Value?.Properties?.RarityPvE switch
+        {
+            "Superrare" => (set.SuperrareMinMinutes, set.SuperrareMaxMinutes),
+            "Rare" => (set.RareMinMinutes, set.RareMaxMinutes),
+            _ => (set.CommonMinMinutes, set.CommonMaxMinutes)
+        };
+        low = Math.Max(0, low);
+        return (low, Math.Max(low, high));
+    }
+
+    // Under set sale times: the chance an offer at this price sells at all, and how many times the wait it takes.
+    // Over normal, as with saleDelay (BuyerTakes, WaitScale), unless ignorePrice.
+    internal static double FixedChance(SaleTimeConfig set, double ratio, bool bought = false) =>
+        set.IgnorePrice ? 1 : BuyerTakes(ratio, !bought);
+
+    internal static double FixedScale(SaleTimeConfig set, double ratio) =>
+        set.IgnorePrice || ratio <= 1 ? 1 : WaitScale(ratio);
+
+    // The whole offer sells inside its rarity's wait, each buyer's lot at its own time in it, or (as often as the
+    // price says) not at all. The flip penalty still adds its wait.
+    private static List<SellResult>? FixedSale(SaleTimeConfig set, double? sellChancePercent, int count, bool oneGo)
+    {
+        if (count < 1 || _listedTpl is not { } tpl || _itemHelper is null)
+        {
+            return null;
+        }
+
+        var chance = set.IgnorePrice ? 1 : Math.Clamp((sellChancePercent ?? 0) / 100, 0, 1);
+        if (Random.Shared.NextDouble() >= chance)
+        {
+            DebugLog.Write(() => $"Set sale time: {count} listed, no buyer at x{_priceRatio ?? 1:0.00} of normal");
+            return [];
+        }
+
+        var (low, high) = FixedWindow(set, tpl);
+        var scale = FixedScale(set, _priceRatio ?? 1);
+        var flip = FlipPenaltyGate.ExtraWaitMinutes();
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long At() => now + Math.Max(1, (long)Math.Round(((low + Random.Shared.NextDouble() * (high - low)) * scale + flip) * 60));
+
+        var sales = new List<SellResult>();
+        if (oneGo)
+        {
+            sales.Add(new SellResult { SellTime = At(), Amount = count });
+        }
+        else
+        {
+            var ammo = _itemHelper.IsOfBaseclass(tpl, BaseClasses.AMMO);
+            var stackMax = Math.Max(1, _itemHelper.GetItem(tpl).Value?.Properties?.StackMaxSize ?? 1);
+            for (var left = count; left > 0;)
+            {
+                var lot = Lot(left, ammo, stackMax);
+                sales.Add(new SellResult { SellTime = At(), Amount = lot });
+                left -= lot;
+            }
+
+            sales.Sort((a, b) => Nullable.Compare(a.SellTime, b.SellTime));
+        }
+
+        if (OfferEndsAt() is { } end)
+        {
+            sales.RemoveAll(sale => sale.SellTime > end);
+        }
+
+        DebugLog.Write(() => $"Set sale time: {count} listed, {low:0.#} to {high:0.#} min x{scale:0.00}, sells at {string.Join(", ", sales.Select(sale => $"{sale.Amount} in {(sale.SellTime - now) / 60.0:0.#} min"))}");
         return sales;
     }
 
@@ -313,7 +393,8 @@ internal static class SaleDelayGate
     public static double? SellChance(double normalPrice, double listedPrice, double quality)
     {
         var settings = _config?.Mod.PlayerSelling.SaleDelay;
-        if (settings is null || !settings.Enabled || listedPrice <= 0)
+        var set = Fixed;
+        if (listedPrice <= 0 || (set is null && (settings is null || !settings.Enabled)))
         {
             return null;
         }
@@ -330,6 +411,10 @@ internal static class SaleDelayGate
         _priceRatio = ratio;
         _normalUsed = normal / Math.Max(1, _packUnits);
         DebugLog.Write(() => $"Sale check: listed {listedPrice:0} RUB against a normal {normal:0} (SPT's average says {normalPrice:0}), x{ratio:0.00}");
+        if (set is not null)
+        {
+            return Math.Round(100 * FixedChance(set, ratio, _bought), 1);
+        }
 
         var chance = 100 * BuyerTakes(ratio, !_bought) * (_wrecked ? WreckedBuyerShare : 1);
         if (chance <= 0)
@@ -342,7 +427,7 @@ internal static class SaleDelayGate
         var safe = 1 - Math.Clamp(_config!.Mod.PlayerSelling.Undercut.SafeBelowPercent, 0, 90) / 100;
         if (!_lowest && ratio > safe)
         {
-            chance *= Math.Clamp(settings.CheaperOfferShare, 0, 1);
+            chance *= Math.Clamp(settings!.CheaperOfferShare, 0, 1);
             DebugLog.Write(() => $"Sale check: another seller has it for {_cheapest:0} RUB, cheaper than {listedPrice:0}");
         }
 
@@ -376,7 +461,7 @@ internal static class SaleDelayGate
     public static void Delay(List<SellResult> sales)
     {
         var settings = _config?.Mod.PlayerSelling.SaleDelay;
-        if (settings is null || !settings.Enabled || sales.Count == 0)
+        if (settings is null || !settings.Enabled || sales.Count == 0 || Fixed is not null)
         {
             return;
         }

@@ -548,6 +548,18 @@ public class ConfigManager(
             (delay.MinMinutes, delay.MaxMinutes) = (delay.MaxMinutes, delay.MinMinutes);
         }
 
+        var buyers = Mod.PlayerSelling.Buyers;
+        buyers.RarityMultipliers = new Dictionary<string, double>(buyers.RarityMultipliers, StringComparer.OrdinalIgnoreCase);
+        foreach (var rarity in buyers.RarityMultipliers.Keys.ToList())
+        {
+            buyers.RarityMultipliers[rarity] = Math.Clamp(buyers.RarityMultipliers[rarity], 0.1, 20.0);
+        }
+
+        var saleTime = Mod.PlayerSelling.SaleTime;
+        (saleTime.CommonMinMinutes, saleTime.CommonMaxMinutes) = SaleWindow(saleTime.CommonMinMinutes, saleTime.CommonMaxMinutes);
+        (saleTime.RareMinMinutes, saleTime.RareMaxMinutes) = SaleWindow(saleTime.RareMinMinutes, saleTime.RareMaxMinutes);
+        (saleTime.SuperrareMinMinutes, saleTime.SuperrareMaxMinutes) = SaleWindow(saleTime.SuperrareMinMinutes, saleTime.SuperrareMaxMinutes);
+
         var perOffer = Mod.GeneratedOffers.ItemsPerOffer;
         foreach (var profile in new[] { perOffer.Bulk, perOffer.Stock, perOffer.Few })
         {
@@ -677,6 +689,13 @@ public class ConfigManager(
     }
 
     // Capped so a typo can't eat the server's RAM.
+    // A set sale time's shortest and longest wait: 0 to a week, the longest never under the shortest.
+    private static (double Min, double Max) SaleWindow(double min, double max)
+    {
+        min = Math.Clamp(min, 0.0, 10080.0);
+        return (min, Math.Clamp(max, min, 10080.0));
+    }
+
     private double ClampListingMultiplier(double value, string name)
     {
         const double max = 10.0;

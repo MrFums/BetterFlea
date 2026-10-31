@@ -117,6 +117,29 @@ pay over the odds for it.
 | When it starts | After buying several of one item | From the first item |
 | What the player sees | A pop-up and a message | A grey item and a warning |
 
+## Set sale times
+
+To decide the sale times yourself, turn on **Set sale times** (Selling tab, with Advanced settings on;
+`selling.jsonc: saleTime`). A player's offer then sells after a wait between the shortest and longest you set for its
+rarity (common, rare, very rare), in minutes. Buyers, other sellers' offers and undercuts no longer change it. The
+flip penalty still adds its wait, and an offer that would sell after it ends just expires.
+
+The waits it starts with are about what an item at the normal price takes with it off: common under a minute, rare
+1 to 3 minutes, very rare 3 to 8. Guns and armour normally take longer (5 to 20 minutes, more for dear ones); with set
+sale times on they go by their rarity like everything else.
+
+| You want | Set |
+|---|---|
+| Everything sells straight away | All six waits 0, **Sells whatever the price** on |
+| Everything takes 60 minutes or more | Every shortest wait 60, every longest wait 90 (or more) |
+| Common items at once, the rest in a few hours | Common 0 and 0, rare and very rare 120 and 240 |
+
+With **Sells whatever the price** off, the price still counts: over the normal price an offer sells less often and
+takes longer, and past `neverSellsPercent` it never sells. On, any price sells.
+
+To keep the normal sale speed and only make rare items slower or quicker, leave this off and change
+**Slower buyers by rarity** (`buyers.rarityMultipliers`, also advanced): 1 = as quick as a common item.
+
 ## Fees
 
 SPT charges the game's own listing fee: see [The flea fee](03-how-prices-work.md#the-flea-fee). It grows fast when you

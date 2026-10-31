@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.4.2 (beta)
+
+**New**
+- **Set sale times** (Selling tab, with Advanced settings on): set how long a player's offer takes to sell yourself, as a shortest and longest wait for common, rare and very rare items. Off by default. On, it replaces buyers, other sellers' offers and undercuts. Everything at once: all waits 0. Everything in an hour or more: shortest 60. **Sells whatever the price** makes any price sell; off, overpriced offers still sell less often and later.
+- **Slower buyers by rarity** (Selling tab, Buyers, advanced): how many times longer buyers take for rare and very rare items than common ones. It was fixed at 1.5 and 3.
+
+**Fixes**
+- **Your prices** did nothing for a gun a trader sells (an MP-18 set to 30,000 still went for about 7,000): guns are priced from the trader's price, and that won over the price you set. A price you set under Your prices is now the gun's price (or a part's), whatever traders sell it for.
+
 ## 2.4.1
 
 **New**

@@ -43,6 +43,9 @@ Flea style **Balanced**, then:
 
 Or the **Flea sale** style: everything cheaper and lots of deals.
 
+For exact sale times (everything at once, or rare items in a few hours), see
+[Set sale times](07-selling.md#set-sale-times).
+
 ## A co-op group (Fika)
 
 Flea style **Balanced** or **Live progression**. Everything works in co-op: unlock levels and locked offers are worked

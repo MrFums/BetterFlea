@@ -299,6 +299,12 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `buyers.slowdown`, `recoverMinutes` | 1.1, 10 | Each sale from your offer makes the next buyer a little slower, and it wears off. A pile sells a bit at a time. |
 | `buyers.wholeOfferChance` | 0.08 | A buyer takes another seller's whole offer. |
 | `buyers.relistMinMinutes`, `relistMaxMinutes` | 1 to 5 | A bought offer is replaced this long later. |
+| `buyers.rarityMultipliers` | Common 1, Rare 1.5, Superrare 3 | Buyers take this many times longer for a rare item than a common one. 1 = no longer. Advanced. |
+| `saleTime.enabled` | off | Set sale times: a player's offer sells after a wait set per rarity, in place of buyers, other sellers' offers and undercuts. Advanced. [Details](07-selling.md#set-sale-times) |
+| `saleTime.ignorePrice` | off | On: sells in its time whatever the price. Off: over normal it sells less often and later, past `neverSellsPercent` never. |
+| `saleTime.commonMinMinutes`, `commonMaxMinutes` | 0 to 1 | Wait for a common item. 0 and 0 = straight away. The defaults are about what an item at the normal price takes with set sale times off. |
+| `saleTime.rareMinMinutes`, `rareMaxMinutes` | 1 to 3 | Wait for a rare item. |
+| `saleTime.superrareMinMinutes`, `superrareMaxMinutes` | 3 to 8 | Wait for a very rare item. |
 | `undercut.enabled` | on | When yours is the cheapest offer, now and then another seller lists just under it and takes most of your buyers. |
 | `undercut.chanceAtNormal`, `chanceWhenDear` | 0.35, 0.8 | How often, at the normal price and at `expensivePercent` over. |
 | `undercut.safeBelowPercent` | 10 | This far under normal you're hardly ever undercut. |

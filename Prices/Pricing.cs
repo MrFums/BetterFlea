@@ -866,7 +866,9 @@ internal static class GunPricing
         {
             var item = entry.item;
             var flea = BookPrice.Of(item.Template);
-            if ((entry.index > 0 && settings.PartsAtFleaPrice) || !values.TryGetValue(item.Template, out var offers))
+            // A price the admin set (Your prices) is the price, whatever traders sell it for.
+            if ((entry.index > 0 && settings.PartsAtFleaPrice) || LivePrices.HasOwnPrice(item.Template)
+                || !values.TryGetValue(item.Template, out var offers))
             {
                 return flea;
             }

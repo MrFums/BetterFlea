@@ -84,8 +84,9 @@ internal static class OrderBook
 
     // A player's plain offer of one item: the buyers here sell it, not a roll made when it went up. Not a gun or
     // anything with durability (armour, helmets): each of those is its own thing, judged on its own.
+    // Not with set sale times: those time every offer when it's listed.
     public static bool Handles(RagfairOffer offer) =>
-        offer.SellInOnePiece != true && offer.Items is { Count: 1 } items && MoneyOnly(offer)
+        SaleDelayGate.Fixed is null && offer.SellInOnePiece != true && offer.Items is { Count: 1 } items && MoneyOnly(offer)
         && items[0].Upd?.Repairable is null && !_itemHelper!.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON);
 
     // ratio: its price against normal. One at or under normal is up for buyers within seconds; a dearer one waits a
@@ -96,10 +97,13 @@ internal static class OrderBook
         // quick-sell price (safeBelowPercent under normal) it goes at once.
         var rarity = offer.Items?.FirstOrDefault() is { } root ? _itemHelper!.GetItem(root.Template).Value?.Properties?.RarityPvE : null;
         var timer = Settings is { } settings ? TimerScale(settings) : 1;
+        // At the default rarityMultipliers: rare 1 to 3 minutes, superrare 3 to 8. At 1, as quick as a common item.
+        var slower = RarityFactor(rarity) - 1;
+        var usual = ratio is <= 1 ? 5 : 60;
         var first = ratio is { } r && r <= QuickBelow() ? 5
-            : rarity == "Superrare" ? (long)((180 + Random.Shared.Next(300)) * timer)
-            : rarity == "Rare" ? (long)((60 + Random.Shared.Next(120)) * timer)
-            : ratio is <= 1 ? 5 : 60;
+            : slower <= 0 ? usual
+            : Math.Max(usual, rarity == "Superrare" ? (long)((180 + Random.Shared.Next(300)) * timer * slower / 2)
+                : (long)((60 + Random.Shared.Next(120)) * timer * slower / 0.5));
         NotBefore[offer.Id] = Now() + first + (long)(Math.Max(0, waitMinutes) * 60);
     }
 
@@ -149,7 +153,7 @@ internal static class OrderBook
     private static void Rerolls(long now)
     {
         var delay = _config?.Mod.PlayerSelling is { Enabled: true } selling && selling.SaleDelay.Enabled ? selling.SaleDelay : null;
-        if (delay is null || _profiles is null || _itemHelper is null)
+        if (delay is null || _profiles is null || _itemHelper is null || SaleDelayGate.Fixed is not null)
         {
             return;
         }
@@ -346,6 +350,14 @@ internal static class OrderBook
         }
     }
 
+    // How many times longer buyers take for an item of this rarity than for a common one (buyers.rarityMultipliers).
+    private static double RarityFactor(string? rarity)
+    {
+        var key = rarity is "Rare" or "Superrare" ? rarity : "Common";
+        var fallback = key == "Superrare" ? 3 : key == "Rare" ? 1.5 : 1;
+        return _config?.Mod.PlayerSelling.Buyers.RarityMultipliers is { } table && table.TryGetValue(key, out var set) ? set : fallback;
+    }
+
     // How much longer than usual buyers take for an item, from what it is. Cheap things trade all the time and dear
     // ones now and then; rare things less again; and the more hideout builds, crafts and quests want it, the busier
     // it is. Wires (about 50,000, common, wanted all over the hideout) trade every few seconds, a LEDX every few minutes.
@@ -353,12 +365,7 @@ internal static class OrderBook
     {
         var normal = SaleDelayGate.NormalPrice([new Item { Id = new MongoId(), Template = tpl }]) ?? 20000;
         var price = Math.Clamp(Math.Sqrt(Math.Max(1, normal) / 20000), 0.15, 8);
-        var rarity = _itemHelper!.GetItem(tpl).Value?.Properties?.RarityPvE switch
-        {
-            "Superrare" => 3,
-            "Rare" => 1.5,
-            _ => 1.0
-        };
+        var rarity = RarityFactor(_itemHelper!.GetItem(tpl).Value?.Properties?.RarityPvE);
         var uses = BetterFlea.Prices.WipeEconomy.Uses(tpl) + Crafts.Value.GetValueOrDefault(tpl);
         return price * rarity / (1 + 0.2 * Math.Min(uses, 20));
     }

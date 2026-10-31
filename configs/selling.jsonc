@@ -37,7 +37,27 @@
     "recoverMinutes": 10,            // ...and half of that wears off in this long
     "wholeOfferChance": 0.08,        // chance a buyer takes another seller's whole offer, not just a few. Offers of 3 or fewer always go whole
     "relistMinMinutes": 1,           // a bought offer is replaced this long later (random between)
-    "relistMaxMinutes": 5
+    "relistMaxMinutes": 5,
+    "rarityMultipliers": {           // buyers take this many times longer for a rare item than a common one. 1 = no longer
+      "Common": 1.0,
+      "Rare": 1.5,
+      "Superrare": 3.0
+    }
+  },
+
+  // Set sale times. On, these replace everything above that decides how fast an offer sells (buyers, other sellers'
+  // offers, undercuts): a player's offer sells after a wait, in minutes, between the shortest and longest for its
+  // rarity. 0 and 0 = sells straight away. The flip penalty still adds its wait. The waits below are about what an
+  // item at the normal price takes with this off (guns and armour take longer: saleDelay.uniqueMinMinutes).
+  "saleTime": {
+    "enabled": false,
+    "ignorePrice": false,            // true = sells whatever its price. false = over normal it sells less often and later, past saleDelay.neverSellsPercent never
+    "commonMinMinutes": 0,
+    "commonMaxMinutes": 1,
+    "rareMinMinutes": 1,
+    "rareMaxMinutes": 3,
+    "superrareMinMinutes": 3,
+    "superrareMaxMinutes": 8
   },
 
   // Other sellers watch the market. A player's offer that's the cheapest one up gets, now and then, another seller

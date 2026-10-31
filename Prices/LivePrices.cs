@@ -651,6 +651,15 @@ internal static class LivePrices
     // Items with the admin's own base price (Economy tab, Your prices). Inside Gate, last, so nothing else changes them.
     private static readonly HashSet<MongoId> Overridden = new();
 
+    // The admin set this item's base price (Your prices).
+    public static bool HasOwnPrice(MongoId tpl)
+    {
+        lock (Gate)
+        {
+            return Overridden.Contains(tpl);
+        }
+    }
+
     // What each overridden item's base price would be without the admin's own, for the settings page.
     private static readonly Dictionary<MongoId, double> Usual = new();
 

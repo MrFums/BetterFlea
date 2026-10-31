@@ -26,6 +26,9 @@ public record PlayerSellingConfig
     [JsonPropertyName("buyers")]
     public BuyersConfig Buyers { get; set; } = new();
 
+    [JsonPropertyName("saleTime")]
+    public SaleTimeConfig SaleTime { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }
@@ -92,6 +95,46 @@ public record BuyersConfig
 
     [JsonPropertyName("relistMaxMinutes")]
     public double RelistMaxMinutes { get; set; } = 5;
+
+    // How much longer buyers take for an item of each rarity than for a common one. 1 = no longer.
+    [JsonPropertyName("rarityMultipliers")]
+    public Dictionary<string, double> RarityMultipliers { get; set; } = new()
+    {
+        ["Common"] = 1.0,
+        ["Rare"] = 1.5,
+        ["Superrare"] = 3.0
+    };
+}
+
+// Set sale times: a player's offer sells after a wait set per rarity, in place of the wait worked out from buyers,
+// other sellers and undercuts.
+public record SaleTimeConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = false;
+
+    // true = sells whatever its price. false = over normal it sells less often and later, as with saleDelay.
+    [JsonPropertyName("ignorePrice")]
+    public bool IgnorePrice { get; set; } = false;
+
+    // The defaults are about what an item at the normal price takes with this off.
+    [JsonPropertyName("commonMinMinutes")]
+    public double CommonMinMinutes { get; set; } = 0;
+
+    [JsonPropertyName("commonMaxMinutes")]
+    public double CommonMaxMinutes { get; set; } = 1;
+
+    [JsonPropertyName("rareMinMinutes")]
+    public double RareMinMinutes { get; set; } = 1;
+
+    [JsonPropertyName("rareMaxMinutes")]
+    public double RareMaxMinutes { get; set; } = 3;
+
+    [JsonPropertyName("superrareMinMinutes")]
+    public double SuperrareMinMinutes { get; set; } = 3;
+
+    [JsonPropertyName("superrareMaxMinutes")]
+    public double SuperrareMaxMinutes { get; set; } = 8;
 }
 
 // Another seller listing just under a player's offer, taking its buyers.
