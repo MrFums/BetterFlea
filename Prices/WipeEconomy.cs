@@ -12,7 +12,7 @@ using SPTarkov.Server.Core.Utils.Json;
 
 namespace BetterFlea.Prices;
 
-// Wipe Cycle (experimental): prices follow how far into the wipe the players online are. Everything is scarce
+// Wipe Cycle: prices follow how far into the wipe the players online are. Everything is scarce
 // and dear at the very start and dips a little mid-wipe; on top of that, what people need for the hideout and
 // quests is dear just before they get there, and the best guns, ammo, armour and stims are dear late on.
 [Injectable(TypePriority = OnLoadOrder.RagfairCallbacks - 2)]

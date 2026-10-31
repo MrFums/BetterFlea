@@ -250,6 +250,7 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 |---|---|---|
 | `priceMultiplier` | 1.0 | Every generated offer. 1.5 = 50% dearer. The simplest way to make the flea harder or easier. |
 | `markedKeyMultiplier` | 1.0 | Marked keys only (mods' too). 1.5 is a good start if marked keys feel cheap. |
+| `categoryMultipliers` | none | **Prices by category**: a whole kind of item, or one item, dearer or cheaper on top of the price multiplier: all ammo 0.8, all guns 1.5, valuables 2. Search for a category or item on the page. An item's own setting beats its category's, a smaller category beats the bigger one. Changes other sellers' offers and the normal price your listing is measured against. Traders unchanged. |
 | `floor.enabled` | on | No generated offer under the most a trader pays for the item, so nobody buys on the flea to sell to a trader. |
 | `floor.marginPercent` | 10 | The cheapest offer is this % over that trader price. |
 | `floor.logTraderProfitLoops` | off | Log the items one trader sells for less than another pays. |
@@ -313,8 +314,10 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 
 ## Economy tab
 
-`configs/economy.jsonc`, plus tools: **Item lookup** (any item's prices, its sale odds and its price through a wipe),
-**Offers on the flea** (every player's offer that's up, with its odds), and the Wipe Cycle and price index status.
+`configs/economy.jsonc`, plus the price index and Wipe Cycle status. The tools are on their own **Lookup** tab, right
+after Home: **Item lookup** (any item's prices, its sale odds, its price history as an hourly stock chart with players'
+listings and sales, and its price through a wipe) and **Offers on the flea** (every player's offer that's up, with its
+odds, and a Refresh button).
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -326,7 +329,7 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `livePrices.gameMode` | live | `live` (PvP), `pve` or `season`. |
 | `livePrices.refreshHours` | 24 | How often new prices are fetched. They're saved, so a tarkov.dev outage uses the last ones. |
 | `livePrices.estimateModdedItems` | on | As above. |
-| `wipeCycle.enabled` | off | **Experimental.** Prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe: everything dear at the start, hideout and early quest items dear before people get to them, the best gear dear late on. |
+| `wipeCycle.enabled` | off | Prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe: everything dear at the start, hideout and early quest items dear before people get to them, the best gear dear late on. |
 | `wipeCycle.strength` | 1.0 | Size of the swings. |
 | `wipeCycle.levelStep` | 3 | Prices move every this many levels. |
 | `wipeCycle.cooldownMinutes` | 30 | After the flea's level changes it stays put this long, so swapping profiles can't be used to flip. |

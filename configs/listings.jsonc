@@ -69,6 +69,7 @@
     "usedMedStacks": { "chance": 0.03, "min": 5, "max": 27 }, // now and then a flipper's stack of used medkits, all with the same amount left
     "stockGunStacks": { "chance": 0.12, "min": 2, "max": 6 }, // factory guns as found, now and then several to an offer (a boss farmer's haul)
     "helmetStacks": { "chance": 0.05, "min": 2, "max": 5 },  // easy-to-get helmets at max/max durability, now and then several to an offer
+    "cosmeticStacks": { "chance": 0.15, "min": 2, "max": 5 }, // masks and hats with no armour (balaclavas, caps, beanies), now and then several to an offer
     "traderGunStacks": { "chance": 0.02, "min": 2, "max": 5 } // a trader's gun bought to flip: the factory gun at 100/100, several to an offer
   },
 

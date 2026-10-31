@@ -83,7 +83,7 @@ A worn Trooper armour with no plates, normal price 47k, on a 12-hour offer:
 Dearer items wait longer: a 200k item takes about 1.5 to 2 times as long. Plain items also lose most buyers to cheaper
 offers of the same item, so they're slower than this.
 
-**See it for your item:** the settings page's Economy tab. **Item lookup** shows this table for any item as found.
+**See it for your item:** the settings page's Lookup tab. **Item lookup** shows this table for any item as found.
 **Offers on the flea** lists every player's offer that's up, when its buyer comes, and the table for that exact item
 (worn and plated as it is), with its own price marked. Both assume no one else has it cheaper.
 

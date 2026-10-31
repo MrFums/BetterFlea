@@ -36,6 +36,7 @@ wins that feature.
 | `RagfairOfferHelper.CompleteOffer` | Prefix | Demand: a lot sold of one item can lower its price |
 | `TradeHelper.BuyItem` | Prefix, postfix | Demand from buying, the flip penalty, the 48-hour rule and the trader item lock (three patches) |
 | `TradeController.ConfirmRagfairTrading` | Prefix | "Sold before you" |
+| `RagfairOfferService.EnoughExpiredOffersExistToProcess` | Postfix | Starts SPT's clean-up of expired offers as soon as a player's offer has ended, so its items come back. SPT waits for 1,400 expired offers, which Better Flea's market rarely reaches |
 | `LocationLifecycleService.HandlePostRaidPmc` | Prefix | Remembers guns players die with, for the flea |
 | `ProfileActivityService.SetActivityTimestamp` | Postfix | Who is online, for the Wipe Cycle |
 
@@ -45,6 +46,7 @@ wins that feature.
 |---|---|---|
 | Flea prices | `templates.Prices` (SPT's `prices.json` in memory) | Base prices from the price index, live prices or your prices |
 | Trader cuts | Each trader's `loyaltyLevels[].buy_price_coef` | Live trader prices (not for a trader another mod changed) |
+| Per-item flea multipliers | `ragfair.json` `dynamic.itemPriceMultiplier` in memory | The marked key multiplier and prices by category. What was applied last is taken back out first, so SPT's own entries and other mods' stay |
 | `CanSellOnRagfair` | Item templates | Lifting BSG's bans properly, keeping never-sold items and SPT's dev items off |
 | Flea blacklist | `ragfair.json` `dynamic.blacklist.custom` in memory | Banned categories, items and mod items. Not SPT's item blacklist (`ItemConfig`), which would also change bot loot |
 | BSG blacklist switch | `ragfair.json` `dynamic.blacklist.enableBsgList` in memory | The BSG's banned items setting |

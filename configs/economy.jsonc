@@ -23,7 +23,7 @@
                                      // Real-game items added by mods (content backports) aren't counted as modded.
   },
 
-  // EXPERIMENTAL. Prices follow how far into the wipe the players online are, shaped by how real flea prices
+  // Prices follow how far into the wipe the players online are, shaped by how real flea prices
   // moved through a wipe. Early on everything is scarce and hideout and quest items are dear; late on the best
   // guns, ammo, armour and stims are dear and early-wipe items are cheap.
   "wipeCycle": {
@@ -39,7 +39,7 @@
   // Your own base price for an item, in roubles: item ID -> price. Takes the place of Better Flea's, the live or
   // SPT's price; multipliers, drift and the Wipe Cycle still go on top. Mainly for modded items a mod prices oddly.
   // It's the base price, not the listed price. Not sure what to use? Look up a similar base-game item's base price
-  // (Item lookup on the Economy tab) and tweak it from there.
+  // (Item lookup on the Lookup tab) and tweak it from there.
   // A gun's price is the gun on its own; its parts are priced separately. Traders don't change.
   "priceOverrides": {}
 }

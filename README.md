@@ -60,7 +60,7 @@ The settings page comes in English, Russian, Chinese (Simplified), German, Frenc
 
 Forgot the password? Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` and restart the server, then make a new account. Your settings are kept.
 
-Flea styles change everything at once. **Balanced** is the default: live-like, without item unlock levels or the Wipe Cycle. **Live progression** is Balanced plus item unlock levels and the Wipe Cycle (prices follow the wipe, experimental), as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
+Flea styles change everything at once. **Balanced** is the default: live-like, without item unlock levels or the Wipe Cycle. **Live progression** is Balanced plus item unlock levels and the Wipe Cycle (prices follow the wipe), as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
 
 ![Settings page tour](imageExamples/web-ui.gif)
 
@@ -170,7 +170,7 @@ I've tried to balance flipping, it's far too overpowered and it's very easy to j
 | 85k | 80% | about 1 in 3 | about 5 hours |
 | 94k or more | 100% or more | never | |
 
-Dearer items wait longer: a 200k item takes about 1.5 to 2 times as long. To see this for your own item, open the settings page's Economy tab: Item lookup has the table for any item, and Offers on the flea has it for each offer you have up, worn and plated as it is.
+Dearer items wait longer: a 200k item takes about 1.5 to 2 times as long. To see this for your own item, open the settings page's Lookup tab: Item lookup has the table for any item, and Offers on the flea has it for each offer you have up, worn and plated as it is.
 
 - Wrecked armour (under half its worth, all parts together) is a hard sell even at the normal price: about 4 in 10 never sell, and the rest take about 3 times as long. Overpriced, it almost never sells.
 - Price against the market. If another seller already has the item cheaper, most buyers go to them, and their offers sell before yours.
@@ -191,7 +191,7 @@ Well whats the difference between the flip penalty and the trader item lock?
 ## 7. Economy
 - **Better Flea pricing (on by default):** every base-game item starts from Better Flea's own fixed price instead of SPT's, built from real PvP and PvE flea prices and trader prices with the junk taken out. It doesn't move; the rest of Better Flea's pricing goes on top. Modded items get a price worked out from similar base-game items, and the newer items WTT ContentBackport adds get Better Flea's price too (can be turned off). While it's on, live prices aren't used. How it's built: [Research/price-index.md](Research/price-index.md).
 - **Live prices:** every item starts from its real flea price, the 24 hour average on tarkov.dev, and the rest of Better Flea's pricing goes on top. Pick Live, PvE or Season. Prices are saved, so if tarkov.dev is down the last ones are used. Modded items get a price worked out from similar base-game items. Items from content backport mods are real game items, so they get their real price.
-- **Wipe Cycle (experimental):** prices follow how far into the wipe the players online are, based on how real flea prices moved through a whole wipe. Everything is dear right at the start, hideout and early quest items are dear before people get to them, and the best guns, ammo, armour and stims are dear late on. After the flea's level changes it stays put for 30 minutes, so swapping profiles can't be used to flip items. The Live progression flea style turns it on.
+- **Wipe Cycle:** prices follow how far into the wipe the players online are, based on how real flea prices moved through a whole wipe. Everything is dear right at the start, hideout and early quest items are dear before people get to them, and the best guns, ammo, armour and stims are dear late on. After the flea's level changes it stays put for 30 minutes, so swapping profiles can't be used to flip items. The Live progression flea style turns it on.
 
 They're not made to run together, so you may run into issues if you turn both on.
 

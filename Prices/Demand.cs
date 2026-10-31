@@ -51,7 +51,7 @@ internal static class Demand
     // Player and item: the lots sold lately, and when.
     private static readonly ConcurrentDictionary<(MongoId, MongoId), Shift> Listed = new();
 
-    [ThreadStatic] private static (MongoId Tpl, double Share)? _pending;
+    [ThreadStatic] private static (MongoId Tpl, double Share, int Units)? _pending;
 
     public static void Bind(ConfigManager configManager, ItemHelper itemHelper, RagfairOfferService offers)
     {
@@ -97,7 +97,7 @@ internal static class Demand
 
         // Buying a whole offer counts in full, part of a stack less.
         var share = offer.SellInOnePiece == true ? 1 : Math.Min(1, request.Count.Value / Math.Max(1, offer.Quantity));
-        _pending = (root.Template, 0.5 + 0.5 * share);
+        _pending = (root.Template, 0.5 + 0.5 * share, offer.SellInOnePiece == true ? Math.Max(1, offer.Quantity) : request.Count.Value);
     }
 
     public static void AfterPurchase(ItemEventRouterResponse output)
@@ -109,6 +109,7 @@ internal static class Demand
             return;
         }
 
+        BetterFlea.Web.PriceHistory.Sold(bought.Tpl, bought.Units);
         if (bought.Share >= 1)
         {
             BetterFlea.Selling.OrderBook.Gone(bought.Tpl);
@@ -169,6 +170,7 @@ public class DemandSalePatch : AbstractPatch
     public static void Prefix(MongoId offerOwnerSessionId, RagfairOffer offer, int boughtAmount)
     {
         Demand.PlayerOfferSold(offerOwnerSessionId, offer, boughtAmount);
+        BetterFlea.Web.PriceHistory.PlayerSold(offerOwnerSessionId.ToString(), offer.User?.Nickname ?? "?", offer, boughtAmount);
     }
 }
 

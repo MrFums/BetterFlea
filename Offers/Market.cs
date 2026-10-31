@@ -203,6 +203,7 @@ internal static class OfferLifecycle
         var wait = TimeSpan.FromMinutes(low + Random.Shared.NextDouble() * Math.Max(0, settings.DealGoneMaxMinutes - low));
         var id = offer.Id;
         var tpl = offer.Items?.FirstOrDefault()?.Template;
+        var units = Math.Max(1, offer.Quantity);
         _ = Task.Delay(wait).ContinueWith(_ =>
         {
             try
@@ -224,6 +225,7 @@ internal static class OfferLifecycle
                 if (tpl is { } sold)
                 {
                     BetterFlea.Selling.OrderBook.Gone(sold);
+                    BetterFlea.Web.PriceHistory.Sold(sold, units);
                 }
 
                 Interlocked.Increment(ref _dealsSold);
@@ -396,6 +398,7 @@ internal static class OfferLifecycle
                     if (offer.Items?.FirstOrDefault() is { } boughtRoot)
                     {
                         BetterFlea.Selling.OrderBook.Gone(boughtRoot.Template);
+                        BetterFlea.Web.PriceHistory.Sold(boughtRoot.Template, Math.Max(1, offer.Quantity));
                     }
                 }
                 else
@@ -680,6 +683,7 @@ internal static class SoldBeforeYou
 
             _offers.RemoveOfferById(offerId);
             BetterFlea.Selling.OrderBook.Gone(root.Template);
+            BetterFlea.Web.PriceHistory.Sold(root.Template, Math.Max(1, offer.Quantity));
             var count = Interlocked.Increment(ref _sniped);
             DebugLog.Summary(() => $"Sold before you: {_itemHelper.GetItem(root.Template).Value?.Name} offer {offerId} went to someone else ({count} so far).");
             // Not the OfferSold code: the client kicks to the menu on that one.

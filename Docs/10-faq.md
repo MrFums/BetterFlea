@@ -28,7 +28,7 @@ Reset to default on a setting or tab, or Reset everything in the More menu. Or d
 **My offer won't sell.**
 Check, in this order:
 1. **Is it over its normal price?** The game's average when you list is a *new* one's price; a worn or stripped item
-   is worth less. Open the Economy tab, Offers on the flea, and look at your offer's odds.
+   is worth less. Open the Lookup tab, Offers on the flea, and look at your offer's odds.
 2. **Did you buy it in the last 48 hours?** Then it never sells more than 15% over normal.
 3. **Is it wrecked?** Wrecked gear sells about 6 times in 10 even at normal, and almost never over it.
 4. **Does someone have it cheaper?** Buyers go to the cheapest offer first.

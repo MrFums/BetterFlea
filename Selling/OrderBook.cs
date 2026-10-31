@@ -37,6 +37,7 @@ public class OrderBookLoad(
 
         OrderBook.Bind(configManager, itemHelper, profileHelper, ragfairOfferService, ragfairOfferHolder, hideoutTable);
         new AveragePricePatch().Enable();
+        new ExpiredPlayerOfferPatch().Enable();
         return Task.CompletedTask;
     }
 }
@@ -236,6 +237,42 @@ internal static class OrderBook
         offer.Requirements?.All(requirement => _itemHelper!.IsOfBaseclass(requirement.TemplateId, BaseClasses.MONEY)) == true;
 
     internal static BuyersConfig? BuyerSettings => Settings;
+
+    // SPT only returns an expired player offer (items mailed back, offer off the profile) in its clean-up of expired
+    // offers, which waits until 1,400 have expired (ragfair expiredOfferThreshold). Better Flea takes most generated
+    // offers down itself, so that rarely came, and a player's ended offer stayed on their profile with the game saying
+    // it expired at every login. An ended player offer that's on the market starts the clean-up; each one only a few
+    // times, so one SPT can't return doesn't run it every few seconds forever.
+    private static readonly ConcurrentDictionary<MongoId, int> ReturnTries = new();
+    private const int MaxReturnTries = 3;
+
+    internal static bool PlayerOfferEnded()
+    {
+        if (_profiles is null || _offers is null)
+        {
+            return false;
+        }
+
+        var now = Now();
+        foreach (var (_, profile) in _profiles.GetProfiles())
+        {
+            foreach (var offer in (profile.CharacterData?.PmcData?.RagfairInfo?.Offers ?? []).ToList())
+            {
+                if (offer.EndTime < now && _offers.GetOfferByOfferId(offer.Id) is not null
+                    && ReturnTries.AddOrUpdate(offer.Id, 1, (_, tries) => tries + 1) <= MaxReturnTries)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // Every player on the server, by name. For the settings page.
+    internal static List<string> PlayerNames() =>
+        (_profiles?.GetProfiles() ?? []).Select(entry => entry.Value.CharacterData?.PmcData?.Info?.Nickname)
+            .OfType<string>().Where(name => name.Length > 0).Distinct().OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
 
     // Every player's offers that are up, with the player's name. For the settings page.
     internal static IEnumerable<(string Player, RagfairOffer Offer)> AllPlayerOffers()
@@ -545,6 +582,7 @@ internal static class OrderBook
             }
 
             DebugLog.Write(() => $"Buyers: {Name(tpl)} bought {lot} from {pick.User?.Nickname} at {each:0} RUB (x{ratio:0.00})");
+            BetterFlea.Web.PriceHistory.Sold(tpl, lot);
             sold = sold == Sold.Nothing ? Sold.Seller : sold;
         }
 
@@ -569,6 +607,24 @@ internal static class OrderBook
         return bulk ? Random.Shared.Next(5, 31) : SaleDelayGate.LotFor(tpl, 3);
     }
     private static string Name(MongoId tpl) => _itemHelper?.GetItem(tpl).Value?.Name ?? tpl.ToString();
+}
+
+// Starts SPT's clean-up of expired offers as soon as a player's offer has ended (OrderBook.PlayerOfferEnded).
+public class ExpiredPlayerOfferPatch : AbstractPatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return typeof(RagfairOfferService).GetMethod(nameof(RagfairOfferService.EnoughExpiredOffersExistToProcess), BindingFlags.Instance | BindingFlags.Public)!;
+    }
+
+    [PatchPostfix]
+    public static void Postfix(ref bool __result)
+    {
+        if (!__result && OrderBook.PlayerOfferEnded())
+        {
+            __result = true;
+        }
+    }
 }
 
 // The average the game shows when listing is the average of the offers up, which sit a little over normal (they go

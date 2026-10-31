@@ -44,7 +44,7 @@ These help your items behave well everywhere, not just with Better Flea.
 ### Price against the base game, not the real world
 
 Look up a base-game item of the same kind and similar strength, and price yours near it. Better Flea's settings page
-**Item lookup** (Economy tab) shows any item's handbook-derived price, Better Flea's price and the real flea price side
+**Item lookup** (Lookup tab) shows any item's handbook-derived price, Better Flea's price and the real flea price side
 by side. An item ten times dearer or cheaper than everything like it is what breaks economies.
 
 ### The handbook price matters more than the flea price

@@ -114,7 +114,7 @@ steps:
 | 5. Floor | Never under the best trader's price (traders that really buy the item only) plus 10% | Prices tab, Floor |
 | 6. Spread | Ordinary offers 4% under to 15% over normal | Prices tab, Spread |
 | 7. Sellers | Overpricers, rare quick sells, troll prices, wrecked armour just under the cheapest decent offer | Prices tab, Sellers |
-| 8. Multipliers | The global price multiplier and the marked key multiplier, and the Wipe Cycle | Prices and Economy tabs |
+| 8. Multipliers | The global price multiplier, prices by category, the marked key multiplier, and the Wipe Cycle | Prices and Economy tabs |
 | 9. Human prices | To the rouble, often an easy number: 45,000, 49,999, 44,444, a rouble under the next seller | Prices tab, round prices |
 
 ### The price index
@@ -162,10 +162,15 @@ The unsupported **No floor for trader loops** setting (Prices tab, advanced) dro
 
 ## Seeing it all for one item
 
-Economy tab, **Item lookup**: search an item to see its base price now, SPT's price, Better Flea's price, the live
-price, its actual value as one would be listed, its [sale odds](07-selling.md#sale-odds), and how its price would move
-through a wipe.
+Lookup tab, **Item lookup**: search an item to see its base price now, SPT's price, Better Flea's price, the live
+price, its actual value as one would be listed, its [sale odds](07-selling.md#sale-odds), its price history, and how its
+price would move through a wipe.
+
+**Price history** is a stock chart: one candle per hour of the item's normal price (open, high, low, close), with how
+many traded that hour underneath (the market's trades by how busy the item is, plus every real sale on the server), for the last day, three days or week. The server samples every item every 15 minutes
+and keeps a week, across restarts. Players' listings of the item show as dashed lines and their sales as dots, with
+tables of both; pick a player to see only theirs.
 
 ![Item lookup](../imageExamples/web-itemlookup.png)
 
-*Item lookup on the Economy tab.*
+*Item lookup.*

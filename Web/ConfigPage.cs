@@ -32,7 +32,7 @@ public class LiveSettings(
     ISptLogger<LiveSettings> logger,
     ConfigManager configManager,
     FleaCategoryFilter categoryFilter,
-    MarkedKeyPricing markedKeyPricing,
+    FleaPriceMultipliers fleaPriceMultipliers,
     RagfairConfig ragfairConfig,
     GlobalTable globalTable,
     RagfairOfferService ragfairOfferService,
@@ -51,7 +51,7 @@ public class LiveSettings(
         try
         {
             categoryFilter.ApplyLive();
-            markedKeyPricing.Apply();
+            fleaPriceMultipliers.Apply();
             ArmorOffers.ApplyPlateRemoval(ragfairConfig);
             BetterFleaLoad.ApplyFoundInRaidOnly(configManager, globalTable);
             ListingCountGate.ForgetCaches();
@@ -139,6 +139,9 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
                     break;
                 case Root + "/api/economy":
                     await SendJson(context, Wipe(context.Request.Query["level"].ToString(), context.Request.Query["id"].ToString()), cancellationToken);
+                    break;
+                case Root + "/api/chart":
+                    await SendJson(context, Chart(context.Request.Query["id"].ToString()), cancellationToken);
                     break;
                 case Root + "/api/offers":
                     await SendJson(context, Offers(), cancellationToken);
@@ -350,6 +353,37 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         };
     }
 
+    // One item's stock chart: hourly candles of its normal price with sales volume (PriceHistory), every player's
+    // offers of it that are up, and players' sales of it, for the page to show all or one player's.
+    private JsonObject Chart(string id)
+    {
+        if (!MongoId.IsValidMongoId(id))
+        {
+            return new JsonObject { ["error"] = "No item." };
+        }
+
+        var tpl = new MongoId(id);
+        var candles = new JsonArray(PriceHistory.Candles(tpl).Select(candle => (JsonNode)new JsonArray(candle.Time,
+            Math.Round(candle.Open), Math.Round(candle.High), Math.Round(candle.Low), Math.Round(candle.Close), candle.Volume)).ToArray());
+        var listings = new JsonArray(BetterFlea.Selling.OrderBook.AllPlayerOffers()
+            .Where(entry => entry.Offer.Items![0].Template == tpl)
+            .Select(entry => (JsonNode)new JsonObject
+            {
+                ["player"] = entry.Player, ["price"] = entry.Offer.RequirementsCost is { } cost ? Math.Round(cost) : null,
+                ["quantity"] = entry.Offer.Quantity, ["listedAt"] = entry.Offer.StartTime, ["endsAt"] = entry.Offer.EndTime
+            }).ToArray());
+        var sales = new JsonArray(PriceHistory.Sales(tpl).Select(sale => (JsonNode)new JsonObject
+        {
+            ["player"] = sale.Name, ["price"] = sale.Price, ["amount"] = sale.Amount, ["listedAt"] = sale.ListedAt, ["soldAt"] = sale.SoldAt
+        }).ToArray());
+        return new JsonObject
+        {
+            ["name"] = ItemName(tpl), ["candles"] = candles, ["listings"] = listings, ["sales"] = sales,
+            ["players"] = new JsonArray(BetterFlea.Selling.OrderBook.PlayerNames().Select(name => (JsonNode)name).ToArray()),
+            ["now"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), ["sampleMs"] = PriceHistory.LastSampleMs
+        };
+    }
+
     // Every player's offers that are up: what each is, its price against its normal, when it sells if a buyer is
     // already lined up, and its odds at other prices.
     private JsonObject Offers()
@@ -540,7 +574,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     // Anyone can see the flea's stats and look items up; the settings need the admin login (AdminLogin).
     private static readonly HashSet<string> OpenPaths = new(StringComparer.Ordinal)
     {
-        Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview", Root + "/api/items", Root + "/api/economy", Root + "/api/offers",
+        Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview", Root + "/api/items", Root + "/api/economy", Root + "/api/offers", Root + "/api/chart",
         Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
     };
 

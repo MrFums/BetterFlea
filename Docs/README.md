@@ -53,9 +53,11 @@ version, is in [../CHANGELOG.md](../CHANGELOG.md).
 | Make player sales slower or faster | [Selling tab](02-settings-reference.md#selling-tab): sale delay |
 | Turn off selling on the flea entirely | [Selling tab](02-settings-reference.md#selling-tab): enabled off |
 | Fix a modded item with a silly price | [Economy tab](02-settings-reference.md#economy-tab): Your prices |
-| See what an item is worth and how it would sell | Economy tab: Item lookup, and [sale odds](07-selling.md#sale-odds) |
+| See what an item is worth and how it would sell | Lookup tab: Item lookup, and [sale odds](07-selling.md#sale-odds) |
+| See an item's price over the last week, or one player's listings and sales | Lookup tab: Item lookup, [price history](03-how-prices-work.md#seeing-it-all-for-one-item) |
+| Make all ammo cheaper, all guns dearer, and so on | [Prices tab](02-settings-reference.md#prices-tab): prices by category |
 | Use today's real flea prices | [Economy tab](02-settings-reference.md#economy-tab): live prices |
-| Have prices follow the wipe | [Economy tab](02-settings-reference.md#economy-tab): Wipe Cycle (experimental) |
+| Have prices follow the wipe | [Economy tab](02-settings-reference.md#economy-tab): Wipe Cycle |
 | Use SVM's trader prices | Economy tab: turn **Live trader prices** off. [How trader prices work](03-how-prices-work.md#what-traders-pay) |
 | Show Better Flea's prices in my own mod | [API for other mods](09-api.md) |
 | Price my mod's items so they work well | [Advice for mod authors](08-modded-items.md#advice-for-mod-authors) |

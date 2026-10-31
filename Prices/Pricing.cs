@@ -873,7 +873,8 @@ internal static class GunPricing
 
             return offers.Min(offer =>
             {
-                var trader = offer.Roubles * share;
+                // A category multiplier on guns moves the trader-based part too (the flea part already has it).
+                var trader = offer.Roubles * share * FleaPriceMultipliers.Of(item.Template);
                 return trader >= flea ? flea : trader + (flea - trader) * FleaShare(offer.Unlock);
             });
         });
@@ -1086,32 +1087,116 @@ internal static class EmptyFuelPricing
     }
 }
 
-// Only feeds generated offers, so trader and handbook prices stay vanilla.
+// The marked key multiplier and the category multipliers, as SPT's own per-item flea multipliers (ragfair
+// dynamic.itemPriceMultiplier): the flea price every offer and a player's normal price start from, so other sellers'
+// offers and the price a listing is measured against move together. Trader and handbook prices stay as they are.
 [Injectable(InjectionType.Singleton)]
-public class MarkedKeyPricing(
+public class FleaPriceMultipliers(
     ConfigManager configManager,
-    RagfairConfig ragfairConfig)
+    RagfairConfig ragfairConfig,
+    TemplateTable templates)
 {
-    private double _applied = 1.0;
+    private Dictionary<MongoId, double> _applied = new();
 
-    // Applied again on every settings change: the last multiplier is taken back out first, so they don't stack.
+    private static Dictionary<MongoId, double> _current = new();
+
+    // The multiplier this applies to an item right now (1 for most). GunPricing uses it for the part of a gun's value
+    // that comes from trader prices, so a category multiplier on guns moves the whole gun.
+    public static double Of(MongoId tpl) => _current.GetValueOrDefault(tpl, 1.0);
+
+    // Applied again on every settings change: what was applied last is taken back out first, so they don't stack.
     public void Apply()
     {
-        var multiplier = configManager.Mod.Prices.MarkedKeyMultiplier;
-        if (multiplier == _applied)
+        var prices = configManager.Mod.Prices;
+        var categories = new Dictionary<MongoId, double>();
+        foreach (var (id, multiplier) in prices.CategoryMultipliers ?? [])
         {
-            return;
+            if (MongoId.IsValidMongoId(id) && multiplier > 0)
+            {
+                categories[new MongoId(id)] = Math.Clamp(multiplier, 0.1, 10);
+            }
+        }
+
+        var wanted = new Dictionary<MongoId, double>();
+        if (categories.Count > 0)
+        {
+            foreach (var tpl in templates.Items.Keys)
+            {
+                if (CategoryMultiplier(tpl, categories) is { } multiplier && Math.Abs(multiplier - 1) > 1e-9)
+                {
+                    wanted[tpl] = multiplier;
+                }
+            }
+        }
+
+        if (Math.Abs(prices.MarkedKeyMultiplier - 1) > 1e-9)
+        {
+            foreach (var tpl in FleaCategories.MarkedKeys)
+            {
+                wanted[tpl] = wanted.GetValueOrDefault(tpl, 1.0) * prices.MarkedKeyMultiplier;
+            }
         }
 
         var priceMultipliers = ragfairConfig.Dynamic.ItemPriceMultiplier ??= new();
-        foreach (var tpl in FleaCategories.MarkedKeys)
+        var changed = 0;
+        foreach (var tpl in _applied.Keys.Union(wanted.Keys).ToList())
         {
-            priceMultipliers[tpl] = priceMultipliers.GetValueOrDefault(tpl, 1.0) / _applied * multiplier;
+            var before = _applied.GetValueOrDefault(tpl, 1.0);
+            var after = wanted.GetValueOrDefault(tpl, 1.0);
+            if (before == after)
+            {
+                continue;
+            }
+
+            var value = priceMultipliers.GetValueOrDefault(tpl, 1.0) / before * after;
+            if (Math.Abs(value - 1) < 1e-9)
+            {
+                priceMultipliers.Remove(tpl);
+            }
+            else
+            {
+                priceMultipliers[tpl] = value;
+            }
+
+            changed++;
         }
 
-        _applied = multiplier;
+        _applied = wanted;
+        _current = wanted;
+        if (changed > 0)
+        {
+            DebugLog.Summary(() => $"Flea price multipliers: {wanted.Count} item(s) ({categories.Count} category setting(s), marked keys x{prices.MarkedKeyMultiplier}).");
+        }
+    }
 
-        DebugLog.Summary(() => $"Marked key flea prices x{multiplier}.");
+    // An item's own setting beats its nearest category's, and a handbook category beats an item type (as unlock levels).
+    private double? CategoryMultiplier(MongoId tpl, Dictionary<MongoId, double> settings)
+    {
+        if (settings.TryGetValue(tpl, out var multiplier))
+        {
+            return multiplier;
+        }
+
+        foreach (var category in BetterFlea.Flea.HandbookTree.CategoriesOf(tpl))
+        {
+            if (settings.TryGetValue(category, out multiplier))
+            {
+                return multiplier;
+            }
+        }
+
+        MongoId? kind = templates.Items.GetValueOrDefault(tpl)?.Parent;
+        for (var depth = 0; depth < 10 && kind is { } current; depth++)
+        {
+            if (settings.TryGetValue(current, out multiplier))
+            {
+                return multiplier;
+            }
+
+            kind = templates.Items.GetValueOrDefault(current)?.Parent;
+        }
+
+        return null;
     }
 }
 

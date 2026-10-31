@@ -939,6 +939,8 @@ internal static class DataFiles
         _warn = warn;
     }
 
+    public static string PathOf(string name) => Path.Combine(_folder, name);
+
     public static T? Read<T>(string name) where T : class
     {
         var path = Path.Combine(_folder, name);

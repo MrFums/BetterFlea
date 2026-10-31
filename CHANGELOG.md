@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.4.1
+
+**New**
+- **Lookup tab** on the settings page, right after Home: Item lookup and Offers on the flea moved here from the bottom of the Economy tab, and Offers on the flea has a Refresh button.
+- **Price history** (Lookup tab, Item lookup): a stock chart for every item, an hourly candle of its normal price (open, high, low, close) with how many traded that hour, for the last day, three days or week. Volume is the whole market's trades by how busy the item is (wires and bolts about a hundred an hour, a LEDX a few) plus every real sale on the server; it's only shown, nothing else uses it. Players' listings of the item show as dashed lines and their sales as dots, with tables of both under the chart; pick a player to see only theirs. Recorded every 15 minutes from the first start on 2.4.1 and kept across restarts (data/price-history.bin, data/player-sales.json).
+- **Prices by category** (Prices tab): make a whole kind of item, or one item, dearer or cheaper on the flea, on top of the price multiplier: all ammo 0.8, all guns 1.5, valuables 2. Search for a category or an item; an item's own setting beats its category's, and a smaller category beats the bigger one it's in. Other sellers' offers and the normal price your own listing is measured against both change, so sale speeds stay right. Trader prices don't.
+
+**Changes**
+- Masks and hats with no armour (balaclavas, shemaghs, caps, beanies) were always one to an offer. Now and then (15% of their offers) they come 2 to 5 to an offer (**Several masks or hats**, Listings tab, Items per offer). Armoured helmets and masks are unchanged.
+- **The Wipe Cycle is no longer experimental.** Its price curves are rebuilt from tarkov.dev's PvP price history back to 2022, four wipes with data from their first weeks, in place of the one snapshot they came from before. The whole market is about 1.6x at launch, back to normal by level 25, and about 1.3x late in a wipe (it was 1.85x, 0.9x mid-wipe and 1.05x late). Single items follow their own history less closely than before, since one item's early-wipe history is thin: a graphics card was 2.5x at launch, now about 0.95x; a military corrugated tube 4x in weeks 1 and 2, now 1.5x. How it's built: Research/wipe-cycle.md.
+
+**Fixes**
+- A player's offer that ended without selling (expired or taken down) wasn't given back: its items stayed on the flea side and the game said "Your offer is expired" at every login. SPT only returns ended player offers when it clears out expired offers, which waits until 1,400 have expired, and Better Flea takes most other sellers' offers down itself, so that rarely happened. An ended player offer now starts that clear-out straight away: the items come back by mail within seconds, as without Better Flea. Offers already stuck are returned the first time the server starts on 2.4.1.
+
 ## 2.4.0
 
 **New**

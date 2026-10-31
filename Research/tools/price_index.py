@@ -33,7 +33,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..", "..")
-DB = sys.argv[1] if len(sys.argv) > 1 else "E:/Games/SPT4.1-CLEAN/SPT_Runtime/SPT_Data/database/"
+DB = sys.argv[1] if len(sys.argv) > 1 else "SPT_Runtime/SPT_Data/database/"
 CACHE = sys.argv[2] if len(sys.argv) > 2 else os.path.join(tempfile.gettempdir(), "betterflea-tarkovdev")
 
 FENCE = "579dc571d53a0658a154fbec"
@@ -68,7 +68,7 @@ PRESETS = load("globals.json")["ItemPresets"]
 # WTT ContentBackport adds most of the base-game items SPT 4.1.6 doesn't have yet. Its items are read from its own
 # files (a clone of an existing item, with overrides), so they're priced like any other. Its own flea and handbook
 # prices stand in for SPT's and the handbook's in the review.
-BACKPORT_DB = sys.argv[3] if len(sys.argv) > 3 else "E:/Games/SPT4.1-CLEAN/SPT_Runtime/user/mods/WTT-ContentBackport/db/"
+BACKPORT_DB = sys.argv[3] if len(sys.argv) > 3 else "SPT_Runtime/user/mods/WTT-ContentBackport/db/"
 BACKPORT = set()
 
 

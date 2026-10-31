@@ -11,6 +11,10 @@ public record PricesConfig
     [JsonPropertyName("markedKeyMultiplier")]
     public double MarkedKeyMultiplier { get; set; } = 1.0;
 
+    // Item or category ID -> multiplier, on top of priceMultiplier.
+    [JsonPropertyName("categoryMultipliers")]
+    public Dictionary<string, double> CategoryMultipliers { get; set; } = new();
+
     [JsonPropertyName("floor")]
     public PriceFloorConfig Floor { get; set; } = new();
 

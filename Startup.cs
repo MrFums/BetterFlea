@@ -21,7 +21,7 @@ public class BetterFleaLoad(
     ISptLogger<BetterFleaLoad> logger,
     ConfigManager configManager,
     FleaCategoryFilter categoryFilter,
-    MarkedKeyPricing markedKeyPricing,
+    FleaPriceMultipliers fleaPriceMultipliers,
     ModSupport modSupport,
     GlobalTable globalTable) : IOnLoad
 {
@@ -36,7 +36,7 @@ public class BetterFleaLoad(
         // stops the server or another mod loading.
         Step("mod check", modSupport.Check);
         Step("flea bans", categoryFilter.Apply);
-        Step("marked key prices", markedKeyPricing.Apply);
+        Step("flea price multipliers", fleaPriceMultipliers.Apply);
         Step("found in raid only", () => ApplyFoundInRaidOnly(configManager, globalTable));
         return Task.CompletedTask;
     }

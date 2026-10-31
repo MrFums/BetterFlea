@@ -10,6 +10,12 @@
   // Trader prices do not change.
   "markedKeyMultiplier": 1.0,
 
+  // Prices of whole kinds of item, or single items, on the Flea Market, on top of priceMultiplier. Item or category
+  // ID -> multiplier: { "<ammo category ID>": 0.8, "<valuables category ID>": 2 }. Easiest to set on the settings page,
+  // which finds categories by name. An item's own setting beats its category's. Other sellers' offers and the normal
+  // price your own listing is measured against both change. Trader prices do not change.
+  "categoryMultipliers": {},
+
   // An offer is never cheaper than the most a trader pays for the item.
   // This stops players buying on the Flea Market and selling to a trader for profit.
   "floor": {

@@ -629,6 +629,9 @@ public record OfferQuantityConfig
     [JsonPropertyName("helmetStacks")]
     public BulkOfferConfig HelmetStacks { get; set; } = new() { Chance = 0.05, Min = 2, Max = 5 };
 
+    [JsonPropertyName("cosmeticStacks")]
+    public BulkOfferConfig CosmeticStacks { get; set; } = new() { Chance = 0.15, Min = 2, Max = 5 };
+
     [JsonPropertyName("traderGunStacks")]
     public BulkOfferConfig TraderGunStacks { get; set; } = new() { Chance = 0.02, Min = 2, Max = 5 };
 }

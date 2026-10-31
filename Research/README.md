@@ -405,11 +405,13 @@ Everything in this folder can be rebuilt from public data with the scripts in [t
 | `quest_difficulty.py` | [quest-unlock-difficulty.md](quest-unlock-difficulty.md) from SPT's quest data |
 | `price_index.py` | The price index shipped in the mod, [price-index.tsv](price-index.tsv) and [price-index-review.md](price-index-review.md) |
 | `price-index-overrides.json` | Prices set by hand, `{"<item id>": price}` |
+| `wipe_curves.py` | The Wipe Cycle's curves (`Prices/wipe-curves.json`) and [wipe-cycle.md](wipe-cycle.md) |
 
 ```
 python -I Research/tools/fetch_price_history.py [download-folder]
 python -I Research/tools/quest_difficulty.py [path-to-SPT_Data/database] [output.md] [download-folder]/quest-difficulty.tsv
 python -I Research/tools/price_index.py [path-to-SPT_Data/database] [download-folder] [WTT-ContentBackport/db]
+python -I Research/tools/wipe_curves.py [path-to-SPT_Data/database] [download-folder]
 ```
 
 Price data comes from [tarkov.dev](https://tarkov.dev), which publishes it openly. Thanks to them. The index is

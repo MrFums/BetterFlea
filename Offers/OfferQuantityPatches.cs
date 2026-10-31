@@ -96,6 +96,13 @@ internal static class OfferQuantityGate
             return handful;
         }
 
+        // SPT lists masks and hats one to an offer, like armour (they're "armored equipment" to it). The ones with no
+        // armour (balaclavas, shemaghs, caps, beanies) pile up in stashes, so now and then a few go up together.
+        if (IsCosmetic(tpl))
+        {
+            return RollBulk(settings.CosmeticStacks) ?? 1;
+        }
+
         return TierFor(tpl) switch
         {
             QuantityTier.Single => 1,
@@ -107,6 +114,15 @@ internal static class OfferQuantityGate
     }
 
     public static QuantityTier TierFor(MongoId tpl) => Tiers.GetOrAdd(tpl, Classify);
+
+    private static readonly ConcurrentDictionary<MongoId, bool> Cosmetics = new();
+
+    // A mask or hat with no armour: armour class 0 (they do have durability), nothing in it, and not superrare.
+    private static bool IsCosmetic(MongoId tpl) => Cosmetics.GetOrAdd(tpl, id =>
+        _itemHelper!.IsOfBaseclasses(id, [HeadwearBase, FaceCoverBase])
+        && _itemHelper.GetItem(id).Value?.Properties is { } props
+        && !(int.TryParse(props.ArmorClass?.ToString(), out var armorClass) && armorClass > 0)
+        && props.Slots?.Any() != true && props.RarityPvE != "Superrare");
 
     // Cheap common barter goods get dumped by the stack, meds/food/mods a few at a time, anything rare
     // or bulky one at a time.
@@ -279,6 +295,7 @@ internal static class OfferQuantityGate
     }
 
     private static readonly MongoId HeadwearBase = new("5a341c4086f77401f2541505");
+    private static readonly MongoId FaceCoverBase = new("5a341c4686f77469e155819e");
     private const double BigFullSeveralChance = 0.25;
     private const double FewUsedSeveralChance = 0.2;
     private static readonly MongoId MedicalBase = new("543be5664bdc2dd4348b4569");

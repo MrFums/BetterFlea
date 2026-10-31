@@ -103,5 +103,7 @@ All under `SPT_Runtime/user/mods/BetterFlea/`:
 | `data/purchase-locks.json` | Items bought from traders, for the trader item lock |
 | `data/recent-purchases.json` | Recent purchases, for the flip penalty and the 48-hour rule |
 | `data/lost-guns.json` | Guns players died with that may turn up on the flea |
+| `data/price-history.bin` | Every item's hourly price candles for the last week, for the price history chart |
+| `data/player-sales.json` | Players' recent flea sales, for the price history chart |
 
 Deleting a `configs` file and restarting writes it back with the defaults.

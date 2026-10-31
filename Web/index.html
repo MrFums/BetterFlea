@@ -263,6 +263,22 @@
   .chart .tip span { color: var(--muted); }
   .chart .tip[hidden] { display: none; }
   .chart .hint { padding: 60px 0; }
+  .stock { margin: 14px 0; }
+  .stock-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .stock-head .ranges { display: flex; gap: 4px; }
+  .stock-head .ranges button.on { background: var(--green-soft); border-color: var(--green); }
+  .stock-head select { max-width: 14em; }
+  .chart.stock-chart { height: 260px; }
+  .chart .up { fill: var(--green); stroke: var(--green); }
+  .chart .down { fill: var(--bad); stroke: var(--bad); }
+  .chart .wick { stroke-width: 1; }
+  .chart .vol { fill: var(--slate); opacity: 0.45; }
+  .chart .listing { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 4 3; }
+  .chart .sale { fill: var(--warn); stroke: var(--panel); stroke-width: 1.5; }
+  .stock .lists { display: grid; gap: 10px; margin-top: 8px; }
+  .stock .lists table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  .stock .lists th { text-align: left; color: var(--faint); font-weight: 500; padding: 3px 8px; border-bottom: 1px solid var(--line); }
+  .stock .lists td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   .share { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin-bottom: 9px; font-size: 13px; }
   .share .n { font-variant-numeric: tabular-nums; color: var(--muted); }
   .share .meter { grid-column: 1 / -1; height: 4px; background: var(--panel-2); border-radius: 2px; overflow: hidden; }
@@ -490,6 +506,7 @@ const LABELS = {
   "listings.jsonc:itemsPerOffer.stockGunStacks": "Several factory guns",
   "listings.jsonc:itemsPerOffer.traderGunStacks": "Trader gun flips",
   "listings.jsonc:itemsPerOffer.helmetStacks": "Several mint helmets",
+  "listings.jsonc:itemsPerOffer.cosmeticStacks": "Several masks or hats",
   "condition.jsonc:keys.usedChanceByRarity": "Used keys by rarity",
   "condition.jsonc:guns.bossGunGroundShare": "Boss guns as found",
   "condition.jsonc:guns.bossGunWear": "Boss gun wear",
@@ -505,6 +522,7 @@ const LABELS = {
   "market.jsonc:packs.hugeChance": "Silly packs",
   "prices.jsonc:priceMultiplier": "All flea prices",
   "prices.jsonc:markedKeyMultiplier": "Marked key price",
+  "prices.jsonc:categoryMultipliers": "Prices by category",
   "prices.jsonc:floor": "Price floor",
   "prices.jsonc:floor.logTraderProfitLoops": "Log trader price loops",
   "prices.jsonc:floor.ignoreForTraderLoops": "No floor for trader loops (not supported)",
@@ -643,6 +661,7 @@ const DESC = {
   "listings.jsonc:itemsPerOffer.usedMedStacks": "Now and then a flipper sells a stack of used medkits, all with the same amount left.",
   "listings.jsonc:itemsPerOffer.stockGunStacks": "Now and then factory guns as found come several to an offer, like someone listing a boss farm's haul.",
   "listings.jsonc:itemsPerOffer.helmetStacks": "Now and then a helmet that is easy to come by (not superrare, or a trader sells it) comes several to an offer, only at max/max durability. Chance per such offer.",
+  "listings.jsonc:itemsPerOffer.cosmeticStacks": "Now and then a mask or hat with no armour (a balaclava, shemagh, cap or beanie) comes several to an offer. The rest are one each. Chance per such offer.",
   "listings.jsonc:itemsPerOffer.traderGunStacks": "Now and then someone flips guns bought from a trader: the exact factory gun at 100/100, several to an offer. Chance per offer of a gun a trader sells.",
   "listings.jsonc:offerCurrency": "How often a price is in roubles, dollars or euros. Only how they compare matters.",
 
@@ -785,6 +804,7 @@ const DESC = {
   // Prices
   "prices.jsonc:priceMultiplier": "Every offer from other sellers costs this much compared with normal. 1 = normal, 1.5 = half as much again. Trader prices don't change.",
   "prices.jsonc:markedKeyMultiplier": "Flea price of marked keys. 1 = normal, 1.5 = half as much again.",
+  "prices.jsonc:categoryMultipliers": "Make a whole kind of item, or one item, dearer or cheaper on the flea, on top of the price multiplier: all ammo 0.8, all guns 1.5, valuables 2. Search for a category or an item. An item's own setting beats its category's, and a smaller category beats the bigger one it's in. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.",
   "prices.jsonc:floor": "Offers never go below what a trader pays, so nothing can be bought here and sold to a trader for profit.",
   "prices.jsonc:floor.marginPercent": "How far above the trader's price the cheapest offer is.",
   "prices.jsonc:floor.logTraderProfitLoops": "At startup, list items one trader sells for less than another buys them. Only listed, never changed.",
@@ -869,7 +889,7 @@ const DESC = {
   "economy.jsonc:livePrices.gameMode": "Which game's prices to use.",
   "economy.jsonc:livePrices.estimateModdedItems": "Items the real game doesn't have get a price on the live scale, worked out from similar base-game items. Real-game items that a mod adds back (content backports) are not counted as modded: they get their real price, or keep their own if the real flea doesn't sell them.",
   "economy.jsonc:livePrices.refreshHours": "Fetch new prices this long after the last fetch. Goes by the clock, so restarts don't matter.",
-  "economy.jsonc:wipeCycle": "Experimental. Prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe. Early on, hideout and quest items are dear and everything is scarce. Late on, the best guns, ammo, armour and stims are dear, and early-wipe items are cheap. The Live progression flea style turns it on.",
+  "economy.jsonc:wipeCycle": "Prices follow how far into the wipe the players online are, shaped by how real flea prices moved through a wipe. Early on, hideout and quest items are dear and everything is scarce. Late on, the best guns, ammo, armour and stims are dear, and early-wipe items are cheap. The Live progression flea style turns it on.",
   "economy.jsonc:wipeCycle.strength": "Size of the swings. 1 = normal, 0.5 = half, 2 = double.",
   "economy.jsonc:wipeCycle.levelStep": "Prices move every this many levels.",
   "economy.jsonc:wipeCycle.cooldownMinutes": "Once the flea's level changes it stays put this long, so swapping profiles can't be used to buy low and sell high.",
@@ -880,7 +900,7 @@ const DESC = {
   "weapons.jsonc:moddedParts.percent": "How often a modded attachment is picked, compared with a base-game one that fits as well. 100 = the same, 50 = half as often, 0 = never (unless a gun needs one and nothing else fits).",
   "weapons.jsonc:moddedParts.allowFleaBannedParts": "Let modded parts their mod marks as not sellable on the flea go on other sellers' guns. Some mods mark parts a gun needs (WTT's F2000 top rail: no rail, no scope), so this gives those guns more builds. Off: they never go on a build, like base-game flea-banned parts. They still can't be listed on their own either way.",
   "weapons.jsonc:moddedParts.disabledMods": "Turn a mod's attachments off on gun builds. They're still used where a gun needs a part and nothing else fits, so a mod that depends on another (JSOC needs Epic's All in One) still gets built. Its own guns can still be listed as they come.",
-  "economy.jsonc:priceOverrides": "Set an item's base price yourself, in roubles, in place of Better Flea's, the live or SPT's. Mainly for a modded item its mod prices oddly. This is the base price, before multipliers, drift and the Wipe Cycle, not what the item ends up listed at. Not sure what to put? Look up a similar base-game item in Item lookup on this tab, use its Base price and tweak it from there. A gun's price is the gun on its own: its parts are priced separately. Traders don't change. New offers get the new price.",
+  "economy.jsonc:priceOverrides": "Set an item's base price yourself, in roubles, in place of Better Flea's, the live or SPT's. Mainly for a modded item its mod prices oddly. This is the base price, before multipliers, drift and the Wipe Cycle, not what the item ends up listed at. Not sure what to put? Look up a similar base-game item in Item lookup on the Lookup tab, use its Base price and tweak it from there. A gun's price is the gun on its own: its parts are priced separately. Traders don't change. New offers get the new price.",
 
   // Debug
   "debug.jsonc:debugLogging": "Write lots of extra lines in the server log. Only for testing."
@@ -941,6 +961,8 @@ const CHOICES = {
 const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems"];
 // Item or category ids, each with a level.
 const LEVEL_TABLES = ["flea.jsonc:levelLock.levels"];
+// Item or category -> price multiplier, the same table with multipliers in place of levels.
+const MULTIPLIER_TABLES = ["prices.jsonc:categoryMultipliers"];
 const PRICE_TABLES = ["economy.jsonc:priceOverrides"];
 // Tables you can add entries to.
 const OPEN_TABLES = ["listings.jsonc:listings.categoryMultipliers", "listings.jsonc:listings.minimumOffers", "listings.jsonc:listings.superrareMinimumOffers"];
@@ -965,7 +987,7 @@ const BAD_CONDITION ={ mint: 0.1, worn: 0.5, destroyed: 0.25, obliterated: 0.15 
 const STYLES = [
   { id: "live", name: "Balanced (default)", short: "Live-like, without item unlock levels or the Wipe Cycle.", about: "Everything as it ships: a live-like flea, but every item can be bought and sold from the level the flea opens, and prices don't follow the wipe. Pick Live progression for both.", files: {} },
   { id: "progression", name: "Live progression", short: "As close to the live flea as it gets: items unlock at the level the real flea needs, and prices follow the wipe.", levelLock: true, wipeCycle: true,
-    about: "Balanced, plus item unlock levels and the Wipe Cycle. Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40), and prices follow how far into the wipe the players are (Economy tab, experimental). Your bans are kept.", files: {} },
+    about: "Balanced, plus item unlock levels and the Wipe Cycle. Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40), and prices follow how far into the wipe the players are (Economy tab). Your bans are kept.", files: {} },
   { id: "spt", name: "Base SPT", short: "Better Flea's changes off. The plain SPT flea.", about: "Better Flea's flea changes switched off, so the flea works like plain SPT. The memory saver stays on.", files: OFF },
   { id: "rough", name: "Rough market", short: "Fewer offers, lots of worn and broken gear.", about: "Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast.",
     files: {
@@ -1012,6 +1034,7 @@ const STYLES = [
 // ---------- helpers ----------
 
 const HOME = "home";
+const LOOKUP = "lookup";
 const state = { status: null, notes: null, version: "", files: [], byFile: {}, saved: {}, current: null, open: new Set(), styleNote: "", advanced: false, names: {}, priceView: {} };
 const $ = (id) => document.getElementById(id);
 
@@ -1212,7 +1235,7 @@ async function load() {
   for (const f of data.files) state.saved[f.file] = clone(f.values);
   state.advanced = store("bf.advanced") === "1";
   const tab = location.hash ? location.hash.slice(1) + ".jsonc" : store("bf.tab");
-  state.current = state.byFile[tab] ? tab : HOME;
+  state.current = state.byFile[tab] ? tab : (tab === LOOKUP || location.hash === "#lookup") ? LOOKUP : HOME;
   $("version").textContent = "v" + data.version;
   document.title = "BetterFlea v" + data.version + " Settings";
   render();
@@ -1286,6 +1309,7 @@ function renderGuest() {
   home.insertBefore(economyCard(), home.children[1]);
   const e = state.econ || (state.econ = { level: 0, item: null });
   home.insertBefore(itemLookup(e, e.data || {}), home.children[2]);
+  home.insertBefore(offersCard(), home.children[3]);
   main.appendChild(home);
   drawCharts();
 }
@@ -1376,7 +1400,7 @@ async function loadNames() {
     const [file, path] = key.split(":");
     for (const id of getAt(state.byFile[file].values, path.split(".")) || []) if (!state.names[id]) ids.add(id);
   }
-  for (const key of LEVEL_TABLES.concat(PRICE_TABLES)) {
+  for (const key of LEVEL_TABLES.concat(MULTIPLIER_TABLES, PRICE_TABLES)) {
     const [file, path] = key.split(":");
     for (const id of Object.keys(getAt(state.byFile[file].values, path.split(".")) || {})) if (!state.names[id] || !("usual" in state.names[id])) ids.add(id);
   }
@@ -1444,6 +1468,12 @@ function render() {
   if (state.current === HOME) home.className = "active";
   home.onclick = () => { state.current = HOME; store("bf.tab", HOME); render(); loadStatus(); window.scrollTo(0, 0); };
   nav.appendChild(home);
+  const look = document.createElement("button");
+  look.textContent = "Lookup";
+  look.title = "Item lookup, price history and players' offers";
+  if (state.current === LOOKUP) look.className = "active";
+  look.onclick = () => { state.current = LOOKUP; store("bf.tab", LOOKUP); render(); window.scrollTo(0, 0); };
+  nav.appendChild(look);
   for (const f of state.files) {
     const b = document.createElement("button");
     const t = document.createElement("span");
@@ -1463,6 +1493,13 @@ function render() {
   if (state.current === HOME) {
     main.appendChild(homeSection());
     drawCharts();
+    refreshBar();
+    window.scrollTo(0, scroll);
+    return;
+  }
+
+  if (state.current === LOOKUP) {
+    main.appendChild(lookupSection());
     refreshBar();
     window.scrollTo(0, scroll);
     return;
@@ -1551,6 +1588,7 @@ function buildNode(f, path) {
   if (f.file === "flea.jsonc" && path.join(".") === "bannedModItems") return modItems(f, path, value || {}, def);
   if (f.file === "weapons.jsonc" && path.join(".") === "moddedParts.disabledMods") return moddedPartMods(f, path, value || [], def);
   if (inList(LEVEL_TABLES, f.file, path)) return levelTable(f, path, value || {}, def);
+  if (inList(MULTIPLIER_TABLES, f.file, path)) return levelTable(f, path, value || {}, def, { start: 1, step: 0.05, empty: "None yet. Every kind of item is at the price multiplier above." });
   if (inList(PRICE_TABLES, f.file, path)) return priceTable(f, path, value || {}, def);
   if (isObject(value)) return group(f, path, value, def);
 
@@ -1736,12 +1774,14 @@ function itemList(f, path, value, def) {
 }
 
 // Your own unlock levels: an item or category, and its level.
-function levelTable(f, path, value, def) {
+// opts: start (a new row's value), step, empty (the text with no rows). Unlock levels by default.
+function levelTable(f, path, value, def, opts) {
+  const o = Object.assign({ start: 15, step: 1, empty: "None yet. Everything unlocks at the real game's level." }, opts || {});
   const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
   row.append(label(f, path, true), resetButton(f, path, value, def));
   const control = make("div", "control levels");
   const ids = Object.keys(value);
-  if (!ids.length) control.appendChild(make("span", "none", "None yet. Everything unlocks at the real game's level."));
+  if (!ids.length) control.appendChild(make("span", "none", o.empty));
   for (const id of ids) {
     const known = state.names[id];
     const entry = make("div", "level-row");
@@ -1751,13 +1791,13 @@ function levelTable(f, path, value, def) {
     const remove = make("button", "remove", "×");
     remove.title = "Remove";
     remove.onclick = () => { const copy = clone(value); delete copy[id]; change(f, path, copy); };
-    entry.append(name, stepper(f, path.concat(id), value[id], 1), remove);
+    entry.append(name, stepper(f, path.concat(id), value[id], o.step), remove);
     control.appendChild(entry);
   }
   control.appendChild(itemFinder("find-" + path.join("-"), (item) => {
     if (item.id in value) return;
     const copy = clone(value);
-    copy[item.id] = 15;
+    copy[item.id] = o.start;
     change(f, path, copy);
   }));
   row.appendChild(control);
@@ -2208,6 +2248,138 @@ function lineChart(box, points, format, xLabel = clock) {
   box.onmouseleave = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; };
 }
 
+// One item's stock chart: an hourly candle of its normal price (open, high, low, close) with how many sold that hour,
+// for the last day, three days or week (/api/chart, PriceHistory on the server). Players' listings of it show as dashed
+// lines and their sales as dots; pick a player to see only theirs. Guests see it too.
+const STOCK_RANGES = [["24h", 24], ["3 days", 72], ["7 days", 168]];
+
+function stockChart(e, id) {
+  const box = make("div", "stock");
+  box.appendChild(make("div", "s", "Price history (hourly, from the server's own flea):"));
+  const head = make("div", "stock-head");
+  const ranges = make("div", "ranges");
+  const pick = document.createElement("select");
+  pick.className = "text";
+  const chart = make("div", "chart stock-chart");
+  const lists = make("div", "lists");
+  head.append(ranges, pick);
+  box.append(head, chart, lists);
+  const view = e.stock && e.stock.id === id ? e.stock : (e.stock = { id, hours: 72, player: "", data: null });
+
+  const draw = () => {
+    const d = view.data;
+    ranges.innerHTML = "";
+    for (const [name, hours] of STOCK_RANGES) {
+      const b = make("button", "btn small" + (view.hours === hours ? " on" : ""), name);
+      b.onclick = () => { view.hours = hours; draw(); };
+      ranges.appendChild(b);
+    }
+    pick.innerHTML = "";
+    pick.appendChild(new Option(T("All players"), ""));
+    for (const name of d.players) pick.appendChild(new Option(name, name, false, name === view.player));
+    pick.onchange = () => { view.player = pick.value; draw(); };
+    const since = d.now - view.hours * 3600;
+    const candles = d.candles.filter(c => c[0] >= since - 3600);
+    const mine = (x) => !view.player || x.player === view.player;
+    const listings = d.listings.filter(mine);
+    const sales = d.sales.filter(s => mine(s) && s.soldAt >= since);
+    drawCandles(chart, candles, listings, sales, since, d.now);
+    lists.innerHTML = "";
+    lists.appendChild(stockTable("Listings up", ["Player", "Price", "Amount", "Ends in"],
+      listings.map(l => [l.player, count(l.price) + " ₽", count(l.quantity), duration(Math.max(0, l.endsAt - d.now))])));
+    lists.appendChild(stockTable("Players' sales", ["Player", "Price", "Amount", "Sold", "Took"],
+      sales.slice().reverse().slice(0, 50).map(s => [s.player, count(s.price) + " ₽", count(s.amount), stockTime(s.soldAt),
+        s.listedAt ? duration(Math.max(0, s.soldAt - s.listedAt)) : "–"])));
+  };
+
+  if (view.data) setTimeout(draw, 0);
+  else {
+    chart.appendChild(make("div", "hint", "Loading…"));
+    fetch(API + "/chart?id=" + encodeURIComponent(id)).then(r => r.json()).then(d => { view.data = d; draw(); })
+      .catch(() => { chart.innerHTML = ""; chart.appendChild(make("div", "hint", "Couldn't load the price history.")); });
+  }
+  return box;
+}
+
+const stockTime = (t) => new Date(t * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+function stockTable(title, heads, rows) {
+  const wrap = make("div");
+  wrap.appendChild(make("div", "s", title));
+  if (!rows.length) { wrap.appendChild(make("div", "none", "None.")); return wrap; }
+  const table = make("table");
+  const tr = make("tr");
+  for (const h of heads) tr.appendChild(make("th", "", h));
+  table.appendChild(tr);
+  for (const row of rows) {
+    const r = make("tr");
+    for (const cell of row) r.appendChild(make("td", "", cell));
+    table.appendChild(r);
+  }
+  const scroll = make("div", "odds-wrap");
+  scroll.appendChild(table);
+  wrap.appendChild(scroll);
+  return wrap;
+}
+
+function drawCandles(box, candles, listings, sales, t0, t1) {
+  box.innerHTML = "";
+  if (!candles.length) {
+    box.appendChild(make("div", "hint", "No history yet. Prices are recorded every 15 minutes while the server runs."));
+    return;
+  }
+  const W = box.clientWidth || 600, H = 260, L = 60, R = 10, TOP = 10, B = 24, V = 50, gap = 6;
+  const priceBottom = H - B - V - gap;
+  const marks = listings.map(l => l.price).concat(sales.map(s => s.price)).filter(v => v > 0);
+  let lo = Math.min(...candles.map(c => c[3]), ...marks), hi = Math.max(...candles.map(c => c[2]), ...marks);
+  const pad = Math.max((hi - lo) * 0.12, hi * 0.01, 1);
+  lo = Math.max(0, lo - pad); hi += pad;
+  const slot = (W - L - R) / Math.max(1, (t1 - t0) / 3600);
+  const x = (t) => L + (t - t0) / Math.max(1, t1 - t0) * (W - L - R);
+  const y = (v) => TOP + (1 - (v - lo) / (hi - lo)) * (priceBottom - TOP);
+  const maxVol = Math.max(1, ...candles.map(c => c[5]));
+  const vy = (v) => H - B - v / maxVol * V;
+  const body = Math.max(1, Math.min(14, slot * 0.7));
+  let svg = `<svg width="${W}" height="${H}" role="img">`;
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * i / 3, yy = y(v);
+    svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy + 4}" text-anchor="end">${count(Math.round(v))}</text>`;
+  }
+  svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>`;
+  for (const [t, anchor] of [[t0, "start"], [(t0 + t1) / 2, "middle"], [t1, "end"]]) svg += `<text x="${x(t)}" y="${H - 6}" text-anchor="${anchor}">${stockTime(t)}</text>`;
+  for (const c of candles) {
+    const cx = x(c[0] + 1800), cls = c[4] >= c[1] ? "up" : "down";
+    const top = y(Math.max(c[1], c[4])), bottom = y(Math.min(c[1], c[4]));
+    svg += `<line class="wick ${cls}" x1="${cx}" x2="${cx}" y1="${y(c[2])}" y2="${y(c[3])}"/>`;
+    svg += `<rect class="${cls}" x="${cx - body / 2}" y="${top}" width="${body}" height="${Math.max(1, bottom - top)}"/>`;
+    if (c[5] > 0) svg += `<rect class="vol" x="${cx - body / 2}" y="${vy(c[5])}" width="${body}" height="${H - B - vy(c[5])}"/>`;
+  }
+  for (const l of listings) {
+    if (!(l.price > 0)) continue;
+    svg += `<line class="listing" x1="${L}" x2="${W - R}" y1="${y(l.price)}" y2="${y(l.price)}"/>`;
+  }
+  for (const s of sales) if (s.price > 0) svg += `<circle class="sale" cx="${x(s.soldAt)}" cy="${y(s.price)}" r="4"/>`;
+  svg += `<line class="cross" x1="0" x2="0" y1="${TOP}" y2="${H - B}" visibility="hidden"/></svg>`;
+  box.innerHTML = svg;
+  const tip = make("div", "tip");
+  tip.hidden = true;
+  box.appendChild(tip);
+  const cross = box.querySelector(".cross");
+  box.onmousemove = (ev) => {
+    const px = ev.clientX - box.getBoundingClientRect().left;
+    let best = candles[0];
+    for (const c of candles) if (Math.abs(x(c[0] + 1800) - px) < Math.abs(x(best[0] + 1800) - px)) best = c;
+    const bx = x(best[0] + 1800);
+    cross.setAttribute("x1", bx); cross.setAttribute("x2", bx); cross.setAttribute("visibility", "visible");
+    tip.hidden = false;
+    tip.innerHTML = "";
+    tip.append(make("b", "", count(best[4]) + " ₽"), make("span", "", T("Open") + " " + count(best[1]) + " · " + T("High") + " " + count(best[2]) + " · " + T("Low") + " " + count(best[3]) + " · " + T("Sold") + " " + count(best[5])), make("span", "", stockTime(best[0])));
+    tip.style.left = Math.min(Math.max(0, bx - tip.offsetWidth / 2), W - tip.offsetWidth) + "px";
+    tip.style.top = "0px";
+  };
+  box.onmouseleave = () => { cross.setAttribute("visibility", "hidden"); tip.hidden = true; };
+}
+
 // ---------- search ----------
 
 // Every setting and section on every tab: where it is, what it's called and what it does.
@@ -2220,7 +2392,7 @@ function settingsIndex() {
         const v = value[key];
         // A section's own on/off switch sits on the section's row, so the section stands for it.
         if (inList(HIDDEN, f.file, p) || (key === "enabled" && path.length && typeof v === "boolean")) continue;
-        const special = inList(ITEM_LISTS, f.file, p) || inList(LEVEL_TABLES, f.file, p) || inList(PRICE_TABLES, f.file, p) || (f.file === "flea.jsonc" && (p.join(".") === "bannedModItems" || p.join(".") === "allowedModItems")) || (f.file === "weapons.jsonc" && p.join(".") === "moddedParts.disabledMods");
+        const special = inList(ITEM_LISTS, f.file, p) || inList(LEVEL_TABLES, f.file, p) || inList(MULTIPLIER_TABLES, f.file, p) || inList(PRICE_TABLES, f.file, p) || (f.file === "flea.jsonc" && (p.join(".") === "bannedModItems" || p.join(".") === "allowedModItems")) || (f.file === "weapons.jsonc" && p.join(".") === "moddedParts.disabledMods");
         out.push({ f, path: p, label: labelFor(f.file, p), desc: lookup(DESC, f.file, p) || "" });
         if (isObject(v) && !special && !inList(OPEN_TABLES, f.file, p)) walk(p, v);
       }
@@ -2300,7 +2472,7 @@ async function loadEconomy() {
   const query = "?level=" + (e.level || "") + (e.item ? "&id=" + e.item.id : "");
   try { e.data = await (await fetch(API + "/economy" + query, { cache: "no-store" })).json(); } catch (err) { e.data = null; }
   if (!e.level && e.data) e.level = e.data.previewLevel;
-  if (state.current === "economy.jsonc" || state.guest) render();
+  if (state.current === "economy.jsonc" || state.current === LOOKUP || state.guest) render();
 }
 
 function ago(seconds) {
@@ -2404,8 +2576,12 @@ function economyPanel() {
     ["Cheaper", d.movers.slice(half).filter(m => m.factor < 0.995).slice(0, 10).map(pct)]]));
   wrap.appendChild(wipe);
 
-  wrap.appendChild(itemLookup(e, d));
-  wrap.appendChild(offersCard());
+  const more = make("div", "card lookup");
+  more.appendChild(make("div", "s", "Item lookup, price history and the players' offers on the flea are on the Lookup tab."));
+  const go = make("button", "btn small", "Open Lookup");
+  go.onclick = () => { state.current = LOOKUP; store("bf.tab", LOOKUP); render(); window.scrollTo(0, 0); };
+  more.appendChild(go);
+  wrap.appendChild(more);
   return wrap;
 }
 
@@ -2471,6 +2647,7 @@ function itemLookup(e, d) {
       make("div", "", (d.stockBuild ? "Actual value (default build): " : "Actual value: ") + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
     look.appendChild(facts);
     if (d.odds) look.appendChild(oddsTable(d.odds, "Selling one (as found, not bought):"));
+    look.appendChild(stockChart(e, e.item.id));
     look.appendChild(make("div", "s", "Through a wipe (with the Wipe Cycle on):"));
     const chart = make("div", "chart");
     look.appendChild(chart);
@@ -2509,18 +2686,22 @@ function oddsTable(o, title, listed) {
   return box;
 }
 
-// Every player's offers that are up, each with how it sells at other prices. Guests see it too.
+// Every player's offers that are up, each with how it sells at other prices. Guests see it too. Kept between redraws
+// (picking an item redraws the tab); Refresh asks again.
 function offersCard() {
   const card = make("div", "card lookup");
-  card.appendChild(make("h3", "", "Offers on the flea"));
+  const head = make("div", "econ-head");
+  const refresh = make("button", "btn small", "Refresh");
+  head.append(make("h3", "", "Offers on the flea"), refresh);
+  card.appendChild(head);
   const body = make("div");
-  body.appendChild(make("div", "hint", "Loading…"));
   card.appendChild(body);
-  fetch(API + "/offers").then(r => r.json()).then(d => {
+  const show = (d) => {
     body.innerHTML = "";
-    if (!d.offers || !d.offers.length) { body.appendChild(make("div", "s", "No player offers are up right now.")); return; }
-    body.appendChild(make("div", "s", "Players' offers that are up. Open one to see how it would sell at other prices."));
-    for (const o of d.offers) {
+    if (!d) { body.appendChild(make("div", "s", "Couldn't load the offers.")); return; }
+    if (!d.offers || !d.offers.length) { body.appendChild(make("div", "s", "No player offers are up right now.")); }
+    else body.appendChild(make("div", "s", "Players' offers that are up. Open one to see how it would sell at other prices."));
+    for (const o of d.offers || []) {
       const item = make("details", "offer");
       const sum = make("summary");
       sum.append(make("b", "", o.name), make("span", "n", o.player), make("span", "", count(o.price) + " ₽" + (o.quantity > 1 ? " × " + o.quantity : "")));
@@ -2534,8 +2715,33 @@ function offersCard() {
       item.appendChild(o.odds ? oddsTable(o.odds, "", o.price) : make("div", "s", "No odds: sale delays are off."));
       body.appendChild(item);
     }
-  }).catch(() => { body.innerHTML = ""; body.appendChild(make("div", "s", "Couldn't load the offers.")); });
+    body.appendChild(make("div", "s", "Updated " + clock(d.now) + "."));
+  };
+  const load = () => {
+    refresh.disabled = true;
+    body.innerHTML = "";
+    body.appendChild(make("div", "hint", "Loading…"));
+    fetch(API + "/offers", { cache: "no-store" }).then(r => r.json()).then(d => { state.offers = d; show(d); })
+      .catch(() => show(null)).finally(() => { refresh.disabled = false; });
+  };
+  refresh.onclick = load;
+  if (state.offers) show(state.offers); else load();
   return card;
+}
+
+// The Lookup tab: Item lookup (prices, sale odds, price history, the wipe) and the players' offers that are up.
+function lookupSection() {
+  const section = document.createElement("section");
+  const head = make("div", "file-head");
+  const t = make("div", "t");
+  t.append(make("h2", "", "Lookup"), make("p", "", "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now."));
+  head.appendChild(t);
+  section.appendChild(head);
+  const e = state.econ || (state.econ = { level: 0, item: null });
+  if (!e.data && !e.loading) { e.loading = true; loadEconomy(); }
+  section.appendChild(itemLookup(e, e.data || {}));
+  section.appendChild(offersCard());
+  return section;
 }
 
 // ---------- mod items ----------

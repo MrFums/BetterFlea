@@ -14,7 +14,7 @@ import sys
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DB = sys.argv[1] if len(sys.argv) > 1 else "E:/Games/SPT4.1-CLEAN/SPT_Runtime/SPT_Data/database/"
+DB = sys.argv[1] if len(sys.argv) > 1 else "SPT_Runtime/SPT_Data/database/"
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, "..", "quest-unlock-difficulty.md")
 TSV = sys.argv[3] if len(sys.argv) > 3 else None
 
