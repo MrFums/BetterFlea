@@ -8,9 +8,6 @@ public record PricesConfig
     [JsonPropertyName("priceMultiplier")]
     public double PriceMultiplier { get; set; } = 1.0;
 
-    [JsonPropertyName("markedKeyMultiplier")]
-    public double MarkedKeyMultiplier { get; set; } = 1.0;
-
     // Item or category ID -> multiplier, on top of priceMultiplier.
     [JsonPropertyName("categoryMultipliers")]
     public Dictionary<string, double> CategoryMultipliers { get; set; } = new();

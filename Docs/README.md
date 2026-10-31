@@ -47,7 +47,7 @@ version, is in [../CHANGELOG.md](../CHANGELOG.md).
 | Let a mod's own flea-banned items on the flea | [Bans tab](02-settings-reference.md#bans-tab): Mod items, Allow |
 | Lift BSG's bans (M995, Bitcoins and so on) | [Bans tab](02-settings-reference.md#bans-tab): BSG's banned items off, then restart the game |
 | Make everything on the flea dearer or cheaper | [Prices tab](02-settings-reference.md#prices-tab): price multiplier |
-| Make marked keys dearer | [Prices tab](02-settings-reference.md#prices-tab): marked key multiplier (1.5 is a good start) |
+| Make marked keys dearer | [Prices tab](02-settings-reference.md#prices-tab): prices by category, marked keys (1.5 is a good start) |
 | Have more or fewer offers | [Listings tab](02-settings-reference.md#listings-tab): multiplier, minimum offers |
 | Stop players flipping trader items | [Selling tab](02-settings-reference.md#selling-tab): trader item lock |
 | Make player sales slower or faster | [Selling tab](02-settings-reference.md#selling-tab): sale delay |

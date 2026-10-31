@@ -19,7 +19,7 @@ show and sell matches the flea.
 `POST /betterflea/item-price`, Better Flea 2.3.0 or newer.
 
 What Better Flea would sell one of this item for on the flea, in roubles, with every setting applied: the base price,
-condition, key uses, drift, the price multiplier, the marked key multiplier, the Wipe Cycle, the floor and gun pricing.
+condition, key uses, drift, the price multiplier, prices by category, the Wipe Cycle, the floor and gun pricing.
 It's the same price a player's own listing is measured against ([normal price](07-selling.md#your-items-normal-price)).
 
 **Request:** the item and everything in it, as a JSON list, the way the game stores items: the root item first with

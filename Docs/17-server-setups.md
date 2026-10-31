@@ -19,7 +19,7 @@ Flea style **Live progression**, then:
 | Setting | Value | Why |
 |---|---|---|
 | `prices.jsonc: priceMultiplier` | 1.3 | Everything 30% dearer |
-| `prices.jsonc: markedKeyMultiplier` | 1.5 | Marked keys worth farming |
+| `prices.jsonc: categoryMultipliers` | Marked keys 1.5 | Marked keys worth farming |
 | `listings.jsonc: listings.multiplier` | 1.5 | Fewer offers |
 | `selling.jsonc: foundInRaidOnly` | true | Only loot can be sold. Bought items aren't found in raid, so no flipping at all |
 | `selling.jsonc: saleDelay.expensivePercent` | 10 | Buyers less patient with high prices |

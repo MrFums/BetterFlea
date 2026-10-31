@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "Цены любого предмета, как он продастся, его история цен и текущие предложения игроков на барахолке.",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "Поиск предметов, история цен и предложения игроков — на вкладке «Поиск».",
   "Open Lookup": "Открыть «Поиск»",
-  "Updated {0}.": "Обновлено {0}."
+  "Updated {0}.": "Обновлено {0}.",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "Сделайте целый вид предметов дороже или дешевле на барахолке, сверх «Всех цен барахолки»: патроны 0,8, оружие 1,5, бартерные предметы 2. 1 = как всё остальное. Меняются и предложения других продавцов, и обычная цена вашего предложения. Цены торговцев — нет.",
+  "Show": "Показать",
+  "Hide": "Скрыть",
+  "{0} categories, {1} changed": "Категорий: {0}, изменено: {1}"
  }
 }

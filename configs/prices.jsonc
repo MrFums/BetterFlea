@@ -6,14 +6,9 @@
   // Price of every offer from other sellers. 1 = normal. 1.5 = 50% more. Trader prices do not change.
   "priceMultiplier": 1.0,
 
-  // Price of marked keys on the Flea Market (a mod's marked keys too). 1 = normal. 1.5 = 50% more.
-  // Trader prices do not change.
-  "markedKeyMultiplier": 1.0,
-
-  // Prices of whole kinds of item, or single items, on the Flea Market, on top of priceMultiplier. Item or category
-  // ID -> multiplier: { "<ammo category ID>": 0.8, "<valuables category ID>": 2 }. Easiest to set on the settings page,
-  // which finds categories by name. An item's own setting beats its category's. Other sellers' offers and the normal
-  // price your own listing is measured against both change. Trader prices do not change.
+  // Prices of whole kinds of item on the Flea Market, on top of priceMultiplier, named as on the Bans tab:
+  // { "ammo.rounds": 0.8, "weapons.guns": 1.5, "other.barterItems": 2 }. Not listed = 1. An item or category ID works too.
+  // Other sellers' offers and the normal price your own listing is measured against both change. Trader prices do not.
   "categoryMultipliers": {},
 
   // An offer is never cheaper than the most a trader pays for the item.

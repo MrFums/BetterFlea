@@ -46,7 +46,7 @@ wins that feature.
 |---|---|---|
 | Flea prices | `templates.Prices` (SPT's `prices.json` in memory) | Base prices from the price index, live prices or your prices |
 | Trader cuts | Each trader's `loyaltyLevels[].buy_price_coef` | Live trader prices (not for a trader another mod changed) |
-| Per-item flea multipliers | `ragfair.json` `dynamic.itemPriceMultiplier` in memory | The marked key multiplier and prices by category. What was applied last is taken back out first, so SPT's own entries and other mods' stay |
+| Per-item flea multipliers | `ragfair.json` `dynamic.itemPriceMultiplier` in memory | Prices by category. What was applied last is taken back out first, so SPT's own entries and other mods' stay |
 | `CanSellOnRagfair` | Item templates | Lifting BSG's bans properly, keeping never-sold items and SPT's dev items off |
 | Flea blacklist | `ragfair.json` `dynamic.blacklist.custom` in memory | Banned categories, items and mod items. Not SPT's item blacklist (`ItemConfig`), which would also change bot loot |
 | BSG blacklist switch | `ragfair.json` `dynamic.blacklist.enableBsgList` in memory | The BSG's banned items setting |

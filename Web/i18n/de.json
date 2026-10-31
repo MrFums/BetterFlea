@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "Preise jedes Gegenstands, wie er sich verkaufen würde, sein Preisverlauf und die aktuellen Angebote der Spieler auf dem Flohmarkt.",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "Gegenstandssuche, Preisverlauf und die Angebote der Spieler sind im Tab Nachschlagen.",
   "Open Lookup": "Nachschlagen öffnen",
-  "Updated {0}.": "Aktualisiert {0}."
+  "Updated {0}.": "Aktualisiert {0}.",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "Mach eine ganze Art von Gegenständen auf dem Flohmarkt teurer oder billiger, zusätzlich zu Alle Flohmarktpreise: Munition 0,8, Waffen 1,5, Tauschwaren 2. 1 = wie alles andere. Die Angebote anderer Verkäufer und der Normalpreis, an dem dein eigenes Angebot gemessen wird, ändern sich beide. Händlerpreise nicht.",
+  "Show": "Anzeigen",
+  "Hide": "Ausblenden",
+  "{0} categories, {1} changed": "{0} Kategorien, {1} geändert"
  }
 }

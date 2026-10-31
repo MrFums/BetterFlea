@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "Item lookup, price history and the players' offers on the flea are on the Lookup tab.",
   "Open Lookup": "Open Lookup",
-  "Updated {0}.": "Updated {0}."
+  "Updated {0}.": "Updated {0}.",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.",
+  "Show": "Show",
+  "Hide": "Hide",
+  "{0} categories, {1} changed": "{0} categories, {1} changed"
  }
 }

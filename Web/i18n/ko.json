@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "모든 아이템의 가격, 판매 예상, 가격 기록과 지금 벼룩시장에 올라온 플레이어 매물.",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "아이템 조회, 가격 기록, 플레이어 매물은 조회 탭에 있습니다.",
   "Open Lookup": "조회 열기",
-  "Updated {0}.": "{0} 업데이트."
+  "Updated {0}.": "{0} 업데이트.",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "‘모든 벼룩시장 가격’에 더해 아이템 종류 전체를 벼룩시장에서 더 비싸거나 싸게 만듭니다: 탄약 0.8, 총기 1.5, 물물교환 아이템 2. 1 = 나머지와 같음. 다른 판매자의 매물과 내 매물의 기준이 되는 정상 가격이 모두 바뀝니다. 상인 가격은 바뀌지 않습니다.",
+  "Show": "보기",
+  "Hide": "숨기기",
+  "{0} categories, {1} changed": "카테고리 {0}개, 변경 {1}개"
  }
 }

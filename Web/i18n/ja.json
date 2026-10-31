@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "あらゆるアイテムの価格、売れ方、価格の推移と、今フリマに出ているプレイヤーの出品。",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "アイテム検索、価格の推移、プレイヤーの出品は「検索」タブにあります。",
   "Open Lookup": "検索を開く",
-  "Updated {0}.": "{0} に更新。"
+  "Updated {0}.": "{0} に更新。",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "「すべてのフリマ価格」に加えて、アイテムの種類全体をフリマで高く・安くします：弾薬 0.8、銃 1.5、バーター品 2。1 = ほかと同じ。他の出品者の出品と、あなたの出品の基準になる通常価格の両方が変わります。商人の価格は変わりません。",
+  "Show": "表示",
+  "Hide": "隠す",
+  "{0} categories, {1} changed": "{0} カテゴリ、変更 {1}"
  }
 }

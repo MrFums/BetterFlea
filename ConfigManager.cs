@@ -38,11 +38,66 @@ public class ConfigManager(
         Validate();
         DebugLog.BindSummaries(this, message => logger.Info(message));
         DataFiles.Bind(ModPath, jsonUtil, message => logger.Warning(message));
-        if (MoveOldDefaults())
+        if (MoveOldDefaults() | MoveMarkedKeyMultiplier())
         {
             Mod = LoadSplit();
             Validate();
         }
+    }
+
+    // 2.4.1: Marked key price became the marked keys row of Prices by category. A value someone set (1.5, say) moves
+    // there once, times anything already in that row, and the old line comes out of configs/prices.jsonc.
+    private const string MarkedKeysMove = "2.4.1-marked-keys";
+
+    private bool MoveMarkedKeyMultiplier()
+    {
+        var applied = DataFiles.Read<List<string>>(UpdatesFile) ?? [];
+        if (applied.Contains(MarkedKeysMove))
+        {
+            return false;
+        }
+
+        var moved = false;
+        var path = Path.Combine(ModPath, ConfigFolder, "prices.jsonc");
+        try
+        {
+            if (File.Exists(path))
+            {
+                var text = File.ReadAllText(path);
+                var options = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+                var old = JsonNode.Parse(text, documentOptions: options)?["markedKeyMultiplier"] is JsonValue value
+                    && value.TryGetValue<double>(out var multiplier) ? multiplier : 1.0;
+                if (old > 0 && Math.Abs(old - 1) > 1e-9 && FileValues("prices.jsonc") is JsonObject values)
+                {
+                    var table = values["categoryMultipliers"] as JsonObject ?? new JsonObject();
+                    var current = table["keys.markedKeys"] is JsonValue now && now.TryGetValue<double>(out var had) ? had : 1.0;
+                    table["keys.markedKeys"] = Math.Round(current * old, 3);
+                    values["categoryMultipliers"] = table;
+                    text = JsoncPort.Apply(text, values, FileDefaults("prices.jsonc"));
+                    moved = true;
+                    logger.Info($"[BetterFlea] Marked key price x{old} moved to Prices by category, Marked keys (configs/prices.jsonc).");
+                }
+
+                // The old line, and the two lines of notes the shipped file had above it.
+                var cleaned = System.Text.RegularExpressions.Regex.Replace(text,
+                    @"(\r?\n)[ \t]*// Price of marked keys[^\n]*\n[ \t]*// Trader prices do not change\.[^\n]*\n(?=[ \t]*""markedKeyMultiplier"")", "$1");
+                cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\r?\n[ \t]*""markedKeyMultiplier""[ \t]*:[^\n]*", "");
+                // The blank lines either side of it become one.
+                cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(\r?\n)(?:[ \t]*\r?\n){2,}", "$1$1");
+                if (cleaned != File.ReadAllText(path))
+                {
+                    File.WriteAllText(path, cleaned);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.Warning($"[BetterFlea] Could not move Marked key price to Prices by category ({ex.Message}).");
+        }
+
+        applied.Add(MarkedKeysMove);
+        DataFiles.Write(UpdatesFile, applied);
+        return moved;
     }
 
     // Defaults a version changed, as (update, file, setting, old default, new default). A setting still at its old
@@ -422,12 +477,6 @@ public class ConfigManager(
 
     private void Validate()
     {
-        if (Mod.Prices.MarkedKeyMultiplier <= 0)
-        {
-            logger.Warning("[BetterFlea] markedKeyMultiplier (configs/prices.jsonc) must be > 0, resetting to 1.0");
-            Mod.Prices.MarkedKeyMultiplier = 1.0;
-        }
-
         if (Mod.Prices.PriceMultiplier <= 0)
         {
             logger.Warning("[BetterFlea] priceMultiplier (configs/prices.jsonc) must be > 0, resetting to 1.0");

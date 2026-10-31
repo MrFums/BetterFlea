@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "Ceny dowolnego przedmiotu, jak by się sprzedał, jego historia cen i aktualne oferty graczy na pchlim targu.",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "Wyszukiwanie przedmiotów, historia cen i oferty graczy są na karcie Wyszukiwanie.",
   "Open Lookup": "Otwórz Wyszukiwanie",
-  "Updated {0}.": "Zaktualizowano {0}."
+  "Updated {0}.": "Zaktualizowano {0}.",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "Spraw, by cały rodzaj przedmiotów był na pchlim targu droższy lub tańszy, dodatkowo do Wszystkich cen pchlego targu: amunicja 0,8, broń 1,5, przedmioty na wymianę 2. 1 = tak jak wszystko inne. Zmieniają się zarówno oferty innych sprzedawców, jak i cena normalna twojej oferty. Ceny handlarzy nie.",
+  "Show": "Pokaż",
+  "Hide": "Ukryj",
+  "{0} categories, {1} changed": "{0} kategorii, zmienione: {1}"
  }
 }

@@ -249,8 +249,7 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | Setting | Default | What it does |
 |---|---|---|
 | `priceMultiplier` | 1.0 | Every generated offer. 1.5 = 50% dearer. The simplest way to make the flea harder or easier. |
-| `markedKeyMultiplier` | 1.0 | Marked keys only (mods' too). 1.5 is a good start if marked keys feel cheap. |
-| `categoryMultipliers` | none | **Prices by category**: a whole kind of item, or one item, dearer or cheaper on top of the price multiplier: all ammo 0.8, all guns 1.5, valuables 2. Search for a category or item on the page. An item's own setting beats its category's, a smaller category beats the bigger one. Changes other sellers' offers and the normal price your listing is measured against. Traders unchanged. |
+| `categoryMultipliers` | all 1 | **Prices by category**: every kind of item from the Bans tab with its own multiplier, on top of the price multiplier: `ammo.rounds` 0.8, `weapons.guns` 1.5, `other.barterItems` 2. Changes other sellers' offers and the normal price your listing is measured against. Traders unchanged. An item or category ID works in the file too. |
 | `floor.enabled` | on | No generated offer under the most a trader pays for the item, so nobody buys on the flea to sell to a trader. |
 | `floor.marginPercent` | 10 | The cheapest offer is this % over that trader price. |
 | `floor.logTraderProfitLoops` | off | Log the items one trader sells for less than another pays. |

@@ -24,7 +24,7 @@ sellers:
 
 - **Each part priced on its own:** the item, its plates, inserts, attachments, the rounds in a mag, each at its base
   price and its own condition.
-- **Then the same steps as generated offers:** drift, the price multiplier, the marked key multiplier, the Wipe Cycle.
+- **Then the same steps as generated offers:** drift, the price multiplier, prices by category, the Wipe Cycle.
 - **Guns** use the [gun value](04-guns-and-attachments.md#how-a-gun-is-priced).
 - **Never under what traders pay for all of it**, built-in inserts included.
 - A **pack** (several items sold together) is the normal price times the count.

@@ -1087,14 +1087,15 @@ internal static class EmptyFuelPricing
     }
 }
 
-// The marked key multiplier and the category multipliers, as SPT's own per-item flea multipliers (ragfair
+// Prices by category, as SPT's own per-item flea multipliers (ragfair
 // dynamic.itemPriceMultiplier): the flea price every offer and a player's normal price start from, so other sellers'
 // offers and the price a listing is measured against move together. Trader and handbook prices stay as they are.
 [Injectable(InjectionType.Singleton)]
 public class FleaPriceMultipliers(
     ConfigManager configManager,
     RagfairConfig ragfairConfig,
-    TemplateTable templates)
+    TemplateTable templates,
+    ItemHelper itemHelper)
 {
     private Dictionary<MongoId, double> _applied = new();
 
@@ -1108,32 +1109,35 @@ public class FleaPriceMultipliers(
     public void Apply()
     {
         var prices = configManager.Mod.Prices;
+        // Better Flea's own categories (the Bans tab's, "weapons.guns"), or an item or category ID.
         var categories = new Dictionary<MongoId, double>();
-        foreach (var (id, multiplier) in prices.CategoryMultipliers ?? [])
+        var named = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, multiplier) in prices.CategoryMultipliers ?? [])
         {
-            if (MongoId.IsValidMongoId(id) && multiplier > 0)
+            if (multiplier <= 0)
             {
-                categories[new MongoId(id)] = Math.Clamp(multiplier, 0.1, 10);
+                continue;
+            }
+
+            if (MongoId.IsValidMongoId(key))
+            {
+                categories[new MongoId(key)] = Math.Clamp(multiplier, 0.1, 10);
+            }
+            else if (FleaCategories.Names.Contains(key))
+            {
+                named[key] = Math.Clamp(multiplier, 0.1, 10);
             }
         }
 
         var wanted = new Dictionary<MongoId, double>();
-        if (categories.Count > 0)
+        if (categories.Count > 0 || named.Count > 0)
         {
-            foreach (var tpl in templates.Items.Keys)
+            foreach (var (tpl, item) in templates.Items)
             {
-                if (CategoryMultiplier(tpl, categories) is { } multiplier && Math.Abs(multiplier - 1) > 1e-9)
+                if (CategoryMultiplier(tpl, item, categories, named) is { } multiplier && Math.Abs(multiplier - 1) > 1e-9)
                 {
                     wanted[tpl] = multiplier;
                 }
-            }
-        }
-
-        if (Math.Abs(prices.MarkedKeyMultiplier - 1) > 1e-9)
-        {
-            foreach (var tpl in FleaCategories.MarkedKeys)
-            {
-                wanted[tpl] = wanted.GetValueOrDefault(tpl, 1.0) * prices.MarkedKeyMultiplier;
             }
         }
 
@@ -1165,14 +1169,20 @@ public class FleaPriceMultipliers(
         _current = wanted;
         if (changed > 0)
         {
-            DebugLog.Summary(() => $"Flea price multipliers: {wanted.Count} item(s) ({categories.Count} category setting(s), marked keys x{prices.MarkedKeyMultiplier}).");
+            DebugLog.Summary(() => $"Flea price multipliers: {wanted.Count} item(s) from {categories.Count + named.Count} category setting(s).");
         }
     }
 
-    // An item's own setting beats its nearest category's, and a handbook category beats an item type (as unlock levels).
-    private double? CategoryMultiplier(MongoId tpl, Dictionary<MongoId, double> settings)
+    // An item's own setting beats its Better Flea category's, that beats its nearest handbook category's, and a handbook
+    // category beats an item type (as unlock levels).
+    private double? CategoryMultiplier(MongoId tpl, TemplateItem item, Dictionary<MongoId, double> settings, Dictionary<string, double> named)
     {
         if (settings.TryGetValue(tpl, out var multiplier))
+        {
+            return multiplier;
+        }
+
+        if (named.Count > 0 && FleaCategories.Find(item, itemHelper)?.Name is { } name && named.TryGetValue(name, out multiplier))
         {
             return multiplier;
         }

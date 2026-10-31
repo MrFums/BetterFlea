@@ -114,7 +114,7 @@ steps:
 | 5. Floor | Never under the best trader's price (traders that really buy the item only) plus 10% | Prices tab, Floor |
 | 6. Spread | Ordinary offers 4% under to 15% over normal | Prices tab, Spread |
 | 7. Sellers | Overpricers, rare quick sells, troll prices, wrecked armour just under the cheapest decent offer | Prices tab, Sellers |
-| 8. Multipliers | The global price multiplier, prices by category, the marked key multiplier, and the Wipe Cycle | Prices and Economy tabs |
+| 8. Multipliers | The global price multiplier, prices by category, and the Wipe Cycle | Prices and Economy tabs |
 | 9. Human prices | To the rouble, often an easy number: 45,000, 49,999, 44,444, a rouble under the next seller | Prices tab, round prices |
 
 ### The price index

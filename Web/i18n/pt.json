@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "Os preços de qualquer item, como ele venderia, seu histórico de preços e as ofertas dos jogadores no mercado agora.",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "A consulta de itens, o histórico de preços e as ofertas dos jogadores estão na aba Consulta.",
   "Open Lookup": "Abrir Consulta",
-  "Updated {0}.": "Atualizado {0}."
+  "Updated {0}.": "Atualizado {0}.",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "Deixe um tipo inteiro de item mais caro ou mais barato no mercado, além de Todos os preços do mercado: munição 0,8, armas 1,5, itens de troca 2. 1 = igual a todo o resto. Mudam tanto as ofertas de outros vendedores quanto o preço normal usado para medir a sua oferta. Os preços dos comerciantes não.",
+  "Show": "Mostrar",
+  "Hide": "Ocultar",
+  "{0} categories, {1} changed": "{0} categorias, {1} alteradas"
  }
 }

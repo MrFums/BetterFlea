@@ -105,6 +105,9 @@
   .note { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
   .tag { font-size: 10.5px; color: var(--warn); border: 1px solid rgba(226, 173, 79, 0.4); border-radius: 99px; padding: 0 7px; margin-left: 8px; vertical-align: 1px; font-weight: 500; }
   .changed > .lab .name::after { content: ""; display: inline-block; width: 6px; height: 6px; background: var(--green); border-radius: 50%; margin-left: 8px; vertical-align: 2px; }
+  /* A setting changed from its default: its name and its number box in green, like the category prices. */
+  .row.changed > .lab .name { color: var(--green); }
+  .row.changed .control .num { border-color: var(--green); color: var(--green); }
 
   .group > .row { cursor: pointer; user-select: none; }
   .group > .row:hover { background: var(--panel-2); }
@@ -263,6 +266,18 @@
   .chart .tip span { color: var(--muted); }
   .chart .tip[hidden] { display: none; }
   .chart .hint { padding: 60px 0; }
+  .cat-wrap { width: 100%; }
+  .cat-bar { display: flex; align-items: center; gap: 12px; }
+  .cat-prices { column-width: 230px; column-gap: 24px; margin-top: 10px; }
+  .cat-control { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .cat-step { width: 22px; height: 22px; padding: 0; line-height: 1; font: inherit; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+  .cat-step:hover { color: var(--text); border-color: var(--slate); }
+  .cat-group { break-inside: avoid; margin-bottom: 12px; }
+  .cat-head { color: var(--faint); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 3px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
+  .cat-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 0; font-size: 13px; }
+  .cat-num { width: 4.2em; padding: 2px 6px; text-align: right; font: inherit; font-variant-numeric: tabular-nums; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+  .cat-line.changed .cat-name, .cat-line.changed .cat-num { color: var(--green); }
+  .cat-line.changed .cat-num { border-color: var(--green); }
   .stock { margin: 14px 0; }
   .stock-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .stock-head .ranges { display: flex; gap: 4px; }
@@ -521,7 +536,6 @@ const LABELS = {
   "market.jsonc:packs.chancePercent": "Packs",
   "market.jsonc:packs.hugeChance": "Silly packs",
   "prices.jsonc:priceMultiplier": "All flea prices",
-  "prices.jsonc:markedKeyMultiplier": "Marked key price",
   "prices.jsonc:categoryMultipliers": "Prices by category",
   "prices.jsonc:floor": "Price floor",
   "prices.jsonc:floor.logTraderProfitLoops": "Log trader price loops",
@@ -803,8 +817,7 @@ const DESC = {
 
   // Prices
   "prices.jsonc:priceMultiplier": "Every offer from other sellers costs this much compared with normal. 1 = normal, 1.5 = half as much again. Trader prices don't change.",
-  "prices.jsonc:markedKeyMultiplier": "Flea price of marked keys. 1 = normal, 1.5 = half as much again.",
-  "prices.jsonc:categoryMultipliers": "Make a whole kind of item, or one item, dearer or cheaper on the flea, on top of the price multiplier: all ammo 0.8, all guns 1.5, valuables 2. Search for a category or an item. An item's own setting beats its category's, and a smaller category beats the bigger one it's in. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.",
+  "prices.jsonc:categoryMultipliers": "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.",
   "prices.jsonc:floor": "Offers never go below what a trader pays, so nothing can be bought here and sold to a trader for profit.",
   "prices.jsonc:floor.marginPercent": "How far above the trader's price the cheapest offer is.",
   "prices.jsonc:floor.logTraderProfitLoops": "At startup, list items one trader sells for less than another buys them. Only listed, never changed.",
@@ -978,7 +991,7 @@ const OFF = {
   "armor.jsonc": { enabled: false },
   "market.jsonc": { offerExpiry: { minMinutes: 6, maxMinutes: 60 }, simulatedSales: { enabled: false }, soldBeforeYouChance: 0,
     barterOffers: { chance: 0 }, sellerRating: { enabled: false }, packs: { enabled: false } },
-  "prices.jsonc": { priceMultiplier: 1, markedKeyMultiplier: 1, floor: { enabled: false }, drift: { enabled: false }, sellers: { enabled: false }, guns: { enabled: false }, spread: { enabled: false }, demand: { enabled: false } },
+  "prices.jsonc": { priceMultiplier: 1, floor: { enabled: false }, drift: { enabled: false }, sellers: { enabled: false }, guns: { enabled: false }, spread: { enabled: false }, demand: { enabled: false } },
   "selling.jsonc": { foundInRaidOnly: false, saleDelay: { enabled: false }, flipPenalty: { enabled: false }, purchaseLock: { enabled: false }, undercut: { enabled: false }, buyers: { enabled: false } }
 };
 
@@ -1004,7 +1017,7 @@ const STYLES = [
     } },
   { id: "overpriced", name: "Overpriced", short: "Everything costs about 50% more.", about: "Everything on the flea costs half as much again, some sellers ask even more, quick sells are gone and guns cost more than at the traders.",
     files: {
-      "prices.jsonc": { priceMultiplier: 1.5, markedKeyMultiplier: 2, floor: { marginPercent: 40 },
+      "prices.jsonc": { priceMultiplier: 1.5, categoryMultipliers: { "keys.markedKeys": 2 }, floor: { marginPercent: 40 },
         sellers: { overpriceChance: 0.35, wornOverpriceChance: 0.5, overpriceMinPercent: 15, overpriceMaxPercent: 50, quickSellChance: 0 },
         guns: { traderPricePercent: 150 } },
       "market.jsonc": { packs: { scamChance: 0.9 }, simulatedSales: { normalSellChancePerHour: 0.02 } }
@@ -1400,7 +1413,7 @@ async function loadNames() {
     const [file, path] = key.split(":");
     for (const id of getAt(state.byFile[file].values, path.split(".")) || []) if (!state.names[id]) ids.add(id);
   }
-  for (const key of LEVEL_TABLES.concat(MULTIPLIER_TABLES, PRICE_TABLES)) {
+  for (const key of LEVEL_TABLES.concat(PRICE_TABLES)) {
     const [file, path] = key.split(":");
     for (const id of Object.keys(getAt(state.byFile[file].values, path.split(".")) || {})) if (!state.names[id] || !("usual" in state.names[id])) ids.add(id);
   }
@@ -1565,7 +1578,13 @@ function currentStyle() {
 function ordered(f, path, obj) {
   const prefix = path.length ? path.join(".") + "." : "";
   const rank = (k) => { const i = f.order.indexOf(prefix + k); return i < 0 ? 1e9 : i; };
-  return Object.keys(obj).sort((a, b) => rank(a) - rank(b));
+  const keys = Object.keys(obj).sort((a, b) => rank(a) - rank(b));
+  // Prices by category sits under All flea prices, even in a settings file older than it (where it'd come last).
+  if (f.file === "prices.jsonc" && !path.length && keys.includes("categoryMultipliers") && keys.includes("priceMultiplier")) {
+    keys.splice(keys.indexOf("categoryMultipliers"), 1);
+    keys.splice(keys.indexOf("priceMultiplier") + 1, 0, "categoryMultipliers");
+  }
+  return keys;
 }
 
 // The restart tag goes on the setting itself, not on everything inside it. The Bans tab says it once at the top.
@@ -1588,7 +1607,7 @@ function buildNode(f, path) {
   if (f.file === "flea.jsonc" && path.join(".") === "bannedModItems") return modItems(f, path, value || {}, def);
   if (f.file === "weapons.jsonc" && path.join(".") === "moddedParts.disabledMods") return moddedPartMods(f, path, value || [], def);
   if (inList(LEVEL_TABLES, f.file, path)) return levelTable(f, path, value || {}, def);
-  if (inList(MULTIPLIER_TABLES, f.file, path)) return levelTable(f, path, value || {}, def, { start: 1, step: 0.05, empty: "None yet. Every kind of item is at the price multiplier above." });
+  if (inList(MULTIPLIER_TABLES, f.file, path)) return categoryPrices(f, path, value || {}, def);
   if (inList(PRICE_TABLES, f.file, path)) return priceTable(f, path, value || {}, def);
   if (isObject(value)) return group(f, path, value, def);
 
@@ -1774,6 +1793,56 @@ function itemList(f, path, value, def) {
 }
 
 // Your own unlock levels: an item or category, and its level.
+// Prices by category: every category from the Bans tab, by group, each with its own multiplier (1 = as the rest).
+// Folded away by default with a count of the changed ones; open, the groups flow into columns of compact rows.
+// Only the ones not at 1 are kept. An item or category ID set in the file by hand is kept as it is.
+function categoryPrices(f, path, value, def) {
+  const row = make("div", "row wide" + (def !== undefined && !same(value, def) ? " changed" : ""));
+  row.append(label(f, path, true), resetButton(f, path, value, def));
+  const control = make("div", "control cat-wrap");
+  const groups = (state.byFile["flea.jsonc"] && state.byFile["flea.jsonc"].defaults.bannedCategories) || {};
+  const keys = Object.keys(groups).flatMap(group => Object.keys(groups[group]).map(sub => group + "." + sub));
+  const changed = keys.filter(key => key in value && value[key] !== 1).length;
+  const bar = make("div", "cat-bar");
+  const toggle = make("button", "btn small", state.catOpen ? "Hide" : "Show");
+  toggle.onclick = () => { state.catOpen = !state.catOpen; render(); };
+  bar.append(make("span", "s", keys.length + " categories, " + changed + " changed"), toggle);
+  control.appendChild(bar);
+  if (state.catOpen) {
+    const set = (key, v) => {
+      const copy = clone(getAt(f.values, path) || {});
+      if (Math.abs(v - 1) < 1e-9) delete copy[key]; else copy[key] = v;
+      change(f, path, copy);
+    };
+    const list = make("div", "cat-prices");
+    for (const group of Object.keys(groups)) {
+      const box = make("div", "cat-group");
+      box.appendChild(make("div", "cat-head", labelFor("flea.jsonc", ["bannedCategories", group])));
+      for (const sub of Object.keys(groups[group])) {
+        const key = group + "." + sub;
+        const current = key in value ? value[key] : 1;
+        const line = make("div", "cat-line" + (current !== 1 ? " changed" : ""));
+        const el = document.createElement("input");
+        el.type = "number"; el.className = "cat-num"; el.step = "0.05"; el.min = "0.1"; el.max = "10"; el.value = current;
+        const put = (v) => set(key, Math.min(10, Math.max(0.1, Math.round(v * 100) / 100)));
+        el.onchange = () => { const v = parseFloat(el.value); if (!isNaN(v) && v > 0) put(v); };
+        const minus = make("button", "cat-step", "−"), plus = make("button", "cat-step", "+");
+        minus.title = "−0.05"; plus.title = "+0.05";
+        minus.onclick = () => put(current - 0.05);
+        plus.onclick = () => put(current + 0.05);
+        const ctl = make("div", "cat-control");
+        ctl.append(minus, el, plus);
+        line.append(make("span", "cat-name", typeLabel(key)), ctl);
+        box.appendChild(line);
+      }
+      list.appendChild(box);
+    }
+    control.appendChild(list);
+  }
+  row.appendChild(control);
+  return row;
+}
+
 // opts: start (a new row's value), step, empty (the text with no rows). Unlock levels by default.
 function levelTable(f, path, value, def, opts) {
   const o = Object.assign({ start: 15, step: 1, empty: "None yet. Everything unlocks at the real game's level." }, opts || {});

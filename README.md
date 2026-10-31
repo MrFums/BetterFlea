@@ -144,7 +144,7 @@ Guns aren't just SPT's factory builds. Each gun offer is one of these:
 - Packs: several items you have to buy together. Most are scams, so do the maths. Very rarely someone lists a silly amount.
 
 ## 5. Prices
-I would personally recommend setting the marked key price to 1.5 as I feel marked keys a bit too cheap in base SPT. I've left this untouched for the default.
+I would personally recommend setting marked keys to 1.5 under Prices by category, as I feel marked keys a bit too cheap in base SPT. I've left this untouched for the default.
 
 - An offer is never cheaper than what a trader pays for the item. No buying on the flea to sell to a trader.
 - Prices go up and down over time.
@@ -228,7 +228,7 @@ If a route isn't there (an older Better Flea, or Better Flea not installed), the
 ### Item price (Better Flea 2.3.0 or newer)
 `POST /betterflea/item-price`
 
-What Better Flea would sell one of the item for on the flea, in roubles, with every setting applied: the price multiplier, marked key multiplier, drift, Wipe Cycle, price floor, the item's condition and key uses, and gun pricing. It's the same price a player's own listing is measured against.
+What Better Flea would sell one of the item for on the flea, in roubles, with every setting applied: the price multiplier, prices by category, drift, Wipe Cycle, price floor, the item's condition and key uses, and gun pricing. It's the same price a player's own listing is measured against.
 
 Send the item and everything in it (a gun's parts, a mag's rounds, an armour's plates) as a JSON list, the way the game stores them: root item first, with `_id`, `_tpl` and, for the parts, `parentId` and `slotId`. Add `upd` for condition, key uses or stack size. The item doesn't have to be in the player's stash.
 

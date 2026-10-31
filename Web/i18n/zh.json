@@ -997,6 +997,10 @@
   "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now.": "任意物品的价格、出售情况和价格历史，以及当前跳蚤市场上的玩家报价。",
   "Item lookup, price history and the players' offers on the flea are on the Lookup tab.": "物品查询、价格历史和玩家报价在“查询”标签页。",
   "Open Lookup": "打开查询",
-  "Updated {0}.": "更新于 {0}。"
+  "Updated {0}.": "更新于 {0}。",
+  "Make a whole kind of item dearer or cheaper on the flea, on top of All flea prices: rounds 0.8, guns 1.5, barter items 2. 1 = the same as everything else. Other sellers' offers and the normal price your own listing is measured against both change. Trader prices don't.": "在“所有跳蚤市场价格”之外，让一整类物品在跳蚤市场上更贵或更便宜：子弹 0.8，枪械 1.5，以物易物物品 2。1 = 与其他一切相同。其他卖家的报价和你的报价所对照的正常价格都会改变。商人价格不变。",
+  "Show": "显示",
+  "Hide": "隐藏",
+  "{0} categories, {1} changed": "{0} 个类别，已更改 {1} 个"
  }
 }
