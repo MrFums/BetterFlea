@@ -8,6 +8,9 @@
 
 **Fixes**
 - **Your prices** did nothing for a gun a trader sells (an MP-18 set to 30,000 still went for about 7,000): guns are priced from the trader's price, and that won over the price you set. A price you set under Your prices is now the gun's price (or a part's), whatever traders sell it for.
+- Pricing something with durability at 0 (a destroyed armour from a raid, hovered with Price Index or listed) put one "durability value is invalid, defaulting to 1" error per part in the server log, and priced it as new. It's now priced as next to worthless, with no error.
+- A helmet or armour whose durability is all in its built-in inserts could be priced as infinite when Price Index asked for it: the request failed with a long "Error handling request: /betterflea/item-price" in the server log and Price Index showed no price. Its inserts now decide its condition, as on the flea.
+- Less console spam: SPT's "[Client Request]" line is no longer written for the plugins' own requests (/betterflea/item-price, client-data, item-levels, flip-notice), which came many times a minute. Every other request is still logged.
 
 ## 2.4.1
 

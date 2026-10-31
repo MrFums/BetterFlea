@@ -300,7 +300,7 @@ internal static class UsedListingsGate
             return 1.0;
         }
 
-        var vanilla = _itemHelper.GetItemQualityModifier(item);
+        var vanilla = SptQuality(item);
         if (vanilla <= 0)
         {
             return 1.0;
@@ -325,8 +325,30 @@ internal static class UsedListingsGate
             return 1.0;
         }
 
-        var quality = _itemHelper.GetItemQualityModifier(item) * KeyPriceFactor(item.Template, item) * ResourcePriceFactor(item.Template, item);
+        var quality = SptQuality(item) * KeyPriceFactor(item.Template, item) * ResourcePriceFactor(item.Template, item);
         return Math.Clamp(quality, 0.01, 1);
+    }
+
+    // SPT's quality for the item's condition. Something with durability at 0 (a destroyed armour and its inserts) is
+    // next to worthless; SPT would log an error for each part and count it as new. A shell whose durability is all in
+    // its built-in inserts has no max of its own, and SPT's share came out infinite: its inserts count (ShellQuality).
+    internal static double SptQuality(Item item)
+    {
+        if (item.Upd?.Repairable is { } repairable)
+        {
+            if (repairable.Durability is not > 0)
+            {
+                return 0.01;
+            }
+
+            if (_itemHelper!.GetItem(item.Template).Value?.Properties?.MaxDurability is not > 0)
+            {
+                return 1.0;
+            }
+        }
+
+        var quality = _itemHelper!.GetItemQualityModifier(item);
+        return double.IsFinite(quality) ? quality : 1.0;
     }
 
     // How worn something with durability is as a whole (a helmet with its inserts, armour with its plates): its parts'

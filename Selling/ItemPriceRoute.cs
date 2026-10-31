@@ -1,4 +1,6 @@
+using System.Reflection;
 using SPTarkov.DI.Annotations;
+using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Helpers.Items;
 using SPTarkov.Server.Core.Models.Common;
@@ -52,4 +54,25 @@ public class ItemPriceRoute(JsonUtil jsonUtil, ItemHelper itemHelper) : IHttpLis
         // Roubles for one of the item. 0 = no price.
         public double Price { get; set; }
     }
+}
+
+// With logRequests on (SPT's http.json, on by default), SPT writes a "[Client Request]" line for every request. The
+// plugins ask these routes for prices and flea state many times a minute, which buried everything else in the
+// console. They're left out of it; every other request is still logged.
+public class QuietClientRoutesPatch : AbstractPatch
+{
+    private static readonly string[] Quiet = [ItemPriceRoute.Path, ClientDataRoute.Path, ClientDataRoute.LevelsPath, FlipNoticeRoute.Path];
+
+    protected override MethodBase GetTargetMethod()
+    {
+        var middleware = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(assembly => assembly.GetType("SPTarkov.Server.Middleware.SptLoggerMiddleware", false))
+            .FirstOrDefault(type => type is not null);
+        return middleware?.GetMethod("LogRequest", BindingFlags.Instance | BindingFlags.Public)
+               ?? throw new MissingMethodException("SptLoggerMiddleware", "LogRequest");
+    }
+
+    [PatchPrefix]
+    public static bool Prefix(HttpContext context) =>
+        !Quiet.Any(path => context.Request.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
 }

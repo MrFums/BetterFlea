@@ -205,7 +205,7 @@ internal static class PriceGate
         }
 
         var condition = item is not null && !UsedListingsGate.IgnoresCondition(tpl)
-            ? _itemHelper!.GetItemQualityModifier(item) * UsedListingsGate.ShellQuality(item, parts)
+            ? UsedListingsGate.SptQuality(item) * UsedListingsGate.ShellQuality(item, parts)
             : 1.0;
 
         var floor = bestBuy * condition * (1.0 + settings.MarginPercent / 100.0);
@@ -925,7 +925,7 @@ internal static class GunPricing
 
         var flea = items.Sum(item => BookPrice.Of(item.Template));
         // SPT's price has its own condition cut on the receiver only; take that back out first.
-        var sptFlea = flea - BookPrice.Of(items[0].Template) * (1 - _itemHelper.GetItemQualityModifier(items[0]));
+        var sptFlea = flea - BookPrice.Of(items[0].Template) * (1 - UsedListingsGate.SptQuality(items[0]));
         var value = Value(items);
         var condition = Condition(items);
         if (sptFlea <= 0 || value <= 0)

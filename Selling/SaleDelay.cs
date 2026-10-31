@@ -373,7 +373,7 @@ internal static class SaleDelayGate
             var price = BetterFlea.Prices.BookPrice.Of(item.Template);
             if (dynamic.IgnoreQualityPriceVarianceBlacklist?.Contains(item.Template) != true)
             {
-                price *= _itemHelper.GetItemQualityModifier(item);
+                price *= BetterFlea.Offers.UsedListingsGate.SptQuality(item);
             }
 
             price = BetterFlea.Prices.PriceGate.Adjust(item.Template, Money.ROUBLES, item, price, counted: false, parts: listed);

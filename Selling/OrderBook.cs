@@ -37,6 +37,14 @@ public class OrderBookLoad(
 
         OrderBook.Bind(configManager, itemHelper, profileHelper, ragfairOfferService, ragfairOfferHolder, hideoutTable);
         new AveragePricePatch().Enable();
+        // Only the console: if SPT's logger changes, requests are logged as before.
+        try
+        {
+            new QuietClientRoutesPatch().Enable();
+        }
+        catch (Exception)
+        {
+        }
         new ExpiredPlayerOfferPatch().Enable();
         return Task.CompletedTask;
     }
