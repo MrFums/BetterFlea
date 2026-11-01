@@ -33,12 +33,14 @@ wins that feature.
 | `RagfairController.AddPlayerOffer` | Prefix, postfix | Selling rules (off, found in raid, bans, locks, levels) and the listing's context for sale speed and undercuts |
 | `RagfairSellHelper.CalculateSellChance` | Prefix | Sale chance by price against normal |
 | `RagfairSellHelper.RollForSale` | Prefix, postfix | When buyers come, and how many each takes |
+| `RagfairOfferHelper.IncreaseProfileRagfairRating` | Prefix, postfix | Flea rep gain multiplier, and sends the new rating to the game (SPT never does, so it only showed after logging in again) |
 | `RagfairOfferHelper.CompleteOffer` | Prefix | Demand: a lot sold of one item can lower its price |
 | `TradeHelper.BuyItem` | Prefix, postfix | Demand from buying, the flip penalty, the 48-hour rule and the trader item lock (three patches) |
 | `TradeController.ConfirmRagfairTrading` | Prefix | "Sold before you" |
 | `RagfairOfferService.EnoughExpiredOffersExistToProcess` | Postfix | Starts SPT's clean-up of expired offers as soon as a player's offer has ended, so its items come back. SPT waits for 1,400 expired offers, which Better Flea's market rarely reaches |
 | `LocationLifecycleService.HandlePostRaidPmc` | Prefix | Remembers guns players die with, for the flea |
 | `ProfileActivityService.SetActivityTimestamp` | Postfix | Who is online, for the Wipe Cycle |
+| `SptLoggerMiddleware.LogRequest` | Prefix | Leaves the plugins' own requests (item-price, client-data, item-levels, flip-notice) out of SPT's "[Client Request]" log |
 
 ## Data and config changed while the server runs
 
@@ -50,6 +52,8 @@ wins that feature.
 | `CanSellOnRagfair` | Item templates | Lifting BSG's bans properly, keeping never-sold items and SPT's dev items off |
 | Flea blacklist | `ragfair.json` `dynamic.blacklist.custom` in memory | Banned categories, items and mod items. Not SPT's item blacklist (`ItemConfig`), which would also change bot loot |
 | BSG blacklist switch | `ragfair.json` `dynamic.blacklist.enableBsgList` in memory | The BSG's banned items setting |
+| Flea unlock level | `globals` `RagFair.minUserLevel` | Flea access, only while it isn't 15. Put back once it is, so another mod's level stays |
+| Offer slots | `globals` `RagFair.maxActiveOfferCount` | Flea access, only while the multiplier or extra slots are changed. Put back the same way |
 
 ## HTTP routes
 

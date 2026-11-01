@@ -560,6 +560,12 @@ public class ConfigManager(
         (saleTime.RareMinMinutes, saleTime.RareMaxMinutes) = SaleWindow(saleTime.RareMinMinutes, saleTime.RareMaxMinutes);
         (saleTime.SuperrareMinMinutes, saleTime.SuperrareMaxMinutes) = SaleWindow(saleTime.SuperrareMinMinutes, saleTime.SuperrareMaxMinutes);
 
+        var access = Mod.PlayerSelling.FleaAccess;
+        access.UnlockLevel = access.UnlockLevel <= 0 ? 15 : Math.Clamp(access.UnlockLevel, 1, 79);
+        access.OfferSlotsMultiplier = Math.Clamp(access.OfferSlotsMultiplier, 0.1, 20.0);
+        access.ExtraOfferSlots = Math.Clamp(access.ExtraOfferSlots, -20, 100);
+        access.RepGainMultiplier = Math.Clamp(access.RepGainMultiplier, 0.0, 100.0);
+
         var perOffer = Mod.GeneratedOffers.ItemsPerOffer;
         foreach (var profile in new[] { perOffer.Bulk, perOffer.Stock, perOffer.Few })
         {

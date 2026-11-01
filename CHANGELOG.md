@@ -5,11 +5,13 @@
 **New**
 - **Set sale times** (Selling tab, with Advanced settings on): set how long a player's offer takes to sell yourself, as a shortest and longest wait for common, rare and very rare items. Off by default. On, it replaces buyers, other sellers' offers and undercuts. Everything at once: all waits 0. Everything in an hour or more: shortest 60. **Sells whatever the price** makes any price sell; off, overpriced offers still sell less often and later.
 - **Slower buyers by rarity** (Selling tab, Buyers, advanced): how many times longer buyers take for rare and very rare items than common ones. It was fixed at 1.5 and 3.
+- **Flea access** (Selling tab): the level the Flea Market opens at, how many offers a player can have up, and how fast flea rep grows. Offer slots still go up with rep: a multiplier and extra slots change every rep step (2x = 8 at the start, 30 at the top, from SPT's 4 and 15). Players see a new level or slot count after logging in again. Left at the defaults, SPT's values (or another mod's) are kept.
 
 **Fixes**
 - **Your prices** did nothing for a gun a trader sells (an MP-18 set to 30,000 still went for about 7,000): guns are priced from the trader's price, and that won over the price you set. A price you set under Your prices is now the gun's price (or a part's), whatever traders sell it for.
 - Pricing something with durability at 0 (a destroyed armour from a raid, hovered with Price Index or listed) put one "durability value is invalid, defaulting to 1" error per part in the server log, and priced it as new. It's now priced as next to worthless, with no error.
 - A helmet or armour whose durability is all in its built-in inserts could be priced as infinite when Price Index asked for it: the request failed with a long "Error handling request: /betterflea/item-price" in the server log and Price Index showed no price. Its inserts now decide its condition, as on the flea.
+- Your flea rating didn't change on the flea screen after a sale until you logged in again: SPT adds the rep but never tells the game. The new rating is now sent after each sale.
 - Less console spam: SPT's "[Client Request]" line is no longer written for the plugins' own requests (/betterflea/item-price, client-data, item-levels, flip-notice), which came many times a minute. Every other request is still logged.
 
 ## 2.4.1

@@ -598,6 +598,11 @@ const LABELS = {
   "selling.jsonc:saleTime.rareMaxMinutes": "Rare items: longest wait (minutes)",
   "selling.jsonc:saleTime.superrareMinMinutes": "Very rare items: shortest wait (minutes)",
   "selling.jsonc:saleTime.superrareMaxMinutes": "Very rare items: longest wait (minutes)",
+  "selling.jsonc:fleaAccess": "Flea access",
+  "selling.jsonc:fleaAccess.unlockLevel": "Flea unlock level",
+  "selling.jsonc:fleaAccess.offerSlotsMultiplier": "Offer slots multiplier",
+  "selling.jsonc:fleaAccess.extraOfferSlots": "Extra offer slots",
+  "selling.jsonc:fleaAccess.repGainMultiplier": "Flea rep gain multiplier",
   "selling.jsonc:undercut.chanceAtNormal": "Chance at the normal price",
   "selling.jsonc:undercut.chanceWhenDear": "Chance when overpriced",
   "selling.jsonc:undercut.safeBelowPercent": "Safe this far under normal (%)",
@@ -896,6 +901,11 @@ const DESC = {
   "selling.jsonc:buyers.slowdown": "After each sale the wait for the next buyer is this many times longer.",
   "selling.jsonc:buyers.rarityMultipliers": "Buyers take this many times longer for a rare or very rare item than for a common one, on top of how dear and wanted it is. 1 = no longer. Also how long a rare item first waits once listed.",
   "selling.jsonc:saleTime": "Set the sale times yourself. On, a player's offer sells after a wait between the shortest and longest for its rarity, in place of buyers, other sellers' offers and undercuts. 0 and 0 = sells straight away. Everything in 60 minutes or more: shortest 60 for all three. Common items at once, the rest in a few hours: common 0 and 0, rare and very rare 120 and 240. The flip penalty still adds its wait. The waits it starts with are about what an item at the normal price takes with this off.",
+  "selling.jsonc:fleaAccess": "When players get the Flea Market, how many offers they can have up, and how fast their flea rep grows. Offer slots go up with flea rep (4 at the start, rep 0.2; 5 from rep 7; up to 15 from 1000), so every rep step's slots change. Players see a new unlock level or slot count after logging in again. Left at the defaults, SPT's values (or another mod's, like SVM's) are kept.",
+  "selling.jsonc:fleaAccess.unlockLevel": "The player level the Flea Market opens at. SPT's is 15.",
+  "selling.jsonc:fleaAccess.offerSlotsMultiplier": "Each rep step's offer slots x this. 2 = twice as many at every rep: 8 at the start, 30 at the top.",
+  "selling.jsonc:fleaAccess.extraOfferSlots": "Added to each rep step's offer slots, after the multiplier. 5 = 9 at the start, 20 at the top. A player always has at least 1.",
+  "selling.jsonc:fleaAccess.repGainMultiplier": "Flea rep from each sale x this. SPT gives +0.02 per 100,000 roubles sold. 2 = twice as fast, 0 = rep never grows from sales.",
   "selling.jsonc:saleTime.ignorePrice": "On: an offer sells in its time whatever its price. Off: over the normal price it sells less often and later, as with Sale speed, and past Never sells it doesn't.",
   "selling.jsonc:buyers.recoverMinutes": "Half of that slowdown wears off in this many minutes.",
   "selling.jsonc:undercut.chanceAtNormal": "Chance of an undercut for an offer at the normal price.",
@@ -1256,6 +1266,7 @@ async function load() {
   state.version = data.version;
   state.restartNeeded = !!data.restartNeeded;
   state.files = data.files;
+  state.fleaSlots = data.fleaSlots || [];
   state.byFile = Object.fromEntries(data.files.map(f => [f.file, f]));
   for (const f of data.files) state.saved[f.file] = clone(f.values);
   state.advanced = store("bf.advanced") === "1";
@@ -1710,8 +1721,31 @@ function group(f, path, value, def) {
     children.appendChild(child);
   }
   if (openTable) children.appendChild(addRow(f, path, value));
+  if (id === "selling.jsonc:fleaAccess") children.appendChild(slotsTable(value));
   wrap.appendChild(children);
   return wrap;
+}
+
+// Offer slots at each flea rep step, before and with Flea access's settings (FleaAccess on the server). The lowest
+// steps (rep under 0.2, where players start) are left out: a player only gets there by losing rep.
+function slotsTable(set) {
+  const box = make("div", "odds");
+  box.appendChild(make("div", "s", "Offer slots by flea rep. Players see new slots after logging in again."));
+  const table = make("table", "odds-table");
+  const head = make("tr");
+  for (const h of ["Flea rep from", "Offer slots now", "With these settings"]) head.appendChild(make("th", "", h));
+  table.appendChild(head);
+  const m = Number(set.offerSlotsMultiplier) || 1, extra = Math.round(Number(set.extraOfferSlots) || 0);
+  for (const tier of state.fleaSlots.filter(t => t.from >= 0.2)) {
+    const now = tier.count, then = Math.max(1, Math.round(now * m) + extra);
+    const row = make("tr", then !== now ? "here" : "");
+    row.append(make("td", "", tier.from === 0.2 ? "0.2 (start)" : String(tier.from)), make("td", "", String(now)), make("td", "", String(then)));
+    table.appendChild(row);
+  }
+  const scroll = make("div", "odds-wrap");
+  scroll.appendChild(table);
+  box.appendChild(scroll);
+  return box;
 }
 
 function setTab(f, on) {

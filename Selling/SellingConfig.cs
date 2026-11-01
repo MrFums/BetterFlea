@@ -29,6 +29,9 @@ public record PlayerSellingConfig
     [JsonPropertyName("saleTime")]
     public SaleTimeConfig SaleTime { get; set; } = new();
 
+    [JsonPropertyName("fleaAccess")]
+    public FleaAccessConfig FleaAccess { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }
@@ -135,6 +138,26 @@ public record SaleTimeConfig
 
     [JsonPropertyName("superrareMaxMinutes")]
     public double SuperrareMaxMinutes { get; set; } = 8;
+}
+
+// The level the Flea Market opens at, how many offers a player can have up, and how fast their flea rep grows. The
+// defaults leave SPT's (or another mod's) values alone.
+public record FleaAccessConfig
+{
+    // SPT's is 15.
+    [JsonPropertyName("unlockLevel")]
+    public int UnlockLevel { get; set; } = 15;
+
+    // Flea rep from each sale x this.
+    [JsonPropertyName("repGainMultiplier")]
+    public double RepGainMultiplier { get; set; } = 1;
+
+    // Offer slots go up with flea rep. Each rep tier's slots x offerSlotsMultiplier, then + this, never under 1.
+    [JsonPropertyName("extraOfferSlots")]
+    public int ExtraOfferSlots { get; set; } = 0;
+
+    [JsonPropertyName("offerSlotsMultiplier")]
+    public double OfferSlotsMultiplier { get; set; } = 1;
 }
 
 // Another seller listing just under a player's offer, taking its buyers.

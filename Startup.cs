@@ -2,6 +2,7 @@ using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Helpers.Items;
+using SPTarkov.Server.Core.Helpers.Server;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Spt.Tables;
@@ -23,7 +24,9 @@ public class BetterFleaLoad(
     FleaCategoryFilter categoryFilter,
     FleaPriceMultipliers fleaPriceMultipliers,
     ModSupport modSupport,
-    GlobalTable globalTable) : IOnLoad
+    GlobalTable globalTable,
+    NotifierHelper notifierHelper,
+    NotificationSendHelper notificationSendHelper) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -38,6 +41,12 @@ public class BetterFleaLoad(
         Step("flea bans", categoryFilter.Apply);
         Step("flea price multipliers", fleaPriceMultipliers.Apply);
         Step("found in raid only", () => ApplyFoundInRaidOnly(configManager, globalTable));
+        Step("flea access", () =>
+        {
+            FleaAccess.Apply(configManager, globalTable);
+            FleaAccess.Bind(notifierHelper, notificationSendHelper);
+            new RepGainPatch().Enable();
+        });
         return Task.CompletedTask;
     }
 

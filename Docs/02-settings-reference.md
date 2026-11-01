@@ -305,6 +305,10 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `saleTime.commonMinMinutes`, `commonMaxMinutes` | 0 to 1 | Wait for a common item. 0 and 0 = straight away. The defaults are about what an item at the normal price takes with set sale times off. |
 | `saleTime.rareMinMinutes`, `rareMaxMinutes` | 1 to 3 | Wait for a rare item. |
 | `saleTime.superrareMinMinutes`, `superrareMaxMinutes` | 3 to 8 | Wait for a very rare item. |
+| `fleaAccess.unlockLevel` | 15 | Player level the Flea Market opens at (SPT's is 15). [Details](07-selling.md#flea-access) |
+| `fleaAccess.repGainMultiplier` | 1 | Flea rep from each sale x this. SPT: +0.02 per 100,000 roubles sold. |
+| `fleaAccess.extraOfferSlots` | 0 | Added to each rep step's offer slots, after the multiplier. Never under 1. |
+| `fleaAccess.offerSlotsMultiplier` | 1 | Each flea rep step's offer slots x this (SPT: 4 at the start, 15 at rep 1000). |
 | `undercut.enabled` | on | When yours is the cheapest offer, now and then another seller lists just under it and takes most of your buyers. |
 | `undercut.chanceAtNormal`, `chanceWhenDear` | 0.35, 0.8 | How often, at the normal price and at `expensivePercent` over. |
 | `undercut.safeBelowPercent` | 10 | This far under normal you're hardly ever undercut. |

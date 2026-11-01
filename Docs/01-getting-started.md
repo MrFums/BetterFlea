@@ -21,10 +21,15 @@ Fika headless client.
 
 | Better Flea | SPT |
 |---|---|
-| 1.0.0 to 2.4.0 | 4.1.x |
+| 1.0.0 to 2.4.2 | 4.1.x |
 
 Every release so far is for SPT 4.1. The server mod says which SPT versions it supports, and SPT won't load it on
 another.
+
+**Test builds.** Before a release, betas (`2.4.2-beta.1`) and then a release candidate (`2.4.2-rc.1`, the build
+planned to become the release) go up as pre-releases on [GitHub](https://github.com/MrFums/BetterFlea/releases), not
+on the Forge. Back up `SPT_Runtime/user/mods/BetterFlea/configs` before trying one. To go back, extract the last
+release's zip over it.
 
 ## Install
 

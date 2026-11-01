@@ -60,6 +60,17 @@
     "superrareMaxMinutes": 8
   },
 
+  // When players get the Flea Market, how many offers they can have up, and how fast their flea rep grows. Offer slots
+  // go up with flea rep (SPT: 4 at the start, rep 0.2; 5 from rep 7; up to 15 from 1000), so the slots are changed
+  // for every rep step. Players see a new unlock level or slot count after logging in again. Left at these defaults,
+  // SPT's values (or another mod's) are kept.
+  "fleaAccess": {
+    "unlockLevel": 15,               // level the Flea Market opens at (SPT: 15)
+    "repGainMultiplier": 1,          // flea rep from each sale x this (2 = twice as fast). SPT: +0.02 per 100,000 roubles sold
+    "extraOfferSlots": 0,            // added to each rep step's offer slots, after the multiplier. Never under 1 slot
+    "offerSlotsMultiplier": 1        // each rep step's offer slots x this (2 = twice as many)
+  },
+
   // Other sellers watch the market. A player's offer that's the cheapest one up gets, now and then, another seller
   // listing just under it (a rouble under, or a round number under) a few minutes later, who takes most of its
   // buyers. The dearer the offer, the likelier. One well under the normal price sells before anyone bothers.

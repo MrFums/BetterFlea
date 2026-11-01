@@ -34,6 +34,19 @@ Check, in this order:
 4. **Does someone have it cheaper?** Buyers go to the cheapest offer first.
 5. **Did you buy several just now?** The flip penalty adds up to 10 minutes.
 
+**Can rare items sell slower, or everything straight away?**
+Turn on **Set sale times** (Selling tab, with Advanced settings on) and set a shortest and longest wait for common,
+rare and very rare items. 0 and 0 sells straight away. To keep buyers but slow them for rarer items, use
+`buyers.rarityMultipliers` instead. [Set sale times](07-selling.md#set-sale-times)
+
+**Can players get the flea earlier, or list more offers?**
+Yes: **Flea access** (Selling tab). Set the level it opens at, more offer slots at every flea rep step, and faster rep
+from sales. Players see a new level or slot count after logging in again. [Flea access](07-selling.md#flea-access)
+
+**My flea rating doesn't change after a sale.**
+SPT adds the rep but doesn't tell the game, so it only showed after logging in again. From 2.4.2, Better Flea sends
+the new rating after each sale.
+
 **Why can't I list an item at all?**
 It's banned (red icon if you've turned it on in the F12 menu), locked by the trader item lock (orange icon), above your
 unlock level, or the server has player selling off. Hover the icon to see why.
@@ -45,6 +58,20 @@ The fee grows fast when you ask more than an item is worth. [The flea fee](03-ho
 
 **A modded item has a silly price.**
 Set it yourself under Your prices (Economy tab), and please report it so it can be looked at.
+
+**An item's base price is 0 and it sells for far less than its Better Flea price.**
+SPT gave the item no base price when the server started, so Better Flea has nothing to replace. SPT works base
+prices out at every start from the handbook price x 1.5 (`SPT_Data/configs/ragfair.json`,
+`dynamic.generateBaseFleaPrices`), skipping items with no handbook price. Better Flea never sets a base price to 0.
+Check, in this order:
+1. **SPT version.** An item from a newer SPT isn't in an older one's handbook.
+2. **The handbook.** Search `SPT_Data/database/templates/handbook.json` for the item's id: it should be there with a
+   price over 0. If not, the SPT install is damaged or edited: reinstall SPT over it (profiles are kept).
+3. **The flea config.** In `ragfair.json`, `generateBaseFleaPrices.useHandbookPrice` should be `true`. Some mods turn it
+   off.
+4. **Another mod.** Move all server mods except Better Flea out of `user/mods`, restart, and look the item up on the
+   Lookup tab. If the price is back, put the mods back half at a time until it goes to 0 again. Start with mods that
+   change prices, traders, the flea or the handbook.
 
 **Traders pay less than I'm used to.**
 Live trader prices (Economy tab) is on by default: traders pay what they do in the live game since patch 1.1, about a
@@ -66,6 +93,14 @@ The mod that loads last usually wins. Turn the feature off in one of the two.
 
 **Price Index or Flogger show different prices.**
 Both read Better Flea's prices with Better Flea 2.3.0 or newer. Update both.
+
+**The server console fills with "[Client Request] /betterflea/item-price".**
+That's SPT logging every request Price Index makes. From 2.4.2, SPT no longer logs the plugins' own requests
+(item-price, client-data, item-levels, flip-notice). Every other request is still logged.
+
+**"durability value is invalid, defaulting to 1" in the server log.**
+SPT writes this for an item with durability at 0 (destroyed armour from a raid) when it's priced. Fixed in 2.4.2: such
+an item is priced as next to worthless, with no error.
 
 **The server takes a long time to start with lots of mods.**
 Better Flea only reads other mods' files when a setting needs it (a Mod items rule, or a mod switched off under

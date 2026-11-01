@@ -54,6 +54,7 @@ public class LiveSettings(
             fleaPriceMultipliers.Apply();
             ArmorOffers.ApplyPlateRemoval(ragfairConfig);
             BetterFleaLoad.ApplyFoundInRaidOnly(configManager, globalTable);
+            BetterFlea.Selling.FleaAccess.Apply(configManager, globalTable);
             ListingCountGate.ForgetCaches();
             OnDemandOffers.SettingsChanged();
             OfferLifecycle.SettingsChanged();
@@ -71,7 +72,7 @@ public class LiveSettings(
 // needs the page's own admin login, made by whoever opens the page first.
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload)]
 public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManager, TemplateTable templates,
-    LocaleService locales, ItemHelper itemHelper, PresetHelper presetHelper) : IHttpListener
+    LocaleService locales, ItemHelper itemHelper, PresetHelper presetHelper, GlobalTable globalTable) : IHttpListener
 {
     private const string Root = "/betterflea";
 
@@ -205,7 +206,12 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             });
         }
 
-        return new JsonObject { ["version"] = new ModMetadata().Version.ToString(), ["restartNeeded"] = RestartNeeded(), ["files"] = files };
+        var slots = new JsonArray(BetterFlea.Selling.FleaAccess.BaseSlots(globalTable)
+            .Select(tier => (JsonNode)new JsonObject { ["from"] = tier.From, ["count"] = tier.Count }).ToArray());
+        return new JsonObject
+        {
+            ["version"] = new ModMetadata().Version.ToString(), ["restartNeeded"] = RestartNeeded(), ["files"] = files, ["fleaSlots"] = slots
+        };
     }
 
     // The page's language (sent with each request) as the game's locale code; item and category names come from

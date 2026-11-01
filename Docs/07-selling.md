@@ -140,6 +140,34 @@ takes longer, and past `neverSellsPercent` it never sells. On, any price sells.
 To keep the normal sale speed and only make rare items slower or quicker, leave this off and change
 **Slower buyers by rarity** (`buyers.rarityMultipliers`, also advanced): 1 = as quick as a common item.
 
+## Flea access
+
+**Flea access** (Selling tab, `selling.jsonc: fleaAccess`) sets when players get the Flea Market, how many offers they
+can have up, and how fast their flea rep grows. Left at its defaults it changes nothing, and SPT's values (or another
+mod's, like SVM's) are kept.
+
+- **Flea unlock level** (`unlockLevel`): the player level the Flea Market opens at. SPT's is 15.
+- **Flea rep gain multiplier** (`repGainMultiplier`): flea rep from each sale x this. SPT gives +0.02 for every
+  100,000 roubles sold, so reaching the 5-slot step at rep 7 takes about 34 million roubles of sales. At 2, half that.
+  0 = sales never raise rep.
+- **Offer slots** go up with flea rep. SPT gives 4 at the start (rep 0.2), 5 from rep 7, 6 from 30, and so on up to
+  15 from rep 1000. **Offer slots multiplier** (`offerSlotsMultiplier`) multiplies every step, then **Extra offer
+  slots** (`extraOfferSlots`) adds to every step, so more rep still means more slots. A player always has at least 1.
+  Under the settings, a table shows every rep step's slots now and with what you've typed, before you save.
+
+| Multiplier, extra | At the start | At rep 1000 |
+|---|--:|--:|
+| 1, 0 (SPT) | 4 | 15 |
+| 2, 0 | 8 | 30 |
+| 1, 5 | 9 | 20 |
+| 2, 1 | 9 | 31 |
+
+The unlock level and slots are part of what the game loads at login: players see a change after logging in again.
+Editions with more slots (`countForSpecialEditions`, usually one more) are changed the same way.
+
+Your flea rating on the flea screen changes as soon as an offer sells, whatever these settings. SPT adds the rep but
+never tells the game, so without Better Flea it only shows after logging in again.
+
 ## Fees
 
 SPT charges the game's own listing fee: see [The flea fee](03-how-prices-work.md#the-flea-fee). It grows fast when you
