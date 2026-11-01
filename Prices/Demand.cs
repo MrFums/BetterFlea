@@ -71,6 +71,12 @@ internal static class Demand
     public static double Factor(MongoId tpl) =>
         Settings is { } settings && Shifts.TryGetValue(tpl, out var shift) ? Faded(shift, settings) : 1;
 
+    // Items players have bought up (above 1) or flooded (below 1) lately, easing back to normal.
+    public static List<(MongoId Tpl, double Factor)> Shifted() =>
+        Settings is { } settings
+            ? Shifts.Select(entry => (entry.Key, Faded(entry.Value, settings))).Where(entry => Math.Abs(entry.Item2 - 1) > 0.003).ToList()
+            : [];
+
     // What a player's listing is measured against: a rise from buying doesn't count, so buying an item up and
     // listing it at the raised price makes no money. A drop does.
     public static double SellerFactor(MongoId tpl) => Math.Min(1, Factor(tpl));

@@ -44,7 +44,7 @@ Yes: **Flea access** (Selling tab). Set the level it opens at, more offer slots 
 from sales. Players see a new level or slot count after logging in again. [Flea access](07-selling.md#flea-access)
 
 **My flea rating doesn't change after a sale.**
-SPT adds the rep but doesn't tell the game, so it only showed after logging in again. From 2.4.2, Better Flea sends
+SPT adds the rep but doesn't tell the game, so it only showed after logging in again. From 2.5.0, Better Flea sends
 the new rating after each sale.
 
 **Why can't I list an item at all?**
@@ -95,11 +95,11 @@ The mod that loads last usually wins. Turn the feature off in one of the two.
 Both read Better Flea's prices with Better Flea 2.3.0 or newer. Update both.
 
 **The server console fills with "[Client Request] /betterflea/item-price".**
-That's SPT logging every request Price Index makes. From 2.4.2, SPT no longer logs the plugins' own requests
+That's SPT logging every request Price Index makes. From 2.5.0, SPT no longer logs the plugins' own requests
 (item-price, client-data, item-levels, flip-notice). Every other request is still logged.
 
 **"durability value is invalid, defaulting to 1" in the server log.**
-SPT writes this for an item with durability at 0 (destroyed armour from a raid) when it's priced. Fixed in 2.4.2: such
+SPT writes this for an item with durability at 0 (destroyed armour from a raid) when it's priced. Fixed in 2.5.0: such
 an item is priced as next to worthless, with no error.
 
 **The server takes a long time to start with lots of mods.**

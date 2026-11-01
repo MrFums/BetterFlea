@@ -229,6 +229,45 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper, Co
         return list;
     }
 
+    // Every item's hourly close and volume over the last this many hours, oldest first, for the Market tab.
+    public static List<(MongoId Tpl, List<(long Time, double Close, int Volume)> Points)> Window(int hours)
+    {
+        var list = new List<(MongoId, List<(long, double, int)>)>();
+        var now = HourNow();
+        var from = now - Math.Clamp(hours, 1, Hours) + 1;
+        lock (Gate)
+        {
+            foreach (var (tpl, series) in All)
+            {
+                var points = new List<(long, double, int)>();
+                for (var hour = from; hour <= now; hour++)
+                {
+                    var slot = hour % Hours;
+                    if (series.Hour[slot] == hour && series.Close[slot] > 0)
+                    {
+                        points.Add((hour * 3600L, series.Close[slot], series.Volume[slot]));
+                    }
+                }
+
+                if (points.Count > 0)
+                {
+                    list.Add((tpl, points));
+                }
+            }
+        }
+
+        return list;
+    }
+
+    // The players' latest flea sales, newest first.
+    public static List<PlayerSale> RecentSales(int count)
+    {
+        lock (Gate)
+        {
+            return _sales.OrderByDescending(sale => sale.SoldAt).Take(count).ToList();
+        }
+    }
+
     public static List<PlayerSale> Sales(MongoId tpl)
     {
         var id = tpl.ToString();

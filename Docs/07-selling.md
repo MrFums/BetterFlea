@@ -119,6 +119,12 @@ pay over the odds for it.
 
 ## Set sale times
 
+**Sale speed or Set sale times?** Sale speed and Buyers are the market: how long an offer takes is worked out from
+its price against normal, the other sellers' offers, undercuts and the buyers coming along, so a cheap offer goes in
+seconds and an overpriced one may never sell. Set sale times skips all of that: every offer just waits a random time
+between the shortest and longest you set for its rarity. Use Sale speed for a living market, Set sale times for
+predictable waits.
+
 To decide the sale times yourself, turn on **Set sale times** (Selling tab, with Advanced settings on;
 `selling.jsonc: saleTime`). A player's offer then sells after a wait between the shortest and longest you set for its
 rarity (common, rare, very rare), in minutes. Buyers, other sellers' offers and undercuts no longer change it. The

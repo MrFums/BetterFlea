@@ -594,6 +594,7 @@ internal static partial class PresetOfferGate
     private static readonly MongoId MuzzleBase = new("5448fe394bdc2d0d028b456c");
     private static readonly MongoId SilencerBase = new("550aa4cd4bdc2dd8348b456c");
     private static readonly MongoId ForegripBase = new("55818af64bdc2d5b648b4570");
+    private static readonly MongoId StockBase = new("55818a594bdc2db9688b456a");
     private static readonly MongoId TacticalBase = new("55818b164bdc2ddc698b456c");
 
     // A can, or a muzzle part a can mounts on (directly or through one adapter).
@@ -1714,6 +1715,15 @@ internal static partial class PresetOfferGate
 
             var isTactical = slot.Name.StartsWith("mod_tactical", StringComparison.Ordinal);
             if (isTactical && !required && built.Count(item => (item.SlotId ?? "").StartsWith("mod_tactical", StringComparison.Ordinal)) >= settings.MaxTacticalDevices)
+            {
+                continue;
+            }
+
+            // A one-piece grip and stock (the ADAR's) in the grip slot is the gun's stock: no tube and stock as well.
+            // Its conflict list only names base-game tubes, so a modded one would get past SPT's check.
+            if (slot.Name.StartsWith("mod_stock", StringComparison.Ordinal) && !required
+                && built.Any(item => item.SlotId is { } gripSlot && (gripSlot.StartsWith("mod_pistol_grip", StringComparison.Ordinal) || gripSlot == "mod_pistolgrip")
+                    && _itemHelper!.IsOfBaseclass(item.Template, StockBase)))
             {
                 continue;
             }

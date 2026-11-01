@@ -559,14 +559,16 @@ for tpl in guns:
             gun = build - parts_cost
             floor = max(sell, build * 0.1)
             if gun < floor:
-                record(tpl, max(floor, min(fallback or floor, build)), "gun: cheapest listing (default build's parts cost more than the build)",
+                # The cheapest listing is usually a stripped gun, so it never goes under what a trader sells it for.
+                record(tpl, max(floor, min(fallback or floor, build), min(trader_buy(tpl) or 0, build)),
+                       "gun: cheapest listing (default build's parts cost more than the build)",
                        f"build {round3(build)}, parts {round3(parts_cost)}")
             else:
                 record(tpl, gun, f"gun: default build on the {source.split(', ', 1)[1]} less its parts",
                        f"build {round3(build)}, parts {round3(parts_cost)}", review)
             continue
     if low:
-        record(tpl, max(fallback, sell), "gun: cheapest listing (no default build price)")
+        record(tpl, max(fallback, sell, trader_buy(tpl) or 0), "gun: cheapest listing (no default build price)")
     elif fallback:
         record(tpl, max(fallback, sell), "gun: flea-banned", review="flea-banned gun")
 

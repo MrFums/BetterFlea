@@ -54,6 +54,9 @@ public class FleaHistory(RagfairOfferService ragfairOfferService) : IOnLoad
         }
     }
 
+    // Offers on the flea right now, for the Market tab.
+    public static IReadOnlyCollection<SPTarkov.Server.Core.Models.Eft.Ragfair.RagfairOffer> Offers() => _offers?.GetOffers() ?? [];
+
     private static int MemoryMb()
     {
         using var process = Process.GetCurrentProcess();

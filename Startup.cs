@@ -102,6 +102,21 @@ public class BetterFleaLateLoad(
         PriceGate.ForgetTraderPrices();
         GunPricing.ForgetTraderPrices();
 
+        // Your prices for items a mod added late: set now, and the flea made again so its offers use them.
+        if (LivePrices.UseOverridesAgain() > 0)
+        {
+            FleaRefresh.Saved("economy.jsonc");
+        }
+
+        // And once more a minute after the server is up, for a mod that adds or prices items even later.
+        _ = Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(_ =>
+        {
+            if (LivePrices.UseOverridesAgain() > 0)
+            {
+                FleaRefresh.Saved("economy.jsonc");
+            }
+        });
+
         startupKeyOfferResync.Apply();
         traderProfitAudit.Run();
         PurchaseLock.CleanUp(saveServer);

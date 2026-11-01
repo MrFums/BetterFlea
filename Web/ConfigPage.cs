@@ -141,6 +141,15 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
                 case Root + "/api/economy":
                     await SendJson(context, Wipe(context.Request.Query["level"].ToString(), context.Request.Query["id"].ToString()), cancellationToken);
                     break;
+                case Root + "/api/market":
+                    int.TryParse(context.Request.Query["hours"].ToString(), out var hours);
+                    await SendJson(context, MarketStats.Build(hours, ItemName, MarketCategory), cancellationToken);
+                    break;
+                case Root + "/api/market-watch":
+                    int.TryParse(context.Request.Query["hours"].ToString(), out var watchHours);
+                    await SendJson(context, MarketStats.Watch(watchHours, context.Request.Query["rarity"].ToString(),
+                        context.Request.Query["category"].ToString(), context.Request.Query["sort"].ToString(), ItemName, MarketCategory, MarketRarity), cancellationToken);
+                    break;
                 case Root + "/api/index-changes":
                     await SendJson(context, IndexChanges(), cancellationToken);
                     break;
@@ -310,6 +319,8 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             var fleaPrice = BetterFlea.Selling.SaleDelayGate.NormalPrice(build is { Count: > 1 } ? build : [new Item { Id = new MongoId(), Template = tpl }]);
             result["fleaPrice"] = fleaPrice is { } f ? Math.Round(f) : null;
             result["stockBuild"] = build is { Count: > 1 };
+            // A gun's base price is the gun on its own; its default build adds the parts' base prices.
+            result["buildBasePrice"] = build is { Count: > 1 } ? Math.Round(build.Sum(part => templates.Prices.GetValueOrDefault(part.Template))) : null;
             result["odds"] = Odds(build is { Count: > 1 } ? build : [new Item { Id = new MongoId(), Template = tpl }]);
             var lookup = LivePrices.Lookup(tpl);
             result["sptPrice"] = lookup.Spt is { } s ? Math.Round(s) : null;
@@ -318,6 +329,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             result["indexPrice"] = lookup.Index;
             result["baseGame"] = lookup.BaseGame;
             result["ownPrice"] = lookup.Override;
+            result["mod"] = ModItems.All.GetValueOrDefault(tpl);
         }
 
         var (indexOn, indexPrices, built, indexEstimated) = LivePrices.IndexStatus();
@@ -342,17 +354,35 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         return result;
     }
 
-    // Every price Better Flea pricing changes, by the Bans tab's categories: [name, SPT's price, Better Flea's price].
+    private string? MarketCategory(MongoId tpl) =>
+        templates.Items.GetValueOrDefault(tpl) is { } item ? FleaCategories.Find(item, itemHelper)?.Name : null;
+
+    // The game's loot rarity, as the Watchlist groups it: no rarity counts as rare, never found in raids as very rare.
+    private string MarketRarity(MongoId tpl) => templates.Items.GetValueOrDefault(tpl)?.Properties?.RarityPvE switch
+    {
+        "Common" => "common",
+        "Superrare" or "Not_exist" => "superrare",
+        _ => "rare"
+    };
+
+    // Every price Better Flea pricing changes, by the Bans tab's categories: [name, SPT's price, Better Flea's price,
+    // the mod that adds it or null, a gun's default build at today's base prices or null].
     private JsonObject IndexChanges()
     {
         var categories = new JsonObject();
+        var mods = ModItems.All;
+        var builds = presetHelper.GetDefaultPresets().Values
+            .Where(preset => preset.Encyclopedia is not null && preset.Items is { Count: > 1 })
+            .GroupBy(preset => preset.Encyclopedia!.Value)
+            .ToDictionary(group => group.Key, group => group.First().Items!.Sum(part => templates.Prices.GetValueOrDefault(part.Template)));
         foreach (var group in LivePrices.IndexChanges()
                      .Select(entry => (entry.Tpl, entry.Spt, entry.Price, Item: templates.Items.GetValueOrDefault(entry.Tpl)))
                      .Where(entry => entry.Item is not null)
                      .GroupBy(entry => FleaCategories.Find(entry.Item!, itemHelper)?.Name ?? FleaCategories.Uncategorised))
         {
             categories[group.Key] = new JsonArray(group.Select(entry => (JsonNode)new JsonArray(
-                ItemName(entry.Tpl), Math.Round(entry.Spt), Math.Round(entry.Price))).ToArray());
+                ItemName(entry.Tpl), Math.Round(entry.Spt), Math.Round(entry.Price), mods.GetValueOrDefault(entry.Tpl),
+                builds.TryGetValue(entry.Tpl, out var build) ? Math.Round(build) : null)).ToArray());
         }
 
         return new JsonObject { ["categories"] = categories };
@@ -421,7 +451,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             var sale = offer.SellResults?.ToList().Where(result => result.SellTime is not null).Min(result => result.SellTime);
             list.Add(new JsonObject
             {
-                ["player"] = player, ["name"] = ItemName(items[0].Template), ["price"] = offer.RequirementsCost is { } cost ? Math.Round(cost) : null,
+                ["player"] = player, ["name"] = ItemName(items[0].Template), ["mod"] = ModItems.All.GetValueOrDefault(items[0].Template), ["price"] = offer.RequirementsCost is { } cost ? Math.Round(cost) : null,
                 ["quantity"] = offer.Quantity, ["endsAt"] = offer.EndTime, ["sellsAt"] = sale, ["odds"] = odds
             });
         }
@@ -546,6 +576,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             if (!category && MongoId.IsValidMongoId(id))
             {
                 entry["usual"] = Math.Round(LivePrices.UsualPrice(new MongoId(id)));
+                entry["mod"] = ModItems.All.GetValueOrDefault(new MongoId(id));
             }
 
             found.Add(entry);
@@ -600,7 +631,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     private static readonly HashSet<string> OpenPaths = new(StringComparer.Ordinal)
     {
         Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview", Root + "/api/items", Root + "/api/economy", Root + "/api/offers", Root + "/api/chart",
-        Root + "/api/index-changes", Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
+        Root + "/api/index-changes", Root + "/api/market", Root + "/api/market-watch", Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
     };
 
     private static async Task<bool> Allowed(HttpContext context, string path)

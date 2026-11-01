@@ -326,11 +326,13 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 `configs/economy.jsonc`, plus the price index and Wipe Cycle status. The tools are on their own **Lookup** tab, right
 after Home: **Item lookup** (any item's prices, its sale odds, its price history as an hourly stock chart with players'
 listings and sales, and its price through a wipe) and **Offers on the flea** (every player's offer that's up, with its
-odds, and a Refresh button).
+odds, and a Refresh button). The **Stocks** tab shows the whole market from the same price history: a market index,
+risers and crashers, the busiest items, a Watchlist by rarity and category, drift and demand, and the players' latest sales.
 
 With Better Flea pricing on, **See every change by category** lists every item it prices against SPT's own price:
 each Bans-tab category with its item count, typical change and how many went up or down. Click a category for its
-items in a scrolling list, biggest rise first, or search for one item.
+items in a scrolling list, biggest rise first, or search for an item or a mod. Modded items show the mod that adds
+them.
 
 | Setting | Default | What it does |
 |---|---|---|

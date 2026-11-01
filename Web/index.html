@@ -70,7 +70,7 @@
   .style-menu .chosen .n::after { content: " ✓"; color: var(--green); }
   .menu-list hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 
-  main { max-width: 1060px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 180px 1fr; gap: 20px; }
+  main { max-width: 1060px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px; }
   .intro { grid-column: 1 / -1; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: var(--radius); padding: 12px 14px; display: flex; gap: 14px 22px; align-items: center; flex-wrap: wrap; }
   .intro p { margin: 0; color: var(--muted); flex: 1 1 340px; }
   .intro p b { color: var(--text); font-weight: 600; }
@@ -219,6 +219,7 @@
   .ix-row span:first-child, .ix-item span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ix-list { max-height: 320px; overflow-y: auto; padding: 2px 4px 6px 18px; border-bottom: 1px solid var(--line); }
   .ix-item { display: grid; grid-template-columns: minmax(0, 1fr) auto 64px; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .ix-mod { display: inline-block; font-weight: 400; line-height: 1.4; vertical-align: 1px; margin-left: 8px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; }
   .ix-changes .up { color: var(--green); }
   .ix-changes .down { color: var(--bad); }
   @media (max-width: 760px) { .ix-row { grid-template-columns: minmax(0, 1fr) 56px 64px; } .ix-row span:nth-child(n+4) { display: none; } }
@@ -302,6 +303,38 @@
   .chart .up { fill: var(--green); stroke: var(--green); }
   .chart .down { fill: var(--bad); stroke: var(--bad); }
   .chart .wick { stroke-width: 1; }
+  .market .file-head .ranges { display: flex; gap: 4px; align-self: center; }
+  .market .ranges .on { background: var(--green-soft); border-color: var(--green); }
+  .tile .v.up { color: var(--green); }
+  .tile .v.down { color: var(--bad); }
+  .chart.mkt-index { height: 180px; }
+  .chart .zero { stroke: var(--slate); stroke-dasharray: 3 3; }
+  .chart .line.neg { stroke: var(--bad); }
+  .mkt-list { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .mkt-row { min-width: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .mkt-row > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+  .mkt-row > * { flex: none; }
+  .mkt-row > :first-child { flex: 1 1 0; }
+  .mkt-row .n, .mkt-row .up, .mkt-row .down { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .mkt-row .up { color: var(--green); }
+  .mkt-row .down { color: var(--bad); }
+  .linkish { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+  .linkish:hover { color: var(--green); text-decoration: underline; }
+  .spark svg { display: block; }
+  .spark path { fill: none; stroke-width: 1.5; }
+  .spark path.up { stroke: var(--green); }
+  .spark path.down { stroke: var(--bad); }
+  .mkt-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 10px; }
+  .mkt-chart .chart { margin-top: 4px; }
+  .watch-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+  .watch-bar select { max-width: 16em; }
+  .pie { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .pie .hole { fill: var(--panel); }
+  .pie .legend { display: grid; gap: 4px; font-size: 12.5px; flex: 1; min-width: 160px; }
+  .pie .legend > div { display: flex; align-items: center; gap: 8px; }
+  .pie .legend .n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pie .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+  @media (max-width: 760px) { .mkt-charts { grid-template-columns: minmax(0, 1fr); } .mkt-row .spark { display: none; } }
   .chart .vol { fill: var(--slate); opacity: 0.45; }
   .chart .listing { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 4 3; }
   .chart .sale { fill: var(--warn); stroke: var(--panel); stroke-width: 1.5; }
@@ -337,6 +370,8 @@
   dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
   body.guest main { grid-template-columns: minmax(0, 1fr); }
   body.guest main > .notice { margin: 0; }
+  body.guest nav { flex-direction: row; position: static; gap: 6px; }
+  body.guest nav button { border: 1px solid var(--line); }
   .card.economy, .card.lookup { margin-bottom: 12px; }
   .odds { margin: 12px 0 14px; }
   .odds-wrap { overflow-x: auto; }
@@ -892,7 +927,7 @@ const DESC = {
   // Selling
   "selling.jsonc:enabled": "Let players list their own items on the flea.",
   "selling.jsonc:foundInRaidOnly": "Only found in raid items can be listed.",
-  "selling.jsonc:saleDelay": "How fast your offers sell depends on your price: cheap in under a minute, normal in a few minutes, overpriced hardly ever.",
+  "selling.jsonc:saleDelay": "How fast your offers sell depends on your price: cheap in under a minute, normal in a few minutes, overpriced hardly ever. Better Flea works each sale out from the market: your price, other sellers' offers, undercuts and the buyers. Want fixed waits you choose instead? Turn on Set sale times (Advanced settings).",
   "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
   "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
   "selling.jsonc:saleDelay.noDelayChance": "Chance of no wait at all for offers at or under the normal price.",
@@ -916,7 +951,7 @@ const DESC = {
   "market.jsonc:simulatedSales.dealGoneMinMinutes": "An offer 10% or more under normal is bought by someone else within this many minutes of appearing (between this and the next setting), so deals have to be spotted quickly.",
   "selling.jsonc:buyers.slowdown": "After each sale the wait for the next buyer is this many times longer.",
   "selling.jsonc:buyers.rarityMultipliers": "Buyers take this many times longer for a rare or very rare item than for a common one, on top of how dear and wanted it is. 1 = no longer. Also how long a rare item first waits once listed.",
-  "selling.jsonc:saleTime": "Set the sale times yourself. On, a player's offer sells after a wait between the shortest and longest for its rarity, in place of buyers, other sellers' offers and undercuts. 0 and 0 = sells straight away. Everything in 60 minutes or more: shortest 60 for all three. Common items at once, the rest in a few hours: common 0 and 0, rare and very rare 120 and 240. The flip penalty still adds its wait. The waits it starts with are about what an item at the normal price takes with this off.",
+  "selling.jsonc:saleTime": "Fixed waits in place of the market: Sale speed and Buyers work each sale out from your price and the other offers, this just waits a random time you set. Set the sale times yourself. On, a player's offer sells after a wait between the shortest and longest for its rarity, in place of buyers, other sellers' offers and undercuts. 0 and 0 = sells straight away. Everything in 60 minutes or more: shortest 60 for all three. Common items at once, the rest in a few hours: common 0 and 0, rare and very rare 120 and 240. The flip penalty still adds its wait. The waits it starts with are about what an item at the normal price takes with this off.",
   "selling.jsonc:fleaAccess": "When players get the Flea Market, how many offers they can have up, and how fast their flea rep grows. Offer slots go up with flea rep (4 at the start, rep 0.2; 5 from rep 7; up to 15 from 1000), so every rep step's slots change. Players see a new unlock level or slot count after logging in again. Left at the defaults, SPT's values (or another mod's, like SVM's) are kept.",
   "selling.jsonc:fleaAccess.unlockLevel": "The player level the Flea Market opens at. SPT's is 15.",
   "selling.jsonc:fleaAccess.offerSlotsMultiplier": "Each rep step's offer slots x this. 2 = twice as many at every rep: 8 at the start, 30 at the top.",
@@ -1091,6 +1126,7 @@ const STYLES = [
 
 const HOME = "home";
 const LOOKUP = "lookup";
+const MARKET = "stocks";
 const state = { status: null, notes: null, version: "", files: [], byFile: {}, saved: {}, current: null, open: new Set(), styleNote: "", advanced: false, names: {}, priceView: {} };
 const $ = (id) => document.getElementById(id);
 
@@ -1292,7 +1328,8 @@ async function load() {
   for (const f of data.files) state.saved[f.file] = clone(f.values);
   state.advanced = store("bf.advanced") === "1";
   const tab = location.hash ? location.hash.slice(1) + ".jsonc" : store("bf.tab");
-  state.current = state.byFile[tab] ? tab : (tab === LOOKUP || location.hash === "#lookup") ? LOOKUP : HOME;
+  state.current = state.byFile[tab] ? tab : (tab === LOOKUP || location.hash === "#lookup") ? LOOKUP
+    : (tab === MARKET || location.hash === "#stocks") ? MARKET : HOME;
   $("version").textContent = "v" + data.version;
   document.title = "BetterFlea v" + data.version + " Settings";
   render();
@@ -1336,6 +1373,7 @@ function askLogin(setup) {
 
 async function startGuest() {
   state.guest = true;
+  state.guestTab = store("bf.guestTab") === MARKET ? MARKET : HOME;
   state.current = HOME;
   document.body.classList.add("guest");
   const account = $("account");
@@ -1362,6 +1400,19 @@ function renderGuest() {
   const main = $("main");
   main.innerHTML = "";
   main.appendChild(notice("You're seeing how the flea is doing. Log in as the admin to change Better Flea's settings."));
+  // Guests get two tabs: the flea's stats (Home) and the stock market.
+  const nav = document.createElement("nav");
+  for (const [tab, name] of [[HOME, "Home"], [MARKET, "Stocks"]]) {
+    const b = make("button", state.guestTab === tab || (!state.guestTab && tab === HOME) ? "active" : "", name);
+    b.onclick = () => { state.guestTab = tab; store("bf.guestTab", tab); render(); window.scrollTo(0, 0); };
+    nav.appendChild(b);
+  }
+  main.appendChild(nav);
+  if (state.guestTab === MARKET) {
+    main.appendChild(marketSection());
+    drawMarket();
+    return;
+  }
   const home = homeSection();
   home.insertBefore(economyCard(), home.children[1]);
   const e = state.econ || (state.econ = { level: 0, item: null });
@@ -1537,6 +1588,12 @@ function render() {
   if (state.current === LOOKUP) look.className = "active";
   look.onclick = () => { state.current = LOOKUP; store("bf.tab", LOOKUP); render(); window.scrollTo(0, 0); };
   nav.appendChild(look);
+  const mkt = document.createElement("button");
+  mkt.textContent = "Stocks";
+  mkt.title = "How the flea's prices are moving";
+  if (state.current === MARKET) mkt.className = "active";
+  mkt.onclick = () => { state.current = MARKET; store("bf.tab", MARKET); render(); window.scrollTo(0, 0); };
+  nav.appendChild(mkt);
   for (const f of state.files) {
     const b = document.createElement("button");
     const t = document.createElement("span");
@@ -1556,6 +1613,14 @@ function render() {
   if (state.current === HOME) {
     main.appendChild(homeSection());
     drawCharts();
+    refreshBar();
+    window.scrollTo(0, scroll);
+    return;
+  }
+
+  if (state.current === MARKET) {
+    main.appendChild(marketSection());
+    drawMarket();
     refreshBar();
     window.scrollTo(0, scroll);
     return;
@@ -2190,6 +2255,13 @@ async function loadStatus() {
   if (state.current === HOME && !typing && !document.querySelector(".chart:hover")) render();
 }
 
+// Which mod adds an item, as a small tag after its name.
+function modTag(mod) {
+  const tag = make("span", "ix-mod", mod);
+  tag.title = "Added by the mod " + mod;
+  return tag;
+}
+
 function make(tag, className, text) {
   const e = document.createElement(tag);
   if (className) e.className = className;
@@ -2252,7 +2324,10 @@ function homeSection() {
     d.append(make("div", "k", label), make("div", "v", value), make("div", "s", sub));
     tiles.appendChild(d);
   };
-  tile("Offers on the flea", count(s.offers.total), "listed right now");
+  // With the memory saver, most offers are only made when someone opens the item: the whole flea first, then what's made.
+  if (s.memorySaver) tile("Offers on the flea", count(s.memorySaver.full + s.offers.traders + s.offers.players),
+    count(s.offers.total) + " made right now, the rest when someone opens the item");
+  else tile("Offers on the flea", count(s.offers.total), "listed right now");
   tile("Bought by other buyers", count(s.sold), s.dealsSold ? count(s.dealsSold) + " of them good deals" : "since the server started");
   tile("Server memory", count(s.memoryMb) + " MB", "whole server, not only the flea");
   tile("Server up for", duration(s.uptimeSeconds), "since the last restart");
@@ -2758,7 +2833,7 @@ function indexChanges(e) {
 
   const search = document.createElement("input");
   search.className = "text ix-find";
-  search.placeholder = "Find an item…";
+  search.placeholder = "Find an item or mod…";
   search.value = e.changesQuery || "";
   const table = make("div", "ix-table");
   const itemRows = (rows, withCategory) => {
@@ -2766,7 +2841,11 @@ function indexChanges(e) {
     for (const r of rows.slice().sort((a, b) => pct(b) - pct(a))) {
       const p = pct(r);
       const line = make("div", "ix-item");
-      line.append(make("span", "", r[0] + (withCategory ? " · " + typeLabel(r.cat) : "")), make("span", "", k(r[1]) + " → " + k(r[2])),
+      const name = make("span", "", r[0]);
+      if (r[3]) name.appendChild(make("span", "ix-mod", r[3]));
+      if (r[4]) name.appendChild(make("span", "ix-mod", "default build " + k(r[4])));
+      if (withCategory) name.appendChild(make("span", "ix-mod", typeLabel(r.cat)));
+      line.append(name, make("span", "", k(r[1]) + " → " + k(r[2])),
         make("span", p > 0.5 ? "up" : p < -0.5 ? "down" : "", fmt(p)));
       list.appendChild(line);
     }
@@ -2777,7 +2856,7 @@ function indexChanges(e) {
     table.innerHTML = "";
     const q = (e.changesQuery || "").trim().toLowerCase();
     if (q.length >= 2) {
-      const found = cats.flatMap(c => e.changes[c].filter(r => r[0].toLowerCase().includes(q)).map(r => Object.assign(r.slice(), { cat: c })));
+      const found = cats.flatMap(c => e.changes[c].filter(r => r[0].toLowerCase().includes(q) || (r[3] && r[3].toLowerCase().includes(q))).map(r => Object.assign(r.slice(), { cat: c })));
       table.appendChild(itemRows(found, true));
       return;
     }
@@ -2825,6 +2904,7 @@ function itemLookup(e, d) {
       for (const item of (data.items || []).filter(i => !i.category)) {
         const b = make("button");
         b.append(make("span", "", item.name));
+        if (item.mod) b.appendChild(modTag(item.mod));
         b.onmousedown = (ev) => { ev.preventDefault(); e.item = item; loadEconomy(); };
         results.appendChild(b);
       }
@@ -2839,7 +2919,9 @@ function itemLookup(e, d) {
     const head = make("div", "econ-head econ-item");
     const refresh = make("button", "btn small", "Refresh");
     refresh.onclick = () => { refresh.disabled = true; loadEconomy(); };
-    head.append(make("div", "k", e.item.name), refresh);
+    const title = make("div", "k", e.item.name);
+    if (d.mod) title.appendChild(modTag(d.mod));
+    head.append(title, refresh);
     look.appendChild(head);
     const econ = state.guest ? state.overview || {} : state.byFile["economy.jsonc"].values;
     const indexOn = state.guest ? econ.betterFleaPricing && econ.betterFleaPricing.enabled : getAt(econ, ["betterFleaPricing", "enabled"]);
@@ -2853,11 +2935,14 @@ function itemLookup(e, d) {
     const indexText = d.indexPrice ? count(d.indexPrice) + " ₽" : d.baseGame ? "none, it keeps SPT's price" : modded;
     const facts = make("div", "facts econ-facts");
     // SPT's own price only when live prices or Better Flea pricing changed it.
+    // A gun's base price is the gun on its own (its parts are priced separately), so its default build goes next to it.
+    const bare = d.buildBasePrice ? " (gun only)" : "";
     if (d.sptPrice && d.sptPrice !== d.basePrice) {
-      facts.append(make("div", "", "Base price now: " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + count(d.sptPrice) + " ₽"));
+      facts.append(make("div", "", "Base price now" + bare + ": " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + count(d.sptPrice) + " ₽"));
     } else {
-      facts.append(make("div", "", "Base price: " + count(d.basePrice) + " ₽"));
+      facts.append(make("div", "", "Base price" + bare + ": " + count(d.basePrice) + " ₽"));
     }
+    if (d.buildBasePrice) facts.append(make("div", "", "Base price, default build: " + count(d.buildBasePrice) + " ₽ (the gun and its parts)"));
     if (d.ownPrice) facts.append(make("div", "", "Your price: " + count(d.ownPrice) + " ₽ (set under Your prices)"));
     facts.append(make("div", "", "Better Flea price: " + indexText), make("div", "", "Live price: " + liveText),
       make("div", "", (d.stockBuild ? "Actual value (default build): " : "Actual value: ") + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
@@ -2920,7 +3005,9 @@ function offersCard() {
     for (const o of d.offers || []) {
       const item = make("details", "offer");
       const sum = make("summary");
-      sum.append(make("b", "", o.name), make("span", "n", o.player), make("span", "", count(o.price) + " ₽" + (o.quantity > 1 ? " × " + o.quantity : "")));
+      const title = make("b", "", o.name);
+      if (o.mod) title.appendChild(modTag(o.mod));
+      sum.append(title, make("span", "n", o.player), make("span", "", count(o.price) + " ₽" + (o.quantity > 1 ? " × " + o.quantity : "")));
       if (o.odds) {
         const over = Math.round((o.price / o.odds.normal - 1) * 100);
         sum.appendChild(make("span", "n", (over > 0 ? "+" : "") + over + "%"));
@@ -2958,6 +3045,300 @@ function lookupSection() {
   section.appendChild(itemLookup(e, e.data || {}));
   section.appendChild(offersCard());
   return section;
+}
+
+// ---------- market ----------
+// How the flea's prices moved over a day, three days or a week (from the price history), and where drift and the
+// players' buying and selling have pushed them. Guests see it too.
+
+const MARKET_RANGES = [["24 hours", 24], ["3 days", 72], ["7 days", 168]];
+const PIE_COLOURS = ["#5b9bd5", "#e0a84f", "#7cbf6b", "#c76f6f", "#9b7fd1", "#4fb3b3", "#c9a0dc", "#a0a0a0"];
+
+async function loadMarket() {
+  const m = state.market || (state.market = { hours: 24 });
+  m.loading = true;
+  try { m.data = await (await fetch(API + "/market?hours=" + m.hours)).json(); } catch (e) { m.failed = true; }
+  m.loading = false;
+  if (state.current === MARKET || state.guest) render();
+}
+
+// Opens an item in Item lookup.
+function openItem(id, name) {
+  const e = state.econ || (state.econ = { level: 0, item: null });
+  e.item = { id, name };
+  if (!state.guest) { state.current = LOOKUP; store("bf.tab", LOOKUP); }
+  loadEconomy();
+  render();
+  window.scrollTo(0, 0);
+}
+
+function sparkline(points, up) {
+  const W = 90, H = 24;
+  if (!points || points.length < 2) return make("span");
+  const lo = Math.min(...points), hi = Math.max(...points), span = Math.max(1, hi - lo);
+  const path = points.map((v, i) => (i ? "L" : "M") + (i / (points.length - 1) * W).toFixed(1) + " " + (H - 2 - (v - lo) / span * (H - 4)).toFixed(1)).join(" ");
+  const box = make("span", "spark");
+  box.innerHTML = `<svg width="${W}" height="${H}" aria-hidden="true"><path class="${up ? "up" : "down"}" d="${path}"/></svg>`;
+  return box;
+}
+
+const mktPct = (v) => (v > 0 ? "▲ +" : v < 0 ? "▼ " : "") + v + "%";
+
+function marketRows(rows, withSpark) {
+  const list = make("div", "mkt-list");
+  for (const r of rows) {
+    const line = make("div", "mkt-row");
+    const name = make("button", "linkish", r.name);
+    if (r.mod) name.appendChild(modTag(r.mod));
+    name.onclick = () => openItem(r.id, r.name);
+    line.appendChild(name);
+    if (withSpark) line.appendChild(sparkline(r.spark, r.change >= 0));
+    if (r.price !== undefined) line.appendChild(make("span", "n", count(r.price) + " ₽"));
+    const v = r.change !== undefined ? r.change : r.percent;
+    line.appendChild(make("span", v > 0 ? "up" : v < 0 ? "down" : "", mktPct(v)));
+    list.appendChild(line);
+  }
+  if (!rows.length) list.appendChild(make("div", "s", "Nothing yet."));
+  return list;
+}
+
+function pie(parts, label) {
+  const total = parts.reduce((a, p) => a + p[1], 0);
+  const box = make("div", "pie");
+  if (!total) { box.appendChild(make("div", "s", "Nothing yet.")); return box; }
+  let angle = -Math.PI / 2, svg = `<svg width="120" height="120" viewBox="-60 -60 120 120" role="img" aria-label="${label}">`;
+  parts.forEach((p, i) => {
+    const a = p[1] / total * Math.PI * 2;
+    if (a >= Math.PI * 2 - 1e-6) svg += `<circle r="50" fill="${p[2] || PIE_COLOURS[i % PIE_COLOURS.length]}"/>`;
+    else {
+      const x1 = Math.cos(angle) * 50, y1 = Math.sin(angle) * 50, x2 = Math.cos(angle + a) * 50, y2 = Math.sin(angle + a) * 50;
+      svg += `<path d="M0 0 L${x1.toFixed(2)} ${y1.toFixed(2)} A50 50 0 ${a > Math.PI ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${p[2] || PIE_COLOURS[i % PIE_COLOURS.length]}"/>`;
+    }
+    angle += a;
+  });
+  svg += `<circle r="28" class="hole"/></svg>`;
+  const chart = make("div");
+  chart.innerHTML = svg;
+  const legend = make("div", "legend");
+  parts.forEach((p, i) => {
+    const row = make("div");
+    const sw = make("span", "sw");
+    sw.style.background = p[2] || PIE_COLOURS[i % PIE_COLOURS.length];
+    row.append(sw, make("span", "", p[0]), make("span", "n", count(p[1]) + " · " + Math.round(p[1] / total * 100) + "%"));
+    legend.appendChild(row);
+  });
+  box.append(chart, legend);
+  return box;
+}
+
+function marketSection() {
+  const m = state.market || (state.market = { hours: 24 });
+  const section = make("section", "market stocks");
+  const head = make("div", "file-head");
+  const t = make("div", "t");
+  t.append(make("h2", "", "Stock market"), make("p", "", "How the flea's prices are moving: what's rising, what's crashing, what players are buying and selling, and what might move next."));
+  head.appendChild(t);
+  const ranges = make("div", "ranges");
+  for (const [name, hours] of MARKET_RANGES) {
+    const b = make("button", "btn small" + (m.hours === hours ? " on" : ""), name);
+    b.onclick = () => { m.hours = hours; m.data = null; if (m.watch) m.watch.data = null; loadMarket(); render(); };
+    ranges.appendChild(b);
+  }
+  head.appendChild(ranges);
+  section.appendChild(head);
+  const d = m.data;
+  if (!d) { section.appendChild(make("div", "hint", m.failed ? "Couldn't load the market." : "Loading…")); if (!m.loading) loadMarket(); return section; }
+  if (!d.recording) section.appendChild(notice("Record price history is off (Economy tab), so the charts only show what was recorded before."));
+
+  const last = d.index.length ? d.index[d.index.length - 1][1] : 0;
+  const tiles = make("div", "tiles");
+  const tile = (label, value, sub, cls) => { const x = make("div", "tile"); x.append(make("div", "k", label), make("div", "v " + (cls || ""), value), make("div", "s", sub)); tiles.appendChild(x); };
+  const span = (MARKET_RANGES.find(r => r[1] === d.hours) || MARKET_RANGES[0])[0];
+  tile("Market", (last > 0 ? "+" : "") + last + "%", "the typical item over " + span, last > 0 ? "up" : last < 0 ? "down" : "");
+  tile("Rising", count(d.up), "of " + count(d.items) + " items tracked", "up");
+  tile("Falling", count(d.down), "of " + count(d.items) + " items tracked", "down");
+  tile("Drifting", count(d.drift.up + d.drift.down), count(d.drift.up) + " above normal, " + count(d.drift.down) + " below");
+  section.appendChild(tiles);
+
+  const indexCard = make("div", "card");
+  indexCard.append(make("h3", "", "Market index"), make("div", "s", "The middle item's price against where it started " + span + " ago."));
+  const chart = make("div", "chart mkt-index");
+  chart.id = "mkt-index";
+  indexCard.appendChild(chart);
+  section.appendChild(indexCard);
+
+  const movers = make("div", "cards");
+  const risers = make("div", "card"); risers.append(make("h3", "", "Rising"), marketRows(d.risers, true));
+  const crashers = make("div", "card"); crashers.append(make("h3", "", "Crashing"), marketRows(d.crashers, true));
+  movers.append(risers, crashers);
+  section.appendChild(movers);
+
+  if (d.busiest.length) {
+    const busy = make("div", "card");
+    busy.append(make("h3", "", "Busiest items"), make("div", "s", "The items bought most over " + span + ", hour by hour."));
+    const grid = make("div", "mkt-charts");
+    d.busiest.forEach((b, i) => {
+      const cell = make("div", "mkt-chart");
+      const name = make("button", "linkish", b.name);
+      if (b.mod) name.appendChild(modTag(b.mod));
+      name.onclick = () => openItem(b.id, b.name);
+      const top = make("div", "mkt-row");
+      top.append(name, make("span", "n", count(b.price) + " ₽"), make("span", b.change >= 0 ? "up" : "down", mktPct(b.change)));
+      const box = make("div", "chart stock-chart");
+      box.id = "mkt-busy-" + i;
+      cell.append(top, box);
+      grid.appendChild(cell);
+    });
+    busy.appendChild(grid);
+    section.appendChild(busy);
+  }
+
+  const lean = make("div", "cards");
+  const rise = make("div", "card");
+  rise.append(make("h3", "", "Might go up"), make("div", "s", "Under their normal price right now. Prices drift back towards normal, so these are likelier to rise than fall."), marketRows(d.mightRise, false));
+  const fall = make("div", "card");
+  fall.append(make("h3", "", "Might come down"), make("div", "s", "Over their normal price right now, so likelier to fall back."), marketRows(d.mightFall, false));
+  lean.append(rise, fall);
+  section.appendChild(lean);
+
+  const players = make("div", "cards");
+  const bought = make("div", "card");
+  bought.append(make("h3", "", "What players are doing"), make("div", "s", "Buying an item pushes its price up; selling lots of it pushes it down. Both ease back over time."));
+  const cols = make("div", "movers");
+  const colOf = (label, rows) => { const c = make("div"); c.append(make("div", "k", label), marketRows(rows, false)); return c; };
+  cols.append(colOf("Bought up", d.bought), colOf("Flooded", d.flooded));
+  bought.appendChild(cols);
+  const sales = make("div", "card");
+  sales.appendChild(make("h3", "", "Players' latest sales"));
+  if (!d.sales.length) sales.appendChild(make("div", "s", "No player has sold anything on the flea yet."));
+  for (const x of d.sales) {
+    const row = make("div", "mkt-row");
+    const item = make("span", "", x.item + (x.amount > 1 ? " ×" + x.amount : ""));
+    if (x.mod) item.appendChild(modTag(x.mod));
+    row.append(item, make("span", "s", x.player + ", " + ago(x.soldAt)), make("span", "n", count(Math.round(x.price)) + " ₽"));
+    sales.appendChild(row);
+  }
+  players.append(bought, sales);
+  section.appendChild(players);
+
+  const pies = make("div", "cards");
+  const what = make("div", "card");
+  what.append(make("h3", "", "What's on the flea"), pie(d.groups.map(g => [g[0] === "other" ? "Other" : labelFor("flea.jsonc", ["bannedCategories", g[0]]), g[1]]), "Offers by kind"));
+  const drift = make("div", "card");
+  drift.append(make("h3", "", "Price drift"), pie([["Above normal", d.drift.up, "var(--green)"], ["Below normal", d.drift.down, "var(--bad)"], ["About normal", d.drift.flat, "var(--slate)"]], "Price drift"));
+  pies.append(what, drift);
+  section.appendChild(pies);
+
+  section.appendChild(watchlist(m, span));
+  return section;
+}
+
+// Pick items by loot rarity and category, sorted by how they moved, how dear they are or how much they traded.
+// The Bans tab's categories, for guests (who don't get the settings files).
+const CATEGORY_GROUPS = {
+  weapons: { guns: 0, throwables: 0, melee: 0 }, ammo: { rounds: 0, ammoBoxes: 0 },
+  weaponParts: { magazines: 0, sights: 0, suppressors: 0, otherParts: 0 },
+  gear: { bodyArmor: 0, armoredRigs: 0, chestRigs: 0, backpacks: 0, armorPlates: 0, headwear: 0, helmetAttachments: 0, faceCovers: 0,
+    eyewear: 0, headphones: 0, armbands: 0, containers: 0 },
+  keys: { mechanicalKeys: 0, markedKeys: 0, keycards: 0 }, medical: { medkits: 0, bandagesAndSplints: 0, painkillers: 0, stimulants: 0 },
+  other: { foodAndDrink: 0, barterItems: 0, info: 0, maps: 0, posters: 0, specialEquipment: 0 }
+};
+const WATCH_RARITY = [["superrare", "Very rare"], ["rare", "Rare"], ["common", "Common"], ["", "Any rarity"]];
+const WATCH_SORT = [["rising", "Rising most"], ["falling", "Falling most"], ["dearest", "Dearest"], ["traded", "Most traded"]];
+
+function watchlist(m, span) {
+  const w = m.watch || (m.watch = { rarity: "superrare", category: "", sort: "rising" });
+  const card = make("div", "card");
+  card.appendChild(make("h3", "", "Watchlist"));
+  const bar = make("div", "watch-bar");
+  const select = (options, value, onPick) => {
+    const el = document.createElement("select");
+    for (const o of options) {
+      if (o.group) {
+        const g = document.createElement("optgroup");
+        g.label = o.group;
+        for (const [v, n] of o.items) g.appendChild(new Option(n, v, false, v === value));
+        el.appendChild(g);
+      } else el.appendChild(new Option(o[1], o[0], false, o[0] === value));
+    }
+    el.onchange = () => onPick(el.value);
+    return el;
+  };
+  const groups = (state.byFile["flea.jsonc"] && state.byFile["flea.jsonc"].defaults.bannedCategories) || CATEGORY_GROUPS;
+  const cats = [["", "Every category"]].concat(Object.keys(groups).map(g => ({
+    group: labelFor("flea.jsonc", ["bannedCategories", g]),
+    items: [[g, "All " + labelFor("flea.jsonc", ["bannedCategories", g]).toLowerCase()]]
+      .concat(Object.keys(groups[g]).map(sub => [g + "." + sub, labelFor("flea.jsonc", ["bannedCategories", g, sub])]))
+  })));
+  const reload = () => { w.data = null; loadWatch(m); render(); };
+  bar.append(select(WATCH_RARITY, w.rarity, v => { w.rarity = v; reload(); }), select(cats, w.category, v => { w.category = v; reload(); }),
+    select(WATCH_SORT, w.sort, v => { w.sort = v; reload(); }));
+  card.append(bar, make("div", "s", "Over " + span + "."));
+  if (!w.data) { card.appendChild(make("div", "hint", "Loading…")); if (!w.loading) loadWatch(m); }
+  else card.appendChild(marketRows(w.data, true));
+  return card;
+}
+
+async function loadWatch(m) {
+  const w = m.watch;
+  w.loading = true;
+  try {
+    const q = "?hours=" + m.hours + "&rarity=" + encodeURIComponent(w.rarity) + "&category=" + encodeURIComponent(w.category) + "&sort=" + w.sort;
+    w.data = (await (await fetch(API + "/market-watch" + q)).json()).items || [];
+  } catch (e) { w.data = []; }
+  w.loading = false;
+  if (state.current === MARKET || state.guest) render();
+}
+
+// The charts need their boxes on the page to know how wide they are.
+function drawMarket() {
+  const d = state.market && state.market.data;
+  if (!d) return;
+  const box = $("mkt-index");
+  if (box) drawLine(box, d.index, d.now - d.hours * 3600, d.now);
+  d.busiest.forEach((b, i) => { const el = $("mkt-busy-" + i); if (el) drawCandles(el, b.candles, [], [], d.now - d.hours * 3600, d.now); });
+}
+
+function drawLine(box, points, t0, t1) {
+  box.innerHTML = "";
+  if (points.length < 2) { box.appendChild(make("div", "hint", "Not enough history yet. Prices are recorded every 15 minutes while the server runs.")); return; }
+  const W = box.clientWidth || 600, H = 180, L = 50, R = 10, TOP = 10, B = 24;
+  let lo = Math.min(0, ...points.map(p => p[1])), hi = Math.max(0, ...points.map(p => p[1]));
+  const pad = Math.max((hi - lo) * 0.15, 0.5);
+  lo -= pad; hi += pad;
+  const x = (t) => L + (t - t0) / Math.max(1, t1 - t0) * (W - L - R);
+  const y = (v) => TOP + (1 - (v - lo) / (hi - lo)) * (H - B - TOP);
+  let svg = `<svg width="${W}" height="${H}" role="img">`;
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * i / 3;
+    svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(1)}%</text>`;
+  }
+  svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
+  for (const [t, anchor] of [[t0, "start"], [(t0 + t1) / 2, "middle"], [t1, "end"]]) svg += `<text x="${x(t)}" y="${H - 6}" text-anchor="${anchor}">${stockTime(t)}</text>`;
+  // Each point sits mid-hour, but never past the end. Hours with no recording (server off) leave a gap.
+  const px = (p) => x(Math.min(p[0] + 1800, t1));
+  const path = points.map((p, i) => (i && p[0] - points[i - 1][0] <= 5400 ? "L" : "M") + px(p).toFixed(1) + " " + y(p[1]).toFixed(1)).join(" ");
+  svg += `<path class="line ${points[points.length - 1][1] >= 0 ? "" : "neg"}" d="${path}"/>`;
+  svg += `<line class="cross" x1="0" x2="0" y1="${TOP}" y2="${H - B}" visibility="hidden"/><circle class="dot" r="4" visibility="hidden"/></svg>`;
+  box.innerHTML = svg;
+  const tip = make("div", "tip");
+  tip.hidden = true;
+  box.appendChild(tip);
+  const cross = box.querySelector(".cross"), dot = box.querySelector(".dot");
+  box.onmousemove = (ev) => {
+    const mx = ev.clientX - box.getBoundingClientRect().left;
+    let best = points[0];
+    for (const p of points) if (Math.abs(px(p) - mx) < Math.abs(px(best) - mx)) best = p;
+    const bx = px(best);
+    cross.setAttribute("x1", bx); cross.setAttribute("x2", bx); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", bx); dot.setAttribute("cy", y(best[1])); dot.setAttribute("visibility", "visible");
+    tip.hidden = false;
+    tip.innerHTML = "";
+    tip.append(make("b", "", (best[1] > 0 ? "+" : "") + best[1] + "%"), make("span", "", stockTime(best[0])));
+    tip.style.left = Math.min(Math.max(0, bx - tip.offsetWidth / 2), W - tip.offsetWidth) + "px";
+    tip.style.top = "0px";
+  };
+  box.onmouseleave = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; };
 }
 
 // ---------- mod items ----------
@@ -3101,7 +3482,11 @@ function input(f, path, value, def) {
   if (typeof value === "boolean") return toggleSwitch(value, (on) => change(f, path, on));
   if (typeof value === "number") {
     const sample = typeof def === "number" ? def : value;
-    if (/percent/i.test(key)) return slider(f, path, value, Math.max(100, value, sample * 2), 1);
+    if (/percent/i.test(key)) {
+      // Settings that can go below 0: % from what something is worth (-12 = 12% under it).
+      const signed = sample < 0 || value < 0 || SIGNED.includes(f.file + ":" + path.join("."));
+      return slider(f, path, value, Math.max(signed ? 50 : 100, value, sample * 2), 1, "%", signed ? -Math.max(50, -value, -sample * 2) : 0);
+    }
     if (key === "slowSaleMaxHours") return slider(f, path, value, Math.max(12, value), 1, "h");
     if ((/(chance|share)$/i.test(key) || /chance/i.test(parent)) && sample >= 0 && sample <= 1 && value <= 1) return slider(f, path, value, 1, 100);
     return stepper(f, path, value, stepFor(key, parent, sample, value));
@@ -3167,13 +3552,16 @@ function stepper(f, path, value, step) {
 }
 
 // Shown as a percent either way: scale is 100 for 0-1 chances, 1 for settings already in percent.
-function slider(f, path, value, max, scale, unit = "%") {
+const SIGNED = ["prices.jsonc:guns.offerMinPercent", "prices.jsonc:guns.offerMaxPercent", "prices.jsonc:guns.stockOfferMinPercent",
+  "prices.jsonc:guns.stockOfferMaxPercent", "prices.jsonc:spread.minPercent", "prices.jsonc:spread.maxPercent"];
+
+function slider(f, path, value, max, scale, unit = "%", min = 0) {
   const wrap = document.createElement("div");
   wrap.className = "slider";
   const shown = (v) => Math.round(v * scale * 10) / 10;
   const range = document.createElement("input");
   range.type = "range";
-  range.min = 0; range.max = max; range.step = scale === 100 ? 0.01 : 1; range.value = value;
+  range.min = min; range.max = max; range.step = scale === 100 ? 0.01 : 1; range.value = value;
   const box = document.createElement("label");
   box.className = "pct";
   const el = document.createElement("input");
@@ -3184,7 +3572,7 @@ function slider(f, path, value, max, scale, unit = "%") {
   el.onchange = () => {
     const v = parseFloat(el.value);
     if (isNaN(v)) return;
-    const real = Math.max(0, v) / scale;
+    const real = Math.max(min, v) / scale;
     change(f, path, scale === 100 ? Math.min(1, Number(real.toFixed(4))) : real);
   };
   range.oninput = () => { el.value = shown(parseFloat(range.value)); };

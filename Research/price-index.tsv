@@ -633,7 +633,7 @@ id	item	kind	WTT ContentBackport	index	source	PvP flea	PvE flea	trader price	bes
 574d967124597745970e7c94	TOZ Simonov SKS 7.62x39 carbine	Assault carbine		14300	gun: default build on the PvP less its parts	33439.5	44110.5		8698	35114	19331	build 33100, parts 18700
 6410733d5dd49d77bd07847e	Tokarev AVT-40 7.62x54R automatic rifle	Assault carbine		46900	gun: flea-banned				8698		19331	checked by hand
 643ea5b23db6f9f57107d9fd	Tokarev SVT-40 7.62x54R rifle	Assault carbine		24600	gun: default build on the PvP less its parts	61333.33333333333	53091		8698	69598	19331	build 60700, parts 36100
-5c07c60e0db834002330051f	ADAR 2-15 5.56x45 carbine	Assault rifle		14300	gun: cheapest listing (default build's parts cost more than the build)	26665.333333333332	36288	18144	2835	45373	6300	build 43700, parts 46700
+5c07c60e0db834002330051f	ADAR 2-15 5.56x45 carbine	Assault rifle		18100	gun: cheapest listing (default build's parts cost more than the build)	26665.333333333332	36288	18144	2835	45373	6300	build 43700, parts 46700
 5cadfbf7ae92152ac412eeef	ASh-12 12.7x55 assault rifle	Assault rifle		48800	gun: default build on the PvP less its parts	84211	80081.5		42210	71273	93800	build 81900, parts 33100
 674d6121c09f69dfb201a888	Aklys Defense Velociraptor .300 Blackout assault rifle	Assault rifle		50000	gun: cheapest listing (default build's parts cost more than the build)	78519	75216.0		28553	93762	63453	build 80000, parts 85800
 606587252535c57a13424cfd	CMMG Mk47 Mutant 7.62x39 assault rifle	Assault rifle		27600	gun: default build on the PvP less its parts	142667	133151.5		11338	144697	25197	build 133000, parts 106000
@@ -647,7 +647,7 @@ id	item	kind	WTT ContentBackport	index	source	PvP flea	PvE flea	trader price	bes
 5dcbd56fdbd3d91b3e5468d5	Desert Tech MDR 7.62x51 assault rifle	Assault rifle		140000	gun: flea-banned				28453		63230	checked by hand
 6183afd850224f204c1da514	FN SCAR-H 7.62x51 assault rifle	Assault rifle		54000	gun: flea-banned				10980		24400	checked by hand
 6165ac306ef05c2ce828ef74	FN SCAR-H 7.62x51 assault rifle (FDE)	Assault rifle		57100	gun: flea-banned				11610		25800	checked by hand
-676176d362e0497044079f4c	FN SCAR-H X-17 7.62x51 assault rifle	Assault rifle		20000	gun: cheapest listing (no default build price)	37699	39606.0	36778	13239	274672	29422	
+676176d362e0497044079f4c	FN SCAR-H X-17 7.62x51 assault rifle	Assault rifle		36800	gun: cheapest listing (no default build price)	37699	39606.0	36778	13239	274672	29422	
 6184055050224f204c1da540	FN SCAR-L 5.56x45 assault rifle	Assault rifle		44000	gun: cheapest listing (default build's parts cost more than the build)	60410	69585.5		7650	64621	17000	build 60400, parts 143000
 618428466ef05c2ce828f218	FN SCAR-L 5.56x45 assault rifle (FDE)	Assault rifle		30000	gun: cheapest listing (default build's parts cost more than the build)	61955.5	73702.0	22500	8100	63845	18000	build 59900, parts 127000
 5bb2475ed4351e00853264e3	HK 416A5 5.56x45 assault rifle	Assault rifle		31000	gun: cheapest listing (default build's parts cost more than the build)	83764.5	99545	27250	9810	138718	21800	build 107000, parts 96000
@@ -681,7 +681,7 @@ id	item	kind	WTT ContentBackport	index	source	PvP flea	PvE flea	trader price	bes
 628a60ae6b1d481ff772e9c8	Rifle Dynamics RD-704 7.62x39 assault rifle	Assault rifle		42900	gun: cheapest listing (default build's parts cost more than the build)	66745	65629.0		20250	91973	45000	build 70300, parts 77300
 628b5638ad252a16da6dd245	SAG AK-545 5.45x39 carbine	Assault rifle		33300	gun: cheapest listing (default build's parts cost more than the build)	51005	49266		12735	52864	28300	build 52000, parts 115000
 628b9c37a733087d0d7fe84b	SAG AK-545 Short 5.45x39 carbine	Assault rifle		39000	gun: cheapest listing (default build's parts cost more than the build)	60650	58421.75		13950	53645	31000	build 59300, parts 132000
-5fbcc1d9016cce60e8341ab3	SIG MCX .300 Blackout assault rifle	Assault rifle		26700	gun: cheapest listing (default build's parts cost more than the build)	95637	83792.5	30672	9585	139755	21300	build 91300, parts 92500
+5fbcc1d9016cce60e8341ab3	SIG MCX .300 Blackout assault rifle	Assault rifle		30700	gun: cheapest listing (default build's parts cost more than the build)	95637	83792.5	30672	9585	139755	21300	build 91300, parts 92500
 65290f395ae2ae97b80fdf2d	SIG MCX-SPEAR 6.8x51 assault rifle	Assault rifle		47200	gun: flea-banned				9585		21300	checked by hand
 62e7c4fba689e8c9c50dfc38	Steyr AUG A1 5.56x45 assault rifle	Assault rifle		35600	gun: cheapest listing (default build's parts cost more than the build)	48696.33333333333	43770		11803	42711	26230	build 48700, parts 66200
 63171672192e68c5460cebc5	Steyr AUG A3 5.56x45 assault rifle	Assault rifle		49900	gun: cheapest listing (default build's parts cost more than the build)	66474.5	59665.5		13950	77720	31000	build 65100, parts 81100
@@ -3116,7 +3116,7 @@ id	item	kind	WTT ContentBackport	index	source	PvP flea	PvE flea	trader price	bes
 5a367e5dc4a282000e49738f	Remington R11 RSASS 7.62x51 marksman rifle	Marksman rifle		60000	gun: cheapest listing (default build's parts cost more than the build)	95329	95337		19970	113819	41605	build 102000, parts 149000
 5c46fbd72e2216398b5a8c9c	SVDS 7.62x54R sniper rifle	Marksman rifle		55600	gun: cheapest listing (default build's parts cost more than the build)	94323.5	107928		20544	101389	42800	build 95200, parts 85400
 5fc22d7c187fea44d52eda44	SWORD International Mk-18 .338 LM marksman rifle	Marksman rifle		179000	gun: default build on the PvP less its parts		458713.0		30912		64400	build 427000, parts 247000
-5aafa857e5b5b00018480968	Springfield Armory M1A 7.62x51 rifle	Marksman rifle		30300	gun: cheapest listing (default build's parts cost more than the build)	65061.5	92185	37830	14526	110875	30264	build 63200, parts 53600
+5aafa857e5b5b00018480968	Springfield Armory M1A 7.62x51 rifle	Marksman rifle		37800	gun: cheapest listing (default build's parts cost more than the build)	65061.5	92185	37830	14526	110875	30264	build 63200, parts 53600
 68aee763130c00663d08aea8	TKPD 9.3x64 carbine	Marksman rifle	yes	195000	gun: flea-banned				34608	213054	72100	checked by hand
 67d0576f29f580ebc10efd08	TheAKGuy AK-50 .50 BMG sniper rifle	Marksman rifle		271000	gun: flea-banned				47990		99981	checked by hand
 57838ad32459774a17445cd2	VSS Vintorez 9x39 special sniper rifle	Marksman rifle		176000	gun: flea-banned				31297		65203	checked by hand

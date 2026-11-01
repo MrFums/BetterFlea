@@ -349,6 +349,9 @@ internal static class PriceGate
 
     public static int DriftingItems => Drifts.Count;
 
+    // Every drifting item and how far it is from its normal price (1 = normal).
+    public static List<(MongoId Tpl, double Factor)> AllDrifts() => Drifts.Select(entry => (entry.Key, entry.Value.State()[0])).ToList();
+
     public static bool DriftOn => _config?.Mod.Prices.Drift is { Enabled: true, MaxDriftPercent: > 0 };
 
     private static string Name(MongoId tpl) => _itemHelper?.GetItem(tpl).Value?.Name ?? tpl.ToString();

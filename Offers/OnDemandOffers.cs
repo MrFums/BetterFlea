@@ -33,6 +33,8 @@ public class OnDemandOffersLoad(
 
         OnDemandOffers.Bind(configManager, ragfairOfferGenerator, ragfairOfferService, ragfairConfig, paymentHelper);
         new FillOnSearchPatch().Enable();
+        new FillOnBuildSearchPatch().Enable();
+        new HideExpiredOffersPatch().Enable();
         new FullCategoryCountsPatch().Enable();
 
         return Task.CompletedTask;
@@ -587,6 +589,44 @@ public class FillOnSearchPatch : AbstractPatch
 
         __result = result;
         return false;
+    }
+}
+
+// Edit Build's buy list (the parts a build is missing) searches by its own route: the parts fill up there too.
+public class FillOnBuildSearchPatch : AbstractPatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return typeof(RagfairOfferHelper).GetMethod(nameof(RagfairOfferHelper.GetOffersForBuild), BindingFlags.Instance | BindingFlags.Public)!;
+    }
+
+    [PatchPrefix]
+    public static void Prefix(SearchRequestData searchRequest)
+    {
+        if (searchRequest.BuildItems is { Count: > 0 } parts)
+        {
+            OnDemandOffers.FillUp(parts.Keys.ToHashSet());
+        }
+    }
+}
+
+// SPT flags an ended offer but leaves it up until 1400 have ended, then clears them all at once. Until then the game
+// shows it as unavailable, and Edit Build, which lists only the cheapest offer for each part, often picks one. Ended
+// generated offers are left out of searches; real players' and traders' are SPT's business.
+public class HideExpiredOffersPatch : AbstractPatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return typeof(RagfairOfferHelper).GetMethod("IsDisplayableOffer", BindingFlags.Instance | BindingFlags.NonPublic)!;
+    }
+
+    [PatchPostfix]
+    public static void Postfix(RagfairOffer offer, ref bool __result)
+    {
+        if (__result && offer.IsFakePlayerOffer() && offer.EndTime is { } end && end <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+        {
+            __result = false;
+        }
     }
 }
 

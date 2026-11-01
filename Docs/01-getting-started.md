@@ -21,7 +21,7 @@ Fika headless client.
 
 | Better Flea | SPT |
 |---|---|
-| 1.0.0 to 2.4.2 | 4.1.x |
+| 1.0.0 to 2.5.0 | 4.1.x |
 
 Every release so far is for SPT 4.1. The server mod says which SPT versions it supports, and SPT won't load it on
 another.
@@ -47,7 +47,9 @@ another PC, use the server's address instead of `127.0.0.1`.
 *The settings page: flea stats, every setting explained, flea styles and Better Flea's prices.*
 
 - **First visit:** you make an admin account. Changing settings needs that login. Anyone else who opens the page
-  sees the flea's stats, Item lookup and the offers on the flea, but can't change anything.
+  sees the flea's stats, Item lookup, the offers on the flea and the stock market, but can't change anything.
+- **Stocks:** how the flea's prices moved over 24 hours, 3 days or 7 days: a market index, risers and crashers, the
+  busiest items' charts, a Watchlist by rarity and category, what players bought up or flooded, and what might go up or come down.
 - **Forgot the password?** Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` and restart the server, then
   make a new account. Your settings are kept.
 - **Searching:** the box at the top finds any setting by name or by words in its description. Press `/` to jump to it.

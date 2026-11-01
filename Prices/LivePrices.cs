@@ -332,7 +332,7 @@ internal static class LivePrices
             var skip = index && !IndexSettings.ContentBackport ? cache.Backport?.ToHashSet() : null;
             foreach (var (id, price) in cache.Prices)
             {
-                if (MongoId.IsValidMongoId(id) && skip?.Contains(id) != true && new MongoId(id) is var tpl && _sptPrices!.TryGetValue(tpl, out var spt)
+                if (MongoId.IsValidMongoId(id) && skip?.Contains(id) != true && !MoneyIds.Contains(id) && new MongoId(id) is var tpl && _sptPrices!.TryGetValue(tpl, out var spt)
                     && (index || Plausible(tpl, spt, price)))
                 {
                     prices[tpl] = price;
@@ -376,12 +376,22 @@ internal static class LivePrices
         (_templates?.Handbook?.Items ?? []).Where(entry => entry.Price > 0).GroupBy(entry => entry.Id)
             .ToDictionary(group => group.Key, group => (double)group.First().Price!));
 
+    // Roubles, dollars, euros and GP coins keep SPT's price, from live prices and Better Flea's alike.
+    private static readonly HashSet<string> MoneyIds = [Money.ROUBLES.ToString(), Money.DOLLARS.ToString(), Money.EUROS.ToString(), Money.GP.ToString()];
+
     private static Cache? ReadIndex()
     {
         try
         {
             using var stream = typeof(LivePrices).Assembly.GetManifestResourceStream("BetterFlea.data.price-index.json");
-            return stream is null ? null : JsonSerializer.Deserialize<Cache>(stream);
+            var index = stream is null ? null : JsonSerializer.Deserialize<Cache>(stream);
+            // Money is never priced: the index file has the dollar and euro at a trader's rate.
+            foreach (var money in MoneyIds)
+            {
+                index?.Prices.Remove(money);
+            }
+
+            return index;
         }
         catch (Exception)
         {
@@ -672,6 +682,29 @@ internal static class LivePrices
         }
     }
 
+    // After startup: Your prices again, for items a mod added after SPT's prices were worked out (they didn't exist
+    // yet the first time) or a price a mod changed after them. How many weren't as set.
+    public static int UseOverridesAgain()
+    {
+        lock (Gate)
+        {
+            if (_sptPrices is null || _templates is null)
+            {
+                return 0;
+            }
+
+            var wrong = _config!.Mod.Economy.PriceOverrides.Count(entry => entry.Value > 0 && MongoId.IsValidMongoId(entry.Key)
+                && new MongoId(entry.Key) is var tpl && _templates.Items.ContainsKey(tpl) && _templates.Prices.GetValueOrDefault(tpl) != entry.Value);
+            if (wrong > 0)
+            {
+                ForgetOverrides();
+                UseOverrides();
+            }
+
+            return wrong;
+        }
+    }
+
     private static void UseOverrides()
     {
         Usual.Clear();
@@ -745,6 +778,7 @@ internal static class LivePrices
     }
 
     // Every item Better Flea pricing prices, with SPT's own price and Better Flea's: (item, SPT price, Better Flea price).
+    // While it's on, modded items it estimated (or moved to a trader's price) too.
     public static List<(MongoId Tpl, double Spt, double Price)> IndexChanges()
     {
         if (Index.Value is not { } index || _sptPrices is null)
@@ -752,13 +786,26 @@ internal static class LivePrices
             return [];
         }
 
-        return index.Prices
+        var changes = index.Prices
             .Where(entry => MongoId.IsValidMongoId(entry.Key)
                 && (IndexSettings.ContentBackport || index.Backport?.Contains(entry.Key) != true))
             .Select(entry => (Tpl: new MongoId(entry.Key), Price: entry.Value))
             .Where(entry => _sptPrices.GetValueOrDefault(entry.Tpl) > 0)
             .Select(entry => (entry.Tpl, Spt: _sptPrices[entry.Tpl], entry.Price))
             .ToList();
+        if (_indexApplied)
+        {
+            var listed = changes.Select(entry => entry.Tpl).ToHashSet();
+            foreach (var (tpl, spt) in _sptPrices)
+            {
+                if (spt > 0 && !listed.Contains(tpl) && !MoneyIds.Contains(tpl.ToString()) && UsualPrice(tpl) is var now && Math.Abs(now - spt) >= 1)
+                {
+                    changes.Add((tpl, spt, now));
+                }
+            }
+        }
+
+        return changes;
     }
 
     // For the settings page.

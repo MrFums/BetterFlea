@@ -7,7 +7,7 @@ using SPT.Reflection.Patching;
 
 namespace BetterFlea.Client;
 
-[BepInPlugin("com.fums.betterflea", "Fums-BetterFleaClient", "2.4.2")]
+[BepInPlugin("com.fums.betterflea", "Fums-BetterFleaClient", "2.5.0")]
 [BepInDependency("com.SPT.core", BepInDependency.DependencyFlags.HardDependency)]
 public class Plugin : BaseUnityPlugin
 {
