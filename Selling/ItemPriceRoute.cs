@@ -20,7 +20,7 @@ public class ItemPriceRoute(JsonUtil jsonUtil, ItemHelper itemHelper) : IHttpLis
     public const string Path = "/betterflea/item-price";
 
     // A loaded gun is well under this; anything bigger isn't one item.
-    private const int MostItems = 300;
+    public const int MostItems = 300;
 
     public bool CanHandle(HttpContext context)
     {
@@ -56,12 +56,71 @@ public class ItemPriceRoute(JsonUtil jsonUtil, ItemHelper itemHelper) : IHttpLis
     }
 }
 
+// POST /betterflea/item-prices: the same price for many items in one request, so Price Index can price a whole stash
+// at login. The body is a JSON array of what /betterflea/item-price takes (each an item with its parts), at most 250.
+// The answer is {"Prices":[...]} in the same order; an item too big or with a template the server doesn't know gets 0,
+// and a body that can't be read gets an empty list.
+[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.Preload)]
+public class ItemPricesRoute(JsonUtil jsonUtil, ItemHelper itemHelper) : IHttpListener
+{
+    public const string Path = "/betterflea/item-prices";
+
+    private const int MostPerRequest = 250;
+
+    public bool CanHandle(HttpContext context)
+    {
+        return HttpMethods.IsPost(context.Request.Method)
+            && context.Request.Path.Equals(Path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public async Task HandleAsync(MongoId sessionId, HttpContext context, CancellationToken cancellationToken)
+    {
+        var prices = new List<double>();
+        try
+        {
+            using var reader = new StreamReader(context.Request.Body);
+            var batch = jsonUtil.Deserialize<List<List<Item>>>(await reader.ReadToEndAsync(cancellationToken));
+            foreach (var items in (batch ?? []).Take(MostPerRequest))
+            {
+                double? price = null;
+                try
+                {
+                    if (items is { Count: > 0 and <= ItemPriceRoute.MostItems } && items.All(item => itemHelper.GetItem(item.Template).Key))
+                    {
+                        price = SaleDelayGate.NormalPrice(items);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLog.Write(() => $"Item prices: could not price one item ({ex.Message})");
+                }
+
+                prices.Add(Math.Round(price ?? 0));
+            }
+        }
+        catch (Exception ex)
+        {
+            prices.Clear();
+            DebugLog.Write(() => $"Item prices: could not read the request ({ex.Message})");
+        }
+
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(jsonUtil.Serialize(new ItemPrices { Prices = prices }) ?? "{}", cancellationToken);
+    }
+
+    public sealed class ItemPrices
+    {
+        // Roubles for one of each item, in the request's order. 0 = no price.
+        public List<double> Prices { get; set; } = [];
+    }
+}
+
 // With logRequests on (SPT's http.json, on by default), SPT writes a "[Client Request]" line for every request. The
 // plugins ask these routes for prices and flea state many times a minute, which buried everything else in the
 // console. They're left out of it; every other request is still logged.
 public class QuietClientRoutesPatch : AbstractPatch
 {
-    private static readonly string[] Quiet = [ItemPriceRoute.Path, ClientDataRoute.Path, ClientDataRoute.LevelsPath, FlipNoticeRoute.Path];
+    private static readonly string[] Quiet = [ItemPriceRoute.Path, ItemPricesRoute.Path, ClientDataRoute.Path, ClientDataRoute.LevelsPath, FlipNoticeRoute.Path];
 
     protected override MethodBase GetTargetMethod()
     {

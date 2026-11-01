@@ -48,6 +48,32 @@ var json = RequestHandler.PostJson("/betterflea/item-price", JsonConvert.Seriali
 var price = JsonConvert.DeserializeObject<JObject>(json)?["Price"]?.Value<double>() ?? 0;
 ```
 
+## Item prices (many at once)
+
+`POST /betterflea/item-prices`, Better Flea 2.5.0 or newer.
+
+The same price for up to 250 items in one request, so a whole stash can be priced in a few requests. 250 items take
+well under a second.
+
+**Request:** a JSON list of items, each exactly what `/betterflea/item-price` takes (the item and everything in it).
+
+```json
+[
+  [ { "_id": "6720aaaaaaaaaaaaaaaaaaaa", "_tpl": "5c0e655586f774045612eeb2" } ],
+  [ { "_id": "6720bbbbbbbbbbbbbbbbbbbb", "_tpl": "5448be9a4bdc2dfd2f8b456a" } ]
+]
+```
+
+**Reply:** one price per item, in the same order.
+
+```json
+{ "Prices": [47079, 12400] }
+```
+
+An item it can't price (empty, an unknown item, or more than 300 items in it) gets 0; the rest are still priced.
+Items past the 250th are left off the reply. A body that can't be read gets `{"Prices":[]}`. On an older server the
+route answers 404: fall back to `/betterflea/item-price`.
+
 ## Flea status
 
 `GET /betterflea/client-data`

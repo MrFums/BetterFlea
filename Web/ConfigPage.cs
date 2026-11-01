@@ -97,6 +97,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             && !path.Equals(ClientDataRoute.Path, StringComparison.OrdinalIgnoreCase)
             && !path.Equals(ClientDataRoute.LevelsPath, StringComparison.OrdinalIgnoreCase)
             && !path.Equals(ItemPriceRoute.Path, StringComparison.OrdinalIgnoreCase)
+            && !path.Equals(ItemPricesRoute.Path, StringComparison.OrdinalIgnoreCase)
             && !path.Equals(FlipNoticeRoute.Path, StringComparison.OrdinalIgnoreCase);
     }
 
