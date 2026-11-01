@@ -65,7 +65,7 @@ and applies most changes without a restart. If you do edit a file by hand, resta
 ## Flea styles
 
 A flea style sets many settings at once. Pick one with **Flea style** at the top of the settings page, then fine-tune
-on the tabs.
+on the tabs. A style leaves the Bans tab, Debug, Flea access (Selling tab) and your prices (Economy tab) alone.
 
 ![Flea styles](../imageExamples/web-styles.png)
 
@@ -73,15 +73,15 @@ on the tabs.
 
 | Style | What it's for |
 |---|---|
-| **Balanced** (default) | Live-like, without item unlock levels or the Wipe Cycle. |
-| **Live progression** | Balanced plus item unlock levels and the Wipe Cycle. As close to the live flea as it gets. |
+| **Better Flea (recommended)** (default) | Better Flea as it ships: its own prices and a live-like flea, without item unlock levels or the Wipe Cycle. |
+| **Live progression** | Better Flea (recommended) plus item unlock levels and the Wipe Cycle. As close to the live flea as it gets. |
 | **Base SPT** | Better Flea's flea changes off, so the flea works like plain SPT (the memory saver stays on). Useful to compare. |
-| **Rough market** | Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast. |
+| **Rough market** | Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast, and your own items sell slower. |
 | **Overpriced** | Everything costs about 50% more, quick sells are gone and guns cost more than at the traders. |
-| **Flea sale** | An event weekend: everything 15% cheaper, lots of offers and deals, fast turnover. |
+| **Flea sale** | An event weekend: everything 15% cheaper, lots of offers and deals, fast turnover. Your own items sell faster. |
 | **Chaos** | Everything turned up: piles of offers, scams and giant packs, wild prices. For fun. |
 | **Random** | Every number nudged up or down at random. Pick it again for a different flea. |
-| **Low memory** | Far fewer offers for small servers. Items still fill up when you open them. |
+| **Low memory** | About a third of the offers and no price history, for small servers. Items still fill up when you open them. It saves less than you might think (about 60 MB on a test install), since most of the memory is SPT itself. |
 
 ## Updating
 
@@ -108,7 +108,7 @@ All under `SPT_Runtime/user/mods/BetterFlea/`:
 | `data/purchase-locks.json` | Items bought from traders, for the trader item lock |
 | `data/recent-purchases.json` | Recent purchases, for the flip penalty and the 48-hour rule |
 | `data/lost-guns.json` | Guns players died with that may turn up on the flea |
-| `data/price-history.bin` | Every item's hourly price candles for the last week, for the price history chart |
+| `data/price-history.bin` | Every item's hourly price candles for the last week, for the price history chart. Saved once an hour; about 10 MB for a full week on a big modded install, never more than 7 days. Not written with Record price history off (Economy tab) |
 | `data/player-sales.json` | Players' recent flea sales, for the price history chart |
 
 Deleting a `configs` file and restarting writes it back with the defaults.

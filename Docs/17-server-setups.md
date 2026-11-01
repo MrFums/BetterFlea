@@ -8,7 +8,7 @@ style's value.
 
 ## Live-like (the default)
 
-Flea style **Balanced**. Nothing to change. Add item unlock levels and the Wipe Cycle with **Live progression**.
+Flea style **Better Flea (recommended)**. Nothing to change. Add item unlock levels and the Wipe Cycle with **Live progression**.
 
 ## Hardcore
 
@@ -31,7 +31,7 @@ For a much rougher market, try the **Rough market** flea style instead: fewer of
 
 Selling is quick and the flea is generous.
 
-Flea style **Balanced**, then:
+Flea style **Better Flea (recommended)**, then:
 
 | Setting | Value | Why |
 |---|---|---|
@@ -48,7 +48,7 @@ For exact sale times (everything at once, or rare items in a few hours), see
 
 ## A co-op group (Fika)
 
-Flea style **Balanced** or **Live progression**. Everything works in co-op: unlock levels and locked offers are worked
+Flea style **Better Flea (recommended)** or **Live progression**. Everything works in co-op: unlock levels and locked offers are worked
 out per player, buyers and sales are shared. Worth setting:
 
 | Setting | Value | Why |
@@ -85,7 +85,8 @@ cleaner way.
 
 ## A small or low-memory server
 
-Flea style **Low memory**: far fewer offers kept around, filled when someone opens an item. If you need it lower again,
+Flea style **Low memory**: about a third of the offers kept around, filled when someone opens an item, and no price
+history. Expect about 60 MB less, not a big drop: most of the memory is SPT itself. If you need it lower again,
 reduce `listings.jsonc: listings.multiplier` and `onDemand.maxExtraOffers`.
 
 ## Heavy modding

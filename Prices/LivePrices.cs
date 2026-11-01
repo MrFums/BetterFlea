@@ -744,6 +744,23 @@ internal static class LivePrices
             .Concat(all.OrderBy(entry => entry.Live / entry.Spt).Take(each)).ToList();
     }
 
+    // Every item Better Flea pricing prices, with SPT's own price and Better Flea's: (item, SPT price, Better Flea price).
+    public static List<(MongoId Tpl, double Spt, double Price)> IndexChanges()
+    {
+        if (Index.Value is not { } index || _sptPrices is null)
+        {
+            return [];
+        }
+
+        return index.Prices
+            .Where(entry => MongoId.IsValidMongoId(entry.Key)
+                && (IndexSettings.ContentBackport || index.Backport?.Contains(entry.Key) != true))
+            .Select(entry => (Tpl: new MongoId(entry.Key), Price: entry.Value))
+            .Where(entry => _sptPrices.GetValueOrDefault(entry.Tpl) > 0)
+            .Select(entry => (entry.Tpl, Spt: _sptPrices[entry.Tpl], entry.Price))
+            .ToList();
+    }
+
     // For the settings page.
     public static (bool On, int Prices, long Fetched, string[] Modes, string? Error, int Estimated, bool Fallback) Status()
     {

@@ -110,7 +110,8 @@ Modded attachments), with time limits. If startup still hangs, report it with yo
 
 **The server uses too much memory.**
 Pick the Low memory flea style, or lower `listings.multiplier` and the on-demand settings (Listings tab). Better Flea
-makes most offers only when someone looks, so it normally uses about as much memory as SPT without it.
+makes most offers only when someone looks, so it normally uses about as much memory as SPT without it. Low memory
+saves about 60 MB on a test install (630 MB down to 570 MB); most of the memory is SPT and your other mods.
 
 ## Fika
 

@@ -328,6 +328,10 @@ after Home: **Item lookup** (any item's prices, its sale odds, its price history
 listings and sales, and its price through a wipe) and **Offers on the flea** (every player's offer that's up, with its
 odds, and a Refresh button).
 
+With Better Flea pricing on, **See every change by category** lists every item it prices against SPT's own price:
+each Bans-tab category with its item count, typical change and how many went up or down. Click a category for its
+items in a scrolling list, biggest rise first, or search for one item.
+
 | Setting | Default | What it does |
 |---|---|---|
 | `betterFleaPricing.enabled` | on | Every base-game item starts from Better Flea's own fixed price instead of SPT's. Built from a year of real flea prices; doesn't move. [How it's built](../Research/price-index.md) |
@@ -345,6 +349,7 @@ odds, and a Refresh button).
 | `wipeCycle.endLevel` | 60 | About where a wipe "ends". |
 | `wipeCycle.prestige` | add | A prestiged player counts as late wipe (`add`) or a fresh wipe (`reset`). |
 | `wipeCycle.level` | 0 | For testing: pretend the players are this level. 0 = the highest level online. |
+| `recordPriceHistory` | on | Check every item's price every 15 minutes and keep a week of it in `data/price-history.bin` for the Lookup tab's price chart. Saved once an hour, about 10 MB on a big install. Off: nothing recorded or saved; history already saved stays and shows again once it's on. The Low memory flea style turns it off. |
 | `priceOverrides` | none | **Your prices**: your own base price for an item, in roubles. Replaces Better Flea's, the live or SPT's; multipliers, drift and the Wipe Cycle still go on top. Mainly for a modded item its mod prices oddly. Search to add, or paste a list of ids and prices. |
 
 Better Flea pricing and live prices aren't meant to run together; with Better Flea pricing on, live prices are ignored.

@@ -77,7 +77,9 @@
   .pick { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
   select { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
   select:focus { outline: none; border-color: var(--green-dark); }
-  .style-about { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; margin-top: -10px; padding: 0 2px; }
+  .style-about { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; margin-top: -10px; padding: 0 2px; display: grid; }
+  .style-about > div { grid-area: 1 / 1; }
+  .style-about > .ghost { visibility: hidden; }
 
   nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 84px; align-self: start; }
   nav button { text-align: left; background: none; border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -207,6 +209,19 @@
   .econ-level input { flex: 1; max-width: 360px; }
   .econ-item { margin: 14px 0 6px; }
   .econ .gap { margin-top: 12px; }
+  .ix-changes { margin-top: 14px; }
+  .ix-find { margin-top: 10px; width: 100%; max-width: 320px; }
+  .ix-table { margin-top: 10px; font-size: 12.5px; }
+  .ix-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px 72px 64px 64px; gap: 8px; width: 100%; padding: 6px 4px; border: 0; border-bottom: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .ix-row:hover, .ix-row.open { background: var(--panel2, rgba(255,255,255,0.03)); }
+  .ix-row.head { color: var(--muted); cursor: default; background: none; }
+  .ix-row span:not(:first-child), .ix-item span:not(:first-child) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ix-row span:first-child, .ix-item span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ix-list { max-height: 320px; overflow-y: auto; padding: 2px 4px 6px 18px; border-bottom: 1px solid var(--line); }
+  .ix-item { display: grid; grid-template-columns: minmax(0, 1fr) auto 64px; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .ix-changes .up { color: var(--green); }
+  .ix-changes .down { color: var(--bad); }
+  @media (max-width: 760px) { .ix-row { grid-template-columns: minmax(0, 1fr) 56px 64px; } .ix-row span:nth-child(n+4) { display: none; } }
   .econ-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .econ-head h3 { margin-bottom: 6px; }
   .btn.small { font-size: 12px; padding: 3px 10px; }
@@ -638,6 +653,7 @@ const LABELS = {
   "weapons.jsonc:moddedParts.percent": "How often (%)",
   "weapons.jsonc:moddedParts.disabledMods": "By mod",
   "weapons.jsonc:moddedParts.allowFleaBannedParts": "Allow flea-banned modded parts",
+  "economy.jsonc:recordPriceHistory": "Record price history",
   "debug.jsonc:debugLogging": "Debug logging"
 };
 
@@ -935,6 +951,7 @@ const DESC = {
   "weapons.jsonc:moddedParts.percent": "How often a modded attachment is picked, compared with a base-game one that fits as well. 100 = the same, 50 = half as often, 0 = never (unless a gun needs one and nothing else fits).",
   "weapons.jsonc:moddedParts.allowFleaBannedParts": "Let modded parts their mod marks as not sellable on the flea go on other sellers' guns. Some mods mark parts a gun needs (WTT's F2000 top rail: no rail, no scope), so this gives those guns more builds. Off: they never go on a build, like base-game flea-banned parts. They still can't be listed on their own either way.",
   "weapons.jsonc:moddedParts.disabledMods": "Turn a mod's attachments off on gun builds. They're still used where a gun needs a part and nothing else fits, so a mod that depends on another (JSOC needs Epic's All in One) still gets built. Its own guns can still be listed as they come.",
+  "economy.jsonc:recordPriceHistory": "Checks every item's price every 15 minutes and keeps a week of it for the price chart on the Lookup tab. Saved to data/price-history.bin once an hour, about 10 MB on a big install, never more than a week. Off: nothing is recorded or saved, and history already saved stays and shows again once it's back on. The Low memory flea style turns it off.",
   "economy.jsonc:priceOverrides": "Set an item's base price yourself, in roubles, in place of Better Flea's, the live or SPT's. Mainly for a modded item its mod prices oddly. This is the base price, before multipliers, drift and the Wipe Cycle, not what the item ends up listed at. Not sure what to put? Look up a similar base-game item in Item lookup on the Lookup tab, use its Base price and tweak it from there. A gun's price is the gun on its own: its parts are priced separately. Traders don't change. New offers get the new price.",
 
   // Debug
@@ -1012,7 +1029,7 @@ const OFF = {
     playerGuns: { savedBuildChance: 0, lostGunChance: 0 } },
   "armor.jsonc": { enabled: false },
   "market.jsonc": { offerExpiry: { minMinutes: 6, maxMinutes: 60 }, simulatedSales: { enabled: false }, soldBeforeYouChance: 0,
-    barterOffers: { chance: 0 }, sellerRating: { enabled: false }, packs: { enabled: false } },
+    barterOffers: { chance: 0 }, sellerRating: { enabled: false }, sellerBadges: { enabled: false }, packs: { enabled: false } },
   "prices.jsonc": { priceMultiplier: 1, floor: { enabled: false }, drift: { enabled: false }, sellers: { enabled: false }, guns: { enabled: false }, spread: { enabled: false }, demand: { enabled: false } },
   "selling.jsonc": { foundInRaidOnly: false, saleDelay: { enabled: false }, flipPenalty: { enabled: false }, purchaseLock: { enabled: false }, undercut: { enabled: false }, buyers: { enabled: false } }
 };
@@ -1020,11 +1037,12 @@ const OFF = {
 const BAD_CONDITION ={ mint: 0.1, worn: 0.5, destroyed: 0.25, obliterated: 0.15 };
 
 const STYLES = [
-  { id: "live", name: "Balanced (default)", short: "Live-like, without item unlock levels or the Wipe Cycle.", about: "Everything as it ships: a live-like flea, but every item can be bought and sold from the level the flea opens, and prices don't follow the wipe. Pick Live progression for both.", files: {} },
+  { id: "live", name: "Better Flea (recommended)", short: "Better Flea as it ships: its own prices and a live-like flea. Every item from the level the flea opens.",
+    about: "Everything as it ships: Better Flea's own prices, offers, item condition and selling, tuned to feel like the live flea. Every item can be bought and sold from the level the flea opens, and prices don't follow the wipe. Pick Live progression for both.", files: {} },
   { id: "progression", name: "Live progression", short: "As close to the live flea as it gets: items unlock at the level the real flea needs, and prices follow the wipe.", levelLock: true, wipeCycle: true,
-    about: "Balanced, plus item unlock levels and the Wipe Cycle. Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40), and prices follow how far into the wipe the players are (Economy tab). Your bans are kept.", files: {} },
-  { id: "spt", name: "Base SPT", short: "Better Flea's changes off. The plain SPT flea.", about: "Better Flea's flea changes switched off, so the flea works like plain SPT. The memory saver stays on.", files: OFF },
-  { id: "rough", name: "Rough market", short: "Fewer offers, lots of worn and broken gear.", about: "Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast.",
+    about: "Better Flea (recommended), plus item unlock levels and the Wipe Cycle. Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40), and prices follow how far into the wipe the players are (Economy tab). Your bans are kept.", files: {} },
+  { id: "spt", name: "Base SPT", short: "Better Flea's changes off. The plain SPT flea.", about: "Better Flea's flea changes switched off, so the flea works like plain SPT. The memory saver stays on, and prices stay as set on the Economy tab (Better Flea's own prices unless you turned them off).", files: OFF },
+  { id: "rough", name: "Rough market", short: "Fewer offers, lots of worn and broken gear, slower buyers.", about: "Fewer offers and most of them worn out, stripped or broken. Good deals get snapped up fast, and your own items take longer to sell.",
     files: {
       "listings.jsonc": { listings: { multiplier: 1.5 } },
       "condition.jsonc": { keys: { usedChance: 0.8 }, markedKeys: { usedChance: 0.8 }, keycards: { usedChance: 0.7 },
@@ -1035,7 +1053,8 @@ const STYLES = [
       "armor.jsonc": { plates: { both: 0.35, frontOnly: 0.15, backOnly: 0.1, none: 0.4 },
         conditionByRarity: { Common: BAD_CONDITION, Rare: BAD_CONDITION, Superrare: BAD_CONDITION } },
       "market.jsonc": { soldBeforeYouChance: 0.2, simulatedSales: { normalSellChancePerHour: 0.1 } },
-      "prices.jsonc": { sellers: { overpriceChance: 0.25 } }
+      "prices.jsonc": { sellers: { overpriceChance: 0.25 } },
+      "selling.jsonc": { buyers: { rarityMultipliers: { Common: 1.5, Rare: 2.5, Superrare: 5 } } }
     } },
   { id: "overpriced", name: "Overpriced", short: "Everything costs about 50% more.", about: "Everything on the flea costs half as much again, some sellers ask even more, quick sells are gone and guns cost more than at the traders.",
     files: {
@@ -1044,12 +1063,13 @@ const STYLES = [
         guns: { traderPricePercent: 150 } },
       "market.jsonc": { packs: { scamChance: 0.9 }, simulatedSales: { normalSellChancePerHour: 0.02 } }
     } },
-  { id: "sale", name: "Flea sale", short: "Cheaper prices and lots of deals.", about: "An event weekend: everything 15% cheaper, lots of offers, cheap guns, quick sells everywhere and fast turnover.",
+  { id: "sale", name: "Flea sale", short: "Cheaper prices and lots of deals.", about: "An event weekend: everything 15% cheaper, lots of offers, cheap guns, quick sells everywhere and fast turnover. Your own items sell faster too.",
     files: {
       "listings.jsonc": { listings: { multiplier: 4 } },
       "prices.jsonc": { priceMultiplier: 0.85, sellers: { overpriceChance: 0.02, quickSellChance: 0.3, quickSellMinPercent: 20, quickSellMaxPercent: 50 }, guns: { traderPricePercent: 80 } },
       "weapons.jsonc": { presets: { buildDealChance: 0.4, buildDealMaxDiscount: 0.45, buildStealChance: 0.05 } },
-      "market.jsonc": { offerExpiry: { minMinutes: 60, maxMinutes: 360 }, simulatedSales: { normalSellChancePerHour: 0.15 }, packs: { chancePercent: 6, scamChance: 0.2 } }
+      "market.jsonc": { offerExpiry: { minMinutes: 60, maxMinutes: 360 }, simulatedSales: { normalSellChancePerHour: 0.15 }, packs: { chancePercent: 6, scamChance: 0.2 } },
+      "selling.jsonc": { saleDelay: { minMinutes: 1, maxMinutes: 4 }, buyers: { rarityMultipliers: { Common: 1, Rare: 1, Superrare: 1.5 } } }
     } },
   { id: "chaos", name: "Chaos", short: "Everything turned right up.", about: "Everything turned up: piles of offers, scams and giant packs, wild prices, loaded mags and sold-before-you everywhere.",
     files: {
@@ -1061,7 +1081,8 @@ const STYLES = [
       "condition.jsonc": { fuel: { emptyChance: 0.25, emptyScamChance: 0.7 } }
     } },
   { id: "random", name: "Random", short: "Every setting nudged up or down at random.", about: "Every number nudged up or down at random. Pick it again for a different flea.", files: null },
-  { id: "memory", name: "Low memory", short: "Far fewer offers for small servers. Items still fill up when you open them.", about: "For small servers: fewer offers, and less kept around after you look at an item.",
+  { id: "memory", name: "Low memory", short: "About a third of the offers and no price history, for small servers. Items still fill up when you open them.", historyOff: true,
+    about: "For small servers: about a third of the offers at a time, less kept around after you look at an item, and Record price history off (Economy tab). It saves less than you might think: about 60 MB (a tenth) on a test install, since most of the memory is SPT itself.",
     files: { "listings.jsonc": { listings: { multiplier: 1,
       onDemand: { startShare: 0.05, minStartOffers: 2, keepPages: 1, keepSeconds: 60, maxExtraOffers: 3000 } } } } }
 ];
@@ -1494,7 +1515,13 @@ function render() {
   if (state.styleNote) {
     const n = document.createElement("div");
     n.className = "style-about";
-    n.textContent = state.styleNote;
+    // Every style's note sits hidden in the same spot, so the box stays as tall as the longest and doesn't jump.
+    for (const s of STYLES) {
+      const ghost = make("div", "ghost", s.name + ": " + s.about + " Press Save to use it.");
+      ghost.setAttribute("aria-hidden", "true");
+      n.appendChild(ghost);
+    }
+    n.appendChild(make("div", "", state.styleNote));
     main.appendChild(n);
   }
 
@@ -1594,8 +1621,8 @@ function render() {
 function notice(text) { const n = document.createElement("div"); n.className = "notice"; n.textContent = text; return n; }
 
 function currentStyle() {
-  return STYLES.find(s => s.files && !!s.levelLock === levelLockOn() && !!s.wipeCycle === wipeCycleOn()
-    && state.files.filter(styled).every(f => same(f.values, merge(f.defaults, s.files[f.file] || {}))));
+  return STYLES.find(s => s.files && !!s.levelLock === levelLockOn() && !!s.wipeCycle === wipeCycleOn() && !!s.historyOff === historyOff()
+    && state.files.filter(styled).every(f => same(f.values, styleKeeps(f, merge(f.defaults, s.files[f.file] || {})))));
 }
 
 function ordered(f, path, obj) {
@@ -2440,7 +2467,8 @@ function stockTable(title, heads, rows) {
 function drawCandles(box, candles, listings, sales, t0, t1) {
   box.innerHTML = "";
   if (!candles.length) {
-    box.appendChild(make("div", "hint", "No history yet. Prices are recorded every 15 minutes while the server runs."));
+    const off = state.byFile["economy.jsonc"] && state.byFile["economy.jsonc"].values.recordPriceHistory === false;
+    box.appendChild(make("div", "hint", off ? "Price history is off: Record price history is off (Economy tab)." : "No history yet. Prices are recorded every 15 minutes while the server runs."));
     return;
   }
   const W = box.clientWidth || 600, H = 260, L = 60, R = 10, TOP = 10, B = 24, V = 50, gap = 6;
@@ -2635,6 +2663,7 @@ function economyPanel() {
       const row = (x) => [x.name, k(x.spt) + " → " + k(x.live), x.live > x.spt];
       card.appendChild(moverColumns([["Dearer", ix.differences.slice(0, half).map(row)], ["Cheaper", ix.differences.slice(half).map(row)]]));
     }
+    card.appendChild(indexChanges(e));
     wrap.appendChild(card);
   }
 
@@ -2698,6 +2727,78 @@ function economyPanel() {
   more.appendChild(go);
   wrap.appendChild(more);
   return wrap;
+}
+
+// Every price Better Flea pricing changes, by the Bans tab's categories. A category opens to its items, biggest rise
+// first, in a list that scrolls; the search finds items in every category.
+function indexChanges(e) {
+  const box = make("div", "ix-changes");
+  const toggle = make("button", "btn small", e.changesOpen ? "Hide" : "See every change by category");
+  toggle.onclick = async () => {
+    e.changesOpen = !e.changesOpen;
+    if (e.changesOpen && !e.changes) {
+      toggle.disabled = true;
+      try { e.changes = (await (await fetch(API + "/index-changes")).json()).categories || {}; } catch (err) { e.changesOpen = false; }
+    }
+    render();
+  };
+  box.appendChild(toggle);
+  if (!e.changesOpen || !e.changes) return box;
+
+  const pct = (r) => (r[2] / r[1] - 1) * 100;
+  const fmt = (p) => (p > 0 ? "+" : "") + (Math.abs(p) < 10 ? p.toFixed(1) : Math.round(p).toLocaleString()) + "%";
+  const median = (list) => { const s = list.slice().sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+  const groups = (state.byFile["flea.jsonc"] && state.byFile["flea.jsonc"].defaults.bannedCategories) || {};
+  const order = Object.keys(groups).flatMap(group => Object.keys(groups[group]).map(sub => group + "." + sub)).concat("uncategorised");
+  const cats = Object.keys(e.changes).sort((a, b) => (order.indexOf(a) + 1 || 1e9) - (order.indexOf(b) + 1 || 1e9));
+  const all = cats.flatMap(c => e.changes[c]);
+  const ups = all.filter(r => pct(r) > 0.5).length, downs = all.filter(r => pct(r) < -0.5).length;
+  box.appendChild(make("div", "s gap", count(all.length) + " items: " + count(ups) + " dearer and " + count(downs) + " cheaper than SPT's own price, "
+    + count(all.length - ups - downs) + " about the same. Typical change " + fmt(median(all.map(pct))) + "."));
+
+  const search = document.createElement("input");
+  search.className = "text ix-find";
+  search.placeholder = "Find an item…";
+  search.value = e.changesQuery || "";
+  const table = make("div", "ix-table");
+  const itemRows = (rows, withCategory) => {
+    const list = make("div", "ix-list");
+    for (const r of rows.slice().sort((a, b) => pct(b) - pct(a))) {
+      const p = pct(r);
+      const line = make("div", "ix-item");
+      line.append(make("span", "", r[0] + (withCategory ? " · " + typeLabel(r.cat) : "")), make("span", "", k(r[1]) + " → " + k(r[2])),
+        make("span", p > 0.5 ? "up" : p < -0.5 ? "down" : "", fmt(p)));
+      list.appendChild(line);
+    }
+    if (!rows.length) list.appendChild(make("div", "s", "Nothing."));
+    return list;
+  };
+  const draw = () => {
+    table.innerHTML = "";
+    const q = (e.changesQuery || "").trim().toLowerCase();
+    if (q.length >= 2) {
+      const found = cats.flatMap(c => e.changes[c].filter(r => r[0].toLowerCase().includes(q)).map(r => Object.assign(r.slice(), { cat: c })));
+      table.appendChild(itemRows(found, true));
+      return;
+    }
+    const head = make("div", "ix-row head");
+    head.append(make("span", "", "Category"), make("span", "", "Items"), make("span", "", "Typical"), make("span", "", "Dearer"), make("span", "", "Cheaper"));
+    table.appendChild(head);
+    for (const c of cats) {
+      const rows = e.changes[c], m = median(rows.map(pct));
+      const row = make("button", "ix-row" + (e.changesCat === c ? " open" : ""));
+      row.append(make("span", "", (e.changesCat === c ? "▾ " : "▸ ") + typeLabel(c)), make("span", "", count(rows.length)),
+        make("span", m > 0.5 ? "up" : m < -0.5 ? "down" : "", fmt(m)),
+        make("span", "", count(rows.filter(r => pct(r) > 0.5).length)), make("span", "", count(rows.filter(r => pct(r) < -0.5).length)));
+      row.onclick = () => { e.changesCat = e.changesCat === c ? null : c; draw(); };
+      table.appendChild(row);
+      if (e.changesCat === c) table.appendChild(itemRows(rows, false));
+    }
+  };
+  search.oninput = () => { e.changesQuery = search.value; draw(); };
+  draw();
+  box.append(search, table);
+  return box;
 }
 
 // One item: its prices now, from SPT and live, and through a wipe. Guests see it too.
@@ -3145,18 +3246,29 @@ function randomise(file, path, def) {
   return Number.isInteger(def) ? Math.max(1, Math.round(v)) : Math.round(v * 100) / 100;
 }
 
-// Styles leave the Bans tab and Debug alone; Reset everything doesn't.
+// Styles leave the Bans tab and Debug alone, and Flea access (when the flea opens, offer slots, rating); Reset
+// everything doesn't.
 const STYLE_KEEPS = ["flea.jsonc", "economy.jsonc", "debug.jsonc"];
+const STYLE_KEEPS_SECTIONS = { "selling.jsonc": ["fleaAccess"] };
 const styled = (f) => !STYLE_KEEPS.includes(f.file);
+function styleKeeps(f, values) {
+  const keys = (STYLE_KEEPS_SECTIONS[f.file] || []).filter(k => f.values && f.values[k] !== undefined);
+  if (!keys.length) return values;
+  const out = Object.assign({}, values);
+  for (const k of keys) out[k] = clone(f.values[k]);
+  return out;
+}
 
 // From the Bans tab a style only switches item unlock levels on or off; the bans stay. From the Economy tab, only the
-// Wipe Cycle; live prices stay.
+// Wipe Cycle and Record price history; the prices stay.
 const levelLockOn = () => !!getAt((state.byFile["flea.jsonc"] || {}).values || {}, ["levelLock", "enabled"]);
 const wipeCycleOn = () => !!getAt((state.byFile["economy.jsonc"] || {}).values || {}, ["wipeCycle", "enabled"]);
+const historyOff = () => getAt((state.byFile["economy.jsonc"] || {}).values || {}, ["recordPriceHistory"]) === false;
 
 function useStyle(style, everything) {
   for (const f of state.files.filter(f => everything || styled(f))) {
-    f.values = style.files ? merge(f.defaults, style.files[f.file] || {}) : randomise(f.file, [], f.defaults);
+    const values = style.files ? merge(f.defaults, style.files[f.file] || {}) : randomise(f.file, [], f.defaults);
+    f.values = everything ? values : styleKeeps(f, values);
   }
   const flea = state.byFile["flea.jsonc"];
   if (flea && isObject(flea.values.levelLock)) {
@@ -3167,6 +3279,7 @@ function useStyle(style, everything) {
   if (economy && isObject(economy.values.wipeCycle)) {
     economy.values = clone(economy.values);
     economy.values.wipeCycle.enabled = !!style.wipeCycle;
+    if (typeof economy.values.recordPriceHistory === "boolean") economy.values.recordPriceHistory = !style.historyOff;
   }
   state.styleNote = style.name + ": " + style.about + " Press Save to use it.";
   render();

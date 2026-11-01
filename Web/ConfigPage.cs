@@ -141,6 +141,9 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
                 case Root + "/api/economy":
                     await SendJson(context, Wipe(context.Request.Query["level"].ToString(), context.Request.Query["id"].ToString()), cancellationToken);
                     break;
+                case Root + "/api/index-changes":
+                    await SendJson(context, IndexChanges(), cancellationToken);
+                    break;
                 case Root + "/api/chart":
                     await SendJson(context, Chart(context.Request.Query["id"].ToString()), cancellationToken);
                     break;
@@ -337,6 +340,22 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             }).ToArray())
         };
         return result;
+    }
+
+    // Every price Better Flea pricing changes, by the Bans tab's categories: [name, SPT's price, Better Flea's price].
+    private JsonObject IndexChanges()
+    {
+        var categories = new JsonObject();
+        foreach (var group in LivePrices.IndexChanges()
+                     .Select(entry => (entry.Tpl, entry.Spt, entry.Price, Item: templates.Items.GetValueOrDefault(entry.Tpl)))
+                     .Where(entry => entry.Item is not null)
+                     .GroupBy(entry => FleaCategories.Find(entry.Item!, itemHelper)?.Name ?? FleaCategories.Uncategorised))
+        {
+            categories[group.Key] = new JsonArray(group.Select(entry => (JsonNode)new JsonArray(
+                ItemName(entry.Tpl), Math.Round(entry.Spt), Math.Round(entry.Price))).ToArray());
+        }
+
+        return new JsonObject { ["categories"] = categories };
     }
 
     // How a player's offer of these items sells at a range of prices (BetterFlea.Selling.SaleOdds). Null with sale
@@ -581,7 +600,7 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
     private static readonly HashSet<string> OpenPaths = new(StringComparer.Ordinal)
     {
         Root, Root + "/icon.png", Root + "/api/status", Root + "/api/notes", Root + "/api/overview", Root + "/api/items", Root + "/api/economy", Root + "/api/offers", Root + "/api/chart",
-        Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
+        Root + "/api/index-changes", Root + "/api/auth", Root + "/api/setup", Root + "/api/login", Root + "/api/logout"
     };
 
     private static async Task<bool> Allowed(HttpContext context, string path)

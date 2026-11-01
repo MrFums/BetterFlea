@@ -60,7 +60,7 @@ The settings page comes in English, Russian, Chinese (Simplified), German, Frenc
 
 Forgot the password? Delete `SPT_Runtime/user/mods/BetterFlea/data/admin.json` and restart the server, then make a new account. Your settings are kept.
 
-Flea styles change everything at once. **Balanced** is the default: live-like, without item unlock levels or the Wipe Cycle. **Live progression** is Balanced plus item unlock levels and the Wipe Cycle (prices follow the wipe), as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
+Flea styles change everything at once. **Better Flea (recommended)** is the default: Better Flea as it ships, with its own prices, without item unlock levels or the Wipe Cycle. **Live progression** is that plus item unlock levels and the Wipe Cycle (prices follow the wipe), as close to the live flea as it gets. There are also Base SPT (Better Flea's changes off), Rough market, Overpriced, Flea sale, Chaos, Random and Low memory.
 
 ![Settings page tour](imageExamples/web-ui.gif)
 

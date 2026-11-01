@@ -15,6 +15,11 @@ public record EconomyFile
     [JsonPropertyName("wipeCycle")]
     public WipeCycleConfig WipeCycle { get; set; } = new();
 
+    // Every item's price checked every 15 minutes and kept for a week in data/price-history.bin, for the Lookup tab's
+    // price chart. Off: nothing recorded or saved; history already saved stays.
+    [JsonPropertyName("recordPriceHistory")]
+    public bool RecordPriceHistory { get; set; } = true;
+
     // Item ID -> its base price in roubles, set by hand, in place of Better Flea's, the live or SPT's price.
     [JsonPropertyName("priceOverrides")]
     public Dictionary<string, double> PriceOverrides { get; set; } = new();

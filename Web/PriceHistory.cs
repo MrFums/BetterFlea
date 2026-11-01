@@ -13,18 +13,21 @@ namespace BetterFlea.Web;
 // many changed hands, for the settings page's stock chart. The price is sampled every 15 minutes, so a candle's high and
 // low are what the samples saw. Volume is the market's trades: what the item's busyness says the whole flea trades an
 // hour (wires and bolts by the hundred, a LEDX a few), plus every real sale on this server: players buying, players'
-// offers selling, and other sellers' offers bought by the flea's own buyers. Saved (gzipped, about half a megabyte) in data/price-history.bin 5 minutes after the
-// start and then every 15 minutes, so a restart keeps the week.
+// offers selling, and other sellers' offers bought by the flea's own buyers. Kept in memory and saved to
+// data/price-history.bin once an hour (only if something changed), so a restart keeps the week and the disk is barely
+// touched. Only hours with data are written, each price as a share of the item's highest that week in 2 bytes: a full
+// week of every item is a few megabytes.
 // Players' own sales are kept too (data/player-sales.json), so a chart can show one player's listings and sales.
 [Injectable(TypePriority = int.MaxValue)]
-public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : IOnLoad
+public class PriceHistory(TemplateTable templates, PresetHelper presetHelper, ConfigManager configManager) : IOnLoad
 {
     public const int Hours = 24 * 7;
     private const int SampleMinutes = 15;
     private const string FileName = "price-history.bin";
     private const string SalesFile = "player-sales.json";
     private const int KeepSales = 2000;
-    private const int FileVersion = 2;
+    private const int FileVersion = 3;
+    private const int SaveMinutes = 60;
 
     // Trades an hour for an item of busyness 1 (OrderBook.Volume: about 20,000 roubles, common, wanted by nothing).
     // Wires (busyness about 0.2) come to about 120 an hour, an M4A1 about 12, a LEDX about 3.
@@ -44,7 +47,12 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
     private static readonly object Gate = new();
     private static List<PlayerSale> _sales = new();
     private static Dictionary<MongoId, List<Item>> _builds = new();
-    private static List<MongoId> _items = new();
+    private static TemplateTable? _templates;
+    private static ConfigManager? _config;
+
+    // Record price history off (Economy tab): nothing recorded or saved. What's in memory and on disk stays.
+    public static bool Off => _config?.Mod.Economy.RecordPriceHistory == false;
+    private static HashSet<MongoId> _listable = new();
     private static Timer? _sampler, _saver;
     private static int _dirty;
 
@@ -56,13 +64,12 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
         _builds = presetHelper.GetDefaultPresets().Values
             .Where(preset => preset.Encyclopedia is not null && preset.Items is { Count: > 1 })
             .GroupBy(preset => preset.Encyclopedia!.Value).ToDictionary(group => group.Key, group => group.First().Items!);
-        var listable = templates.Handbook.Items.Select(entry => entry.Id).ToHashSet();
-        _items = templates.Items.Values
-            .Where(item => item.Type == "Item" && listable.Contains(item.Id) && item.Properties?.CanSellOnRagfair == true)
-            .Select(item => item.Id).ToList();
+        _templates = templates;
+        _config = configManager;
+        _listable = templates.Handbook.Items.Select(entry => entry.Id).ToHashSet();
         Load();
         _sampler ??= new Timer(_ => Sample(), null, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(SampleMinutes));
-        _saver ??= new Timer(_ => Save(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(SampleMinutes));
+        _saver ??= new Timer(_ => Save(), null, TimeSpan.FromMinutes(SaveMinutes), TimeSpan.FromMinutes(SaveMinutes));
         return Task.CompletedTask;
     }
 
@@ -71,14 +78,23 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
 
     private static void Sample()
     {
+        if (Off)
+        {
+            return;
+        }
+
         try
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
             var hour = HourNow();
-            foreach (var tpl in _items)
+            // Whatever can be listed now: bans lifted or added (at startup, or on the settings page) count straight away.
+            var items = _templates!.Items.Values
+                .Where(item => item.Type == "Item" && _listable.Contains(item.Id) && item.Properties?.CanSellOnRagfair == true)
+                .Select(item => item.Id).ToList();
+            foreach (var tpl in items)
             {
-                var items = _builds.GetValueOrDefault(tpl) ?? [new Item { Id = new MongoId(), Template = tpl }];
-                if (BetterFlea.Selling.SaleDelayGate.NormalPrice(items) is not { } price || price <= 0)
+                var build = _builds.GetValueOrDefault(tpl) ?? [new Item { Id = new MongoId(), Template = tpl }];
+                if (BetterFlea.Selling.SaleDelayGate.NormalPrice(build) is not { } price || price <= 0)
                 {
                     continue;
                 }
@@ -147,7 +163,7 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
     // Some of an item changed hands on the flea (any buyer, any seller).
     public static void Sold(MongoId tpl, int units)
     {
-        if (units <= 0)
+        if (units <= 0 || Off)
         {
             return;
         }
@@ -168,7 +184,7 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
     // A player's own offer sold some.
     public static void PlayerSold(string player, string name, RagfairOffer offer, int amount)
     {
-        if (offer.Items?.FirstOrDefault() is not { } root)
+        if (Off || offer.Items?.FirstOrDefault() is not { } root)
         {
             return;
         }
@@ -222,9 +238,15 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
         }
     }
 
+    // A price as a share of the week's highest, in 65,535 steps (a 1,000,000 rouble item to about 15 roubles).
+    private static ushort Share(float price, float top) =>
+        top > 0 ? (ushort)Math.Clamp(Math.Round(price / top * ushort.MaxValue), 0, ushort.MaxValue) : (ushort)0;
+
+    private static float Price(ushort share, float top) => share / (float)ushort.MaxValue * top;
+
     private static void Save()
     {
-        if (Interlocked.Exchange(ref _dirty, 0) == 0)
+        if (Off || Interlocked.Exchange(ref _dirty, 0) == 0)
         {
             return;
         }
@@ -237,6 +259,13 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
             List<PlayerSale> sales;
             lock (Gate)
             {
+                // Items with nothing in the last week (banned since, or from a mod that's gone) are dropped.
+                var oldest = HourNow() - Hours + 1;
+                foreach (var stale in All.Where(entry => entry.Value.Hour.All(hour => hour < oldest)).Select(entry => entry.Key).ToList())
+                {
+                    All.Remove(stale);
+                }
+
                 using (var writer = new BinaryWriter(new System.IO.Compression.GZipStream(File.Create(temp), System.IO.Compression.CompressionLevel.Fastest)))
                 {
                     writer.Write(FileVersion);
@@ -246,14 +275,21 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
                     {
                         writer.Write(tpl.ToString());
                         writer.Write(series.Last);
-                        for (var i = 0; i < Hours; i++)
+                        // Oldest first, only the hours in the window that have data.
+                        var slots = Enumerable.Range(0, Hours).Where(i => series.Hour[i] >= oldest).OrderBy(i => series.Hour[i]).ToList();
+                        var top = slots.Count > 0 ? slots.Max(i => series.High[i]) : 0f;
+                        writer.Write(top);
+                        writer.Write((byte)slots.Count);
+                        var previous = 0;
+                        foreach (var i in slots)
                         {
-                            writer.Write(series.Hour[i]);
-                            writer.Write(series.Open[i]);
-                            writer.Write(series.High[i]);
-                            writer.Write(series.Low[i]);
-                            writer.Write(series.Close[i]);
-                            writer.Write(series.Volume[i]);
+                            writer.Write7BitEncodedInt(series.Hour[i] - previous);
+                            previous = series.Hour[i];
+                            writer.Write(Share(series.Open[i], top));
+                            writer.Write(Share(series.High[i], top));
+                            writer.Write(Share(series.Low[i], top));
+                            writer.Write(Share(series.Close[i], top));
+                            writer.Write7BitEncodedInt(Math.Max(0, series.Volume[i]));
                         }
                     }
                 }
@@ -282,7 +318,8 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
         try
         {
             using var reader = new BinaryReader(new System.IO.Compression.GZipStream(File.OpenRead(path), System.IO.Compression.CompressionMode.Decompress));
-            if (reader.ReadInt32() != FileVersion || reader.ReadInt32() != Hours)
+            var version = reader.ReadInt32();
+            if ((version != FileVersion && version != 2) || reader.ReadInt32() != Hours)
             {
                 return;
             }
@@ -294,14 +331,35 @@ public class PriceHistory(TemplateTable templates, PresetHelper presetHelper) : 
                 {
                     var id = reader.ReadString();
                     var series = new Series { Last = reader.ReadSingle() };
-                    for (var i = 0; i < Hours; i++)
+                    if (version == 2)
                     {
-                        series.Hour[i] = reader.ReadInt32();
-                        series.Open[i] = reader.ReadSingle();
-                        series.High[i] = reader.ReadSingle();
-                        series.Low[i] = reader.ReadSingle();
-                        series.Close[i] = reader.ReadSingle();
-                        series.Volume[i] = reader.ReadInt32();
+                        // 2.4.1 to 2.4.2 RC2: every slot, full floats.
+                        for (var i = 0; i < Hours; i++)
+                        {
+                            series.Hour[i] = reader.ReadInt32();
+                            series.Open[i] = reader.ReadSingle();
+                            series.High[i] = reader.ReadSingle();
+                            series.Low[i] = reader.ReadSingle();
+                            series.Close[i] = reader.ReadSingle();
+                            series.Volume[i] = reader.ReadInt32();
+                        }
+                    }
+                    else
+                    {
+                        var top = reader.ReadSingle();
+                        var filled = reader.ReadByte();
+                        var hour = 0;
+                        for (var k = 0; k < filled; k++)
+                        {
+                            hour += reader.Read7BitEncodedInt();
+                            var slot = hour % Hours;
+                            series.Hour[slot] = hour;
+                            series.Open[slot] = Price(reader.ReadUInt16(), top);
+                            series.High[slot] = Price(reader.ReadUInt16(), top);
+                            series.Low[slot] = Price(reader.ReadUInt16(), top);
+                            series.Close[slot] = Price(reader.ReadUInt16(), top);
+                            series.Volume[slot] = reader.Read7BitEncodedInt();
+                        }
                     }
 
                     if (MongoId.IsValidMongoId(id))
