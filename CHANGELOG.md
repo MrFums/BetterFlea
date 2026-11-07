@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.5.1
+
+**New**
+- **Trader sell price floor** (Prices tab, off by default): offers never go below what a trader sells the item for, plus a margin you set (0% = they can equal it), so nothing on the flea is cheaper than buying it from a trader. It works on its own, next to the existing price floor (what a trader pays). It counts every trader that sells the item for money, modded ones too, at any loyalty level, but not Fence or barter-only offers. A gun or armour a trader sells with parts is split over the parts by their handbook price. Worn items go down with their condition, and deals, quick sells and the price multiplier can't take an offer under it. Items no trader sells aren't affected. With it on, guns are at the trader price or more (they're normally priced a little under it).
+- **Found in raid barters** (Market tab, Barter offers, off by default): other players' barter offers only take found in raid items as payment (money always pays). A sub-option, also off by default, does the same for trader barters, on the Flea Market and on the trader's own screen.
+- **Notifications** (Selling tab, on by default): turn it off for no pop-ups and no Messenger messages about the flip penalty or a trader item that can't be listed.
+
+**Changes**
+- **Barter offers follow Better Flea's chance only** (Market tab, Barter offers). SPT's own flea barter chance (ragfair.json, or another mod that sets it) is now ignored, with a note in the server log when it was set. With Better Flea's at 0%, there are no barter offers.
+
+**Fixes**
+- **Barter offers asked far too little**: a 133k M4A1 for about 16k of barter items. A barter was valued at SPT's raw price, before Better Flea's gun prices. It's now valued at the item's normal price, as Price Index shows it.
+- **Fewer log lines**: the BepInEx plugin no longer writes two lines to the game's log (`[REQUEST]` and `[REQUEST SUCCESSFUL]`) every time it checks the server for flea bans and level locks (every 30 seconds while the stash or flea is open). Failures still go in the log.
+- Dollar and euro offers could sit a little under the price floor (35 USD, 4,235 roubles, against a 4,263 rouble floor): SPT's conversion rounds to the nearest dollar or euro. The floor now rounds up.
+- Trying to buy an item on the flea below its unlock level (Item unlock levels) showed a "Critical error" and sent you back to the main menu. It's now a notification and you stay on the flea.
+- The server log could fill with errors and stack traces for `/betterflea/client-data` ("session id provided was empty") when the game was left open over a server restart. That case now gets a normal answer.
+- Item lookup said "(gun only)" next to the base price of armour, helmets and other items with a default build. It now says "(on its own)", with the default build's price "(with its default parts)".
+
 ## 2.5.0
 
 **New**

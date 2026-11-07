@@ -90,6 +90,7 @@ What the flea allows for the player making the request:
 | `LevelLockSelling` | Unlock levels also stop players selling the item |
 | `LevelsVersion` | Changes whenever the unlock levels change. Fetch `/betterflea/item-levels` again when it does |
 | `PlayerLevel` | The player's level |
+| `NotificationsOff` | Better Flea's pop-ups and Messenger messages are turned off (2.5.1) |
 
 A quick-sell mod should check `FleaBanned`, `BoughtFromTrader`, `SellingOff` and the unlock levels before trying the
 flea, and go to a trader instead.

@@ -64,6 +64,13 @@ message, and the offer is gone. Never on trader offers.
 About 1 offer in 200 wants items instead of money: one or two kinds of barter item people actually carry (common or
 rare, no quest items), worth 85 to 97% of the offer's normal price. Offers under 20,000 roubles always want money.
 
+Only Better Flea's chance counts. SPT's own flea barter chance (`ragfair.json`, or another mod that sets it) is set to 0
+at startup, with a note in the server log when it wasn't 0.
+
+**Found in raid barters** (off by default): barter offers only take found in raid items as payment, and buying with
+anything else fails with a notification naming the item. A second switch does the same for trader barters, on the flea
+and on the trader's own screen.
+
 ## Packs
 
 3% of offers of the item types SPT allows in packs are packs: 2 to 10 of an item you must buy together.

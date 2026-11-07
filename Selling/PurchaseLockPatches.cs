@@ -337,7 +337,8 @@ public class ClientDataRoute(
                 LevelLockOn = Flea.LevelLock.On,
                 LevelLockSelling = Flea.LevelLock.LockSelling,
                 LevelsVersion = Flea.LevelLock.Version,
-                PlayerLevel = Flea.LevelLock.PlayerLevel(sessionId)
+                PlayerLevel = Flea.LevelLock.PlayerLevel(sessionId),
+                NotificationsOff = !configManager.Mod.PlayerSelling.Notifications
             });
 
         context.Response.ContentType = "application/json";
@@ -386,5 +387,8 @@ public class ClientDataRoute(
         public int LevelsVersion { get; set; }
 
         public int PlayerLevel { get; set; }
+
+        // True = the plugin shows no pop-ups (selling.jsonc notifications false). Older servers leave it out: shown.
+        public bool NotificationsOff { get; set; }
     }
 }

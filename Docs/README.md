@@ -1,7 +1,7 @@
 # The Better Flea guide
 
 Everything about Better Flea in one place: what each part of the mod does, every setting and what it's for, how
-prices are worked out (in SPT and in Better Flea), and what we learned building it. Written for Better Flea 2.5.0 on
+prices are worked out (in SPT and in Better Flea), and what we learned building it. Written for Better Flea 2.5.1 on
 SPT 4.1.x.
 
 New here? Read [Getting started](01-getting-started.md), then jump to [I want to...](#i-want-to) below.

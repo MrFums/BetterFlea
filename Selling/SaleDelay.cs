@@ -865,7 +865,8 @@ internal static class FlipPenaltyGate
     {
         // A notice the client never picked up isn't this listing's.
         Notices.TryRemove(player, out _);
-        if (_listing is null || _mail is null || _config?.Mod.PlayerSelling.SaleDelay.Enabled != true)
+        if (_listing is null || _mail is null || _config?.Mod.PlayerSelling.SaleDelay.Enabled != true
+            || !_config.Mod.PlayerSelling.Notifications)
         {
             return;
         }

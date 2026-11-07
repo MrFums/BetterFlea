@@ -590,6 +590,7 @@ const LABELS = {
   "prices.jsonc:floor": "Price floor",
   "prices.jsonc:floor.logTraderProfitLoops": "Log trader price loops",
   "prices.jsonc:floor.ignoreForTraderLoops": "No floor for trader loops (not supported)",
+  "prices.jsonc:traderSellFloor": "Trader sell price floor",
   "prices.jsonc:drift": "Price drift",
   "prices.jsonc:sellers": "Seller pricing",
   "prices.jsonc:guns": "Gun prices",
@@ -614,6 +615,7 @@ const LABELS = {
   "prices.jsonc:guns.offerMaxPercent": "Gun offers, dearest (% from value)",
   "selling.jsonc:enabled": "Players can sell",
   "selling.jsonc:foundInRaidOnly": "Found in raid only",
+  "selling.jsonc:notifications": "Notifications",
   "selling.jsonc:saleDelay": "Sale speed",
   "selling.jsonc:flipPenalty": "Flip penalty",
   "selling.jsonc:purchaseLock": "Trader item lock",
@@ -864,6 +866,8 @@ const DESC = {
   "market.jsonc:barterOffers.chance": "Chance an offer is a barter.",
   "market.jsonc:barterOffers.valueMin": "Lowest value of the wanted items, compared with the normal price.",
   "market.jsonc:barterOffers.valueMax": "Highest value of the wanted items, compared with the normal price.",
+  "market.jsonc:barterOffers.firOnly": "Only take found in raid items as payment for other players' barter offers. Money always pays.",
+  "market.jsonc:barterOffers.firOnlyTraderBarters": "With found in raid only on, trader barters need found in raid items too, on the Flea Market and on the trader's own screen.",
   "market.jsonc:sellerRating": "The flea ratings next to sellers. They grow with the players online: mostly low up to level 15, mostly high by level 40.",
   "market.jsonc:sellerRating.min": "Lowest rating.",
   "market.jsonc:sellerRating.max": "Highest rating.",
@@ -887,6 +891,8 @@ const DESC = {
   "prices.jsonc:floor.marginPercent": "How far above the trader's price the cheapest offer is.",
   "prices.jsonc:floor.logTraderProfitLoops": "At startup, list items one trader sells for less than another buys them. Only listed, never changed.",
   "prices.jsonc:floor.ignoreForTraderLoops": "Not supported. Items one trader sells for less than another trader pays (and what comes with them) get no floor, so their offers can go under what a trader pays. Worn ones get cheaper than a new one from the trader, and buying on the flea and selling to a trader then makes money.",
+  "prices.jsonc:traderSellFloor": "Offers never go below what a trader sells the item for, so nothing on the flea is cheaper than buying it from a trader. Works on its own, next to the price floor. Items no trader sells aren't affected; worn ones go down with their condition. Guns are then at the trader price or more.",
+  "prices.jsonc:traderSellFloor.marginPercent": "How far above the trader's price the cheapest offer is. 0 = it can equal it.",
   "prices.jsonc:drift": "Prices slowly wander over time. Only new offers get the new price.",
   "prices.jsonc:drift.maxDriftPercent": "Furthest a price can wander from normal.",
   "prices.jsonc:drift.stepPercent": "Biggest single move.",
@@ -927,6 +933,7 @@ const DESC = {
   // Selling
   "selling.jsonc:enabled": "Let players list their own items on the flea.",
   "selling.jsonc:foundInRaidOnly": "Only found in raid items can be listed.",
+  "selling.jsonc:notifications": "Off: no pop-ups and no Messenger messages about the flip penalty, or about a trader item that can't be listed.",
   "selling.jsonc:saleDelay": "How fast your offers sell depends on your price: cheap in under a minute, normal in a few minutes, overpriced hardly ever. Better Flea works each sale out from the market: your price, other sellers' offers, undercuts and the buyers. Want fixed waits you choose instead? Turn on Set sale times (Advanced settings).",
   "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
   "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
@@ -2936,13 +2943,14 @@ function itemLookup(e, d) {
     const facts = make("div", "facts econ-facts");
     // SPT's own price only when live prices or Better Flea pricing changed it.
     // A gun's base price is the gun on its own (its parts are priced separately), so its default build goes next to it.
-    const bare = d.buildBasePrice ? " (gun only)" : "";
+    // Armour and helmets have a default build too (with their plates or parts).
+    const bare = d.buildBasePrice ? " (on its own)" : "";
     if (d.sptPrice && d.sptPrice !== d.basePrice) {
       facts.append(make("div", "", "Base price now" + bare + ": " + count(d.basePrice) + " ₽"), make("div", "", "SPT's price: " + count(d.sptPrice) + " ₽"));
     } else {
       facts.append(make("div", "", "Base price" + bare + ": " + count(d.basePrice) + " ₽"));
     }
-    if (d.buildBasePrice) facts.append(make("div", "", "Base price, default build: " + count(d.buildBasePrice) + " ₽ (the gun and its parts)"));
+    if (d.buildBasePrice) facts.append(make("div", "", "Base price, default build: " + count(d.buildBasePrice) + " ₽ (with its default parts)"));
     if (d.ownPrice) facts.append(make("div", "", "Your price: " + count(d.ownPrice) + " ₽ (set under Your prices)"));
     facts.append(make("div", "", "Better Flea price: " + indexText), make("div", "", "Live price: " + liveText),
       make("div", "", (d.stockBuild ? "Actual value (default build): " : "Actual value: ") + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));

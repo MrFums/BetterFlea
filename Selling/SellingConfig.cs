@@ -11,6 +11,10 @@ public record PlayerSellingConfig
     [JsonPropertyName("foundInRaidOnly")]
     public bool FoundInRaidOnly { get; set; } = false;
 
+    // false = no pop-ups or Messenger messages about the flip penalty or a trader item that can't be listed.
+    [JsonPropertyName("notifications")]
+    public bool Notifications { get; set; } = true;
+
     [JsonPropertyName("saleDelay")]
     public SaleDelayConfig SaleDelay { get; set; } = new();
 

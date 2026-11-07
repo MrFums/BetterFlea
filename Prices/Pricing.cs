@@ -178,7 +178,7 @@ internal static class PriceGate
         if (price < floor)
         {
             Interlocked.Increment(ref _raisedToFloor);
-            DebugLog.Write(() => $"Price floor: {Name(tpl)} raised {price:0.##} -> {floor:0.##} {CurrencyName(currency)} (best trader buy {BestTraderBuyPrice(tpl):0.##} RUB)");
+            DebugLog.Write(() => $"Price floor: {Name(tpl)} raised {price:0.##} -> {floor:0.##} {CurrencyName(currency)} (best trader buy {BestTraderBuyPrice(tpl):0.##} RUB, cheapest trader sell {TraderSellPrice(tpl):0.##} RUB)");
             price = floor;
         }
 
@@ -189,17 +189,25 @@ internal static class PriceGate
     public static double FloorForItems(IEnumerable<Item> items, MongoId currency) =>
         items.Sum(item => FloorFor(item.Template, item, currency, items) * (item.SlotId == "cartridges" ? Math.Max(1, item.Upd?.StackObjectsCount ?? 1) : 1));
 
-    // 0 = no floor.
+    // 0 = no floor. The higher of the two floors, each on its own switch: what a trader pays for it (floor), and what a
+    // trader sells it for (traderSellFloor). Both go by condition the same way.
     public static double FloorFor(MongoId tpl, Item? item, MongoId currency, IEnumerable<Item>? parts = null)
     {
         var settings = _config?.Mod.Prices.Floor;
-        if (settings is null || !settings.Enabled || _handbook is null)
+        var sell = _config?.Mod.Prices.TraderSellFloor;
+        var buyOn = settings is { Enabled: true };
+        var sellOn = sell is { Enabled: true };
+        if ((!buyOn && !sellOn) || _handbook is null)
         {
             return 0;
         }
 
-        var bestBuy = BestTraderBuyPrice(tpl);
-        if (bestBuy <= 0 || (settings.IgnoreForTraderLoops && TraderLoopItems().Contains(tpl)))
+        var bestBuy = buyOn && !(settings!.IgnoreForTraderLoops && TraderLoopItems().Contains(tpl)) ? BestTraderBuyPrice(tpl) : 0;
+        var traderSell = sellOn ? TraderSellPrice(tpl) : 0;
+        var top = Math.Max(
+            bestBuy * (1.0 + (settings?.MarginPercent ?? 0) / 100.0),
+            traderSell * (1.0 + Math.Max(0, sell?.MarginPercent ?? 0) / 100.0));
+        if (top <= 0)
         {
             return 0;
         }
@@ -208,8 +216,71 @@ internal static class PriceGate
             ? UsedListingsGate.SptQuality(item) * UsedListingsGate.ShellQuality(item, parts)
             : 1.0;
 
-        var floor = bestBuy * condition * (1.0 + settings.MarginPercent / 100.0);
-        return currency == Money.ROUBLES ? floor : _handbook.FromRoubles(floor, currency);
+        var floor = top * condition;
+        if (currency == Money.ROUBLES)
+        {
+            return floor;
+        }
+
+        // Not SPT's FromRoubles: it rounds to the nearest whole dollar or euro, so a floor of 4,263 roubles became 35 USD
+        // (4,235 roubles) and dollar offers sat under it. Callers round up.
+        var rate = _handbook.GetTemplatePrice(currency);
+        return rate > 0 ? floor / rate : 0;
+    }
+
+    private static volatile Dictionary<MongoId, double>? _traderSellPrices;
+
+    // The least any trader (modded ones too, not Fence) charges for one of the item in roubles, at any loyalty level,
+    // money offers only. 0 = no trader sells it. An offer that comes with parts (a gun, armour with plates) is split
+    // over them by handbook price, so a gun's floor is the sum of its parts' and a part on its own gets its share.
+    public static double TraderSellPrice(MongoId tpl)
+    {
+        var prices = _traderSellPrices ??= BuildTraderSellPrices();
+        return prices.GetValueOrDefault(tpl);
+    }
+
+    private static Dictionary<MongoId, double> BuildTraderSellPrices()
+    {
+        var cheapest = new Dictionary<MongoId, double>();
+        foreach (var (traderId, trader) in _traders ?? [])
+        {
+            if (traderId == Fence || trader.Assort?.Items is not { Count: > 0 } assort || trader.Assort.BarterScheme is not { } schemes)
+            {
+                continue;
+            }
+
+            var children = assort.Where(entry => entry.ParentId is not null).ToLookup(entry => entry.ParentId!);
+            foreach (var root in assort.Where(entry => entry.ParentId == "hideout"))
+            {
+                if (!schemes.TryGetValue(root.Id, out var options) || options.FirstOrDefault() is not [{ Count: > 0 } payment]
+                    || !_itemHelper!.IsOfBaseclass(payment.Template, BaseClasses.MONEY))
+                {
+                    continue;
+                }
+
+                var cost = payment.Template == Money.ROUBLES ? payment.Count!.Value : _handbook!.InRoubles(payment.Count!.Value, payment.Template);
+                var tree = new List<Item> { root };
+                for (var i = 0; i < tree.Count; i++)
+                {
+                    tree.AddRange(children[tree[i].Id.ToString()]);
+                }
+
+                // The scheme is for one of the root item: rounds in an ammo box count by their stack.
+                double Units(Item entry) => entry == root ? 1 : Math.Max(1, entry.Upd?.StackObjectsCount ?? 1);
+                var total = tree.Sum(entry => _handbook!.GetTemplatePrice(entry.Template) * Units(entry));
+                foreach (var entry in tree)
+                {
+                    var each = total > 0 ? cost * _handbook!.GetTemplatePrice(entry.Template) / total : entry == root ? cost : 0;
+                    if (each > 0)
+                    {
+                        cheapest[entry.Template] = cheapest.TryGetValue(entry.Template, out var known) ? Math.Min(known, each) : each;
+                    }
+                }
+            }
+        }
+
+        DebugLog.Summary(() => $"Trader sell floor: {cheapest.Count} item(s) a trader sells.");
+        return cheapest;
     }
 
     // SPT only checks each trader's first loyalty level and ignores what they actually buy.
@@ -244,6 +315,7 @@ internal static class PriceGate
     {
         BestBuyPrices.Clear();
         _traderLoopItems = null;
+        _traderSellPrices = null;
     }
 
     private static volatile HashSet<MongoId>? _traderLoopItems;

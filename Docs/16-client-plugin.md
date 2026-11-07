@@ -13,7 +13,7 @@ game. Every real player should install it; a Fika headless client shouldn't.
 | **Greyed-out items** | In the add-offer screen, items you can't list are grey, with Better Flea's reason |
 | **Item unlock levels** | The inspect window says the level an item unlocks at; flea categories show a lock and their level; locked offers show locked |
 | **Selling turned off** | The sell button is greyed out with a small warning, instead of an error that sends you to the menu |
-| **Flip penalty pop-up** | When a listing gets the flip penalty: the item, how many you bought, and how much longer buyers take |
+| **Flip penalty pop-up** | When a listing gets the flip penalty: the item, how many you bought, and how much longer buyers take. Not shown with `notifications` off (Selling tab) |
 | **Quick-sell mods** | Items that can't go on the flea are sold to a trader instead of failing |
 | **Other mods' price checks** | Mods that ask the game whether an item can be listed (Price Index, quick-sell mods) get Better Flea's answer |
 

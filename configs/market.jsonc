@@ -36,7 +36,9 @@
   "barterOffers": {
     "chance": 0.005,                 // chance an offer is a barter. 0.005 = 1 in 200
     "valueMin": 0.85,                // what the asked-for items are worth, as a share of the normal price (random between)
-    "valueMax": 0.97
+    "valueMax": 0.97,
+    "firOnly": false,                // true = a player's barter offer only takes found in raid items as payment. Money always pays
+    "firOnlyTraderBarters": false    // with firOnly on, true = trader barters too, on the Flea Market and on the trader's own screen
   },
 
   // The flea rating shown next to a generated seller (SPT's own is -2 to 20). Everyday players are min up to

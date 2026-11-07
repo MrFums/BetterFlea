@@ -491,6 +491,14 @@ public record BarterOffersConfig
 
     [JsonPropertyName("valueMax")]
     public double ValueMax { get; set; } = 0.97;
+
+    // true = a player's barter offer only takes found in raid items as payment.
+    [JsonPropertyName("firOnly")]
+    public bool FirOnly { get; set; } = false;
+
+    // With firOnly on, true = trader barters too, on the Flea Market and on the trader's own screen.
+    [JsonPropertyName("firOnlyTraderBarters")]
+    public bool FirOnlyTraderBarters { get; set; } = false;
 }
 
 public record SellerRatingConfig

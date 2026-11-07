@@ -232,6 +232,8 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `soldBeforeYouChance` | 0.05 | Buying a gun or barter item from another seller fails now and then: "sold before you". Never on trader offers. |
 | `barterOffers.chance` | 0.005 | A seller wants items instead of money, items people actually carry. Offers under 20,000 stay money. |
 | `barterOffers.valueMin`, `valueMax` | 0.85 to 0.97 | What the asked-for items are worth against the normal price. |
+| `barterOffers.firOnly` | off | Other players' barter offers only take found in raid items as payment. Money always pays. |
+| `barterOffers.firOnlyTraderBarters` | off | Needs `firOnly`. Trader barters only take found in raid items too, on the flea and on the trader's own screen. |
 | `sellerRating` | 2 to 300 | Ratings next to generated sellers. Everyday players up to 100, regulars 20 to 300, flippers mostly regulars, a few new sellers at -2 to 1. |
 | `sellerBadges` | EoD 0.25, Unheard 0.2, special 0.001 | Edition badges next to sellers' names. Each seller keeps its badge and rating on every offer. |
 | `packs.chancePercent` | 3 | Several of an item you must buy together. |
@@ -253,6 +255,8 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `floor.enabled` | on | No generated offer under the most a trader pays for the item, so nobody buys on the flea to sell to a trader. |
 | `floor.marginPercent` | 10 | The cheapest offer is this % over that trader price. |
 | `floor.logTraderProfitLoops` | off | Log the items one trader sells for less than another pays. |
+| `traderSellFloor.enabled` | off | No generated offer under what a trader sells the item for (any trader that sells it for money, modded ones too, any loyalty level, not Fence). A gun or armour sold with parts is split over the parts by handbook price. Worn items go down with condition. Items no trader sells aren't affected. Works next to `floor`; the higher one wins. |
+| `traderSellFloor.marginPercent` | 0 | The cheapest offer is this % over that trader price. 0 = it can equal it. |
 | `floor.ignoreForTraderLoops` | off | **Not supported.** No floor for those items (and their parts), so their offers can go under what a trader pays. Worn ones get cheaper than a new one from the trader, and buying on the flea to sell to a trader then makes money. Only items where traders already make that possible are affected. |
 | `drift.enabled` | on | Prices wander a little over time, per item. Only new offers get the new price. |
 | `drift.maxDriftPercent`, `stepPercent`, `updateMinutes` | 20, 4, 45 | How far, how big a step, how often. |
@@ -318,6 +322,7 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `flipPenalty.countFleaPurchases`, `fenceMultiplier` | on, 3 | Flea purchases count too; one item from Fence counts as three. |
 | `purchaseLock.enabled` | off | Items bought from a trader (Fence too) can never be sold on the flea. Parts on a bought gun too. Stackable items aren't locked. Purchases are remembered while it's off, so turning it on mid-wipe locks what was bought before. |
 | `purchaseLock.includeFleaPurchases` | off | Lock items bought from other players on the flea too. |
+| `notifications` | on | Off: no pop-ups and no Messenger messages about the flip penalty or a trader item that can't be listed. Needs the 2.5.1 plugin. |
 
 ---
 

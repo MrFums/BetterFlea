@@ -20,6 +20,16 @@
     "ignoreForTraderLoops": false    // NOT SUPPORTED. true = no floor for items one trader sells for less than another pays (and their parts), so flea offers can go under it
   },
 
+  // An offer is never cheaper than the least a trader sells the item for (any trader, modded ones too, not Fence,
+  // money offers only, any loyalty level). Works on its own, next to the floor above. Items no trader sells aren't
+  // affected. A gun or armour a trader sells with parts is split over the parts by their handbook price. Worn
+  // items go down with their condition, as with the floor above. Guns are normally priced a little under the
+  // trader (Weapons tab, trader price percent): with this on they're at the trader price or more.
+  "traderSellFloor": {
+    "enabled": false,
+    "marginPercent": 0               // the cheapest offer is this % more than the trader's price. 0 = it can equal it
+  },
+
   // Prices go up and down a little over time. Only new offers get the new price.
   "drift": {
     "enabled": true,

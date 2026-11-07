@@ -23,7 +23,7 @@ wins that feature.
 | `RagfairOfferGenerator.CreateSingleOfferForItem` | Prefix | Builds each gun offer in one of the build tiers |
 | `RagfairOfferGenerator.CreateAndAddFleaOffer` | Prefix, postfix | Final pricing of each offer, and when it was listed and how long it runs |
 | `RagfairOfferGenerator.RandomiseOfferItemUpdProperties` | Postfix | Condition: used keys, meds, food, fuel; worn guns, armour, plates and helmets |
-| `RagfairOfferGenerator.CreateBarterBarterScheme` | Prefix | Barter offers that ask for items people actually carry |
+| `RagfairOfferGenerator.CreateBarterBarterScheme` | Prefix | SPT's own barter roll always gives money; Better Flea makes its barters itself |
 | `RagfairOfferHolder.AddOffer` | Prefix, postfix | Offers made on demand, and the memory cap |
 | `RagfairOfferHelper.GetValidOffers` | Prefix | Makes the searched items' offers when someone looks, and only checks those |
 | `RagfairCategoriesService.GetCategoriesFromOffers` | Prefix | Category counts include offers not made yet |
@@ -36,7 +36,8 @@ wins that feature.
 | `RagfairOfferHelper.IncreaseProfileRagfairRating` | Prefix, postfix | Flea rep gain multiplier, and sends the new rating to the game (SPT never does, so it only showed after logging in again) |
 | `RagfairOfferHelper.CompleteOffer` | Prefix | Demand: a lot sold of one item can lower its price |
 | `TradeHelper.BuyItem` | Prefix, postfix | Demand from buying, the flip penalty, the 48-hour rule and the trader item lock (three patches) |
-| `TradeController.ConfirmRagfairTrading` | Prefix | "Sold before you" |
+| `TradeController.ConfirmRagfairTrading` | Prefix | "Sold before you", item unlock levels on buying, and found in raid barters |
+| `TradeController.ConfirmTrading` | Prefix | Found in raid trader barters on the trader's own screen (off by default) |
 | `RagfairOfferService.EnoughExpiredOffersExistToProcess` | Postfix | Starts SPT's clean-up of expired offers as soon as a player's offer has ended, so its items come back. SPT waits for 1,400 expired offers, which Better Flea's market rarely reaches |
 | `LocationLifecycleService.HandlePostRaidPmc` | Prefix | Remembers guns players die with, for the flea |
 | `ProfileActivityService.SetActivityTimestamp` | Postfix | Who is online, for the Wipe Cycle |

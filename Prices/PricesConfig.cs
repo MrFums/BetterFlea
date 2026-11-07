@@ -15,6 +15,9 @@ public record PricesConfig
     [JsonPropertyName("floor")]
     public PriceFloorConfig Floor { get; set; } = new();
 
+    [JsonPropertyName("traderSellFloor")]
+    public TraderSellFloorConfig TraderSellFloor { get; set; } = new();
+
     [JsonPropertyName("drift")]
     public PriceDriftConfig Drift { get; set; } = new();
 
@@ -49,6 +52,16 @@ public record PriceFloorConfig
     // there through the traders anyway, so the flea may go under it. Selling flea buys to a trader then pays too.
     [JsonPropertyName("ignoreForTraderLoops")]
     public bool IgnoreForTraderLoops { get; set; } = false;
+}
+
+// Offers never under what a trader sells the item for (plus the margin), on top of the floor above. Off by default.
+public record TraderSellFloorConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = false;
+
+    [JsonPropertyName("marginPercent")]
+    public double MarginPercent { get; set; } = 0;
 }
 
 public record GunPricingConfig

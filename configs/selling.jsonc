@@ -4,6 +4,7 @@
 {
   "enabled": true,                   // false = players cannot sell on the Flea Market
   "foundInRaidOnly": false,          // true = players can only sell items that are found in raid
+  "notifications": true,             // false = no pop-ups or Messenger messages about the flip penalty, or about a trader item that can't be listed
 
   // How fast a player's offer sells depends on its price against the normal price.
   // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: longer and

@@ -3,7 +3,6 @@ using EFT;
 using EFT.Communications;
 using EFT.UI;
 using Newtonsoft.Json;
-using SPT.Common.Http;
 
 namespace BetterFlea.Client;
 
@@ -31,8 +30,8 @@ internal static class FlipNotice
     {
         try
         {
-            var notice = JsonConvert.DeserializeObject<Notice>(RequestHandler.GetJson(Route));
-            if (notice == null || notice.Minutes < 1)
+            var notice = JsonConvert.DeserializeObject<Notice>(QuietRequest.GetJson(Route));
+            if (notice == null || notice.Minutes < 1 || FleaStatus.NotificationsOff)
             {
                 return;
             }

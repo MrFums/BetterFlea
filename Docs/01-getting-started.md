@@ -21,7 +21,7 @@ Fika headless client.
 
 | Better Flea | SPT |
 |---|---|
-| 1.0.0 to 2.5.0 | 4.1.x |
+| 1.0.0 to 2.5.1 | 4.1.x |
 
 Every release so far is for SPT 4.1. The server mod says which SPT versions it supports, and SPT won't load it on
 another.

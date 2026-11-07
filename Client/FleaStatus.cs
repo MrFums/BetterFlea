@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
+using System.Text;
 using SPT.Common.Http;
 using EFT.InventoryLogic;
 using Newtonsoft.Json;
@@ -44,6 +45,7 @@ internal static class FleaStatus
         public readonly bool LevelLockOn;
         public readonly bool LevelLockSelling;
         public readonly int PlayerLevel;
+        public readonly bool NotificationsOff;
 
         public Snapshot(HashSet<string> fleaBanned, HashSet<string> boughtFromTrader, bool purchaseLockOn, bool sellingOff, ClientData data)
         {
@@ -54,6 +56,7 @@ internal static class FleaStatus
             LevelLockOn = data.LevelLockOn;
             LevelLockSelling = data.LevelLockSelling;
             PlayerLevel = data.PlayerLevel;
+            NotificationsOff = data.NotificationsOff;
         }
     }
 
@@ -67,6 +70,7 @@ internal static class FleaStatus
         public bool LevelLockSelling { get; set; }
         public int LevelsVersion { get; set; }
         public int PlayerLevel { get; set; }
+        public bool NotificationsOff { get; set; }
     }
 
     public static bool LevelLockOn
@@ -79,6 +83,16 @@ internal static class FleaStatus
     }
 
     public static int PlayerLevel => _current.PlayerLevel;
+
+    // The server's selling.jsonc notifications switch: off = no pop-ups from this plugin.
+    public static bool NotificationsOff
+    {
+        get
+        {
+            RefreshIfOld();
+            return _current.NotificationsOff;
+        }
+    }
 
     // 0 when the item needs no level, or level locks are off.
     public static int UnlockLevel(string templateId)
@@ -150,11 +164,13 @@ internal static class FleaStatus
         var next = DateTime.UtcNow;
         try
         {
-            var data = JsonConvert.DeserializeObject<ClientData>(RequestHandler.GetJson(Route)) ?? new ClientData();
+            // Null (an empty answer) counts as a failure: keep what we had and wait before asking again.
+            var data = JsonConvert.DeserializeObject<ClientData>(QuietRequest.GetJson(Route))
+                ?? throw new InvalidOperationException("empty answer");
             var levelsChanged = false;
             if (data.LevelsVersion != _levelsVersion)
             {
-                _levels = JsonConvert.DeserializeObject<Dictionary<string, int>>(RequestHandler.GetJson(LevelsRoute)) ?? new Dictionary<string, int>();
+                _levels = JsonConvert.DeserializeObject<Dictionary<string, int>>(QuietRequest.GetJson(LevelsRoute)) ?? new Dictionary<string, int>();
                 _levelsVersion = data.LevelsVersion;
                 levelsChanged = true;
             }
@@ -195,6 +211,18 @@ internal static class FleaStatus
             _fetchedAt = next;
             _fetching = false;
         }
+    }
+}
+
+// SPT's RequestHandler writes two lines to the BepInEx log for every request ([REQUEST] and [REQUEST SUCCESSFUL]),
+// and this plugin asks the server every 30 seconds while the flea or stash is open, which filled players' logs. Same
+// request through the same client, without those lines. Failures still log (SPT's Client does that).
+internal static class QuietRequest
+{
+    public static string GetJson(string path)
+    {
+        var bytes = Task.Run(() => RequestHandler.HttpClient.GetAsync(path)).Result;
+        return bytes == null ? null : Encoding.UTF8.GetString(bytes);
     }
 }
 

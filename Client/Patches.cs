@@ -82,7 +82,11 @@ internal class AddOfferPatch : ModulePatch
             return true;
         }
 
-        NotificationManager.DisplayWarningNotification(ClientText.Get("Trader items can't be sold at the Flea Market."));
+        if (!FleaStatus.NotificationsOff)
+        {
+            NotificationManager.DisplayWarningNotification(ClientText.Get("Trader items can't be sold at the Flea Market."));
+        }
+
         callback?.Invoke();
         return false;
     }

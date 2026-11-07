@@ -158,7 +158,19 @@ internal static class LevelLock
         Interlocked.Increment(ref _forgets);
     }
 
-    public static int PlayerLevel(MongoId sessionId) => _profiles?.GetPmcProfile(sessionId)?.Info?.Level ?? 0;
+    // 0 for a session SPT doesn't know (the game left open over a server restart, or not logged in yet). SPT throws
+    // there, and the client plugin asks every 30 seconds, so the log filled with stack traces.
+    public static int PlayerLevel(MongoId sessionId)
+    {
+        try
+        {
+            return _profiles?.GetPmcProfile(sessionId)?.Info?.Level ?? 0;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
 
     // Every flea item that needs a level, modded ones included, for the client plugin to show on items and categories.
     public static Dictionary<string, int> ForClient()

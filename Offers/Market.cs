@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.Controllers;
@@ -9,6 +10,7 @@ using SPTarkov.Server.Core.Generators.Ragfair;
 using SPTarkov.Server.Core.Helpers.Items;
 using SPTarkov.Server.Core.Helpers.Ragfair;
 using SPTarkov.Server.Core.Models.Common;
+using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.ItemEvent;
 using SPTarkov.Server.Core.Models.Eft.Ragfair;
@@ -450,6 +452,7 @@ public class OfferListedTimePatch : AbstractPatch
 
 [Injectable(TypePriority = OnLoadOrder.RagfairCallbacks - 1)]
 public class BarterOffersLoad(
+    ISptLogger<BarterOffersLoad> logger,
     ConfigManager configManager,
     ItemHelper itemHelper,
     RagfairServerHelper ragfairServerHelper,
@@ -464,10 +467,13 @@ public class BarterOffersLoad(
             configManager.Load();
         }
 
-        BarterOffers.Bind(configManager, itemHelper, ragfairServerHelper, ragfairPriceService, templateTable, ragfairConfig);
+        BarterOffers.Bind(configManager, itemHelper, ragfairServerHelper, ragfairPriceService, templateTable, ragfairConfig,
+            message => logger.Warning(message));
 
-        // SPT's barter chance is a whole percent, so under 1% never fires. We roll it ourselves in
-        // MaybeInsteadOfMoney, and replace SPT's barter pick in case its own switch is on.
+        // SPT's barter chance is a whole percent, so under 1% never fires. Better Flea rolls its own in
+        // MaybeInsteadOfMoney, so SPT's (ragfair.json, or another mod) is switched off here, and BarterSchemePatch
+        // turns any barter SPT still rolls (a mod setting it after this) back into a money offer.
+        BarterOffers.SilenceSptRoll();
         new BarterSchemePatch().Enable();
         return Task.CompletedTask;
     }
@@ -486,9 +492,11 @@ internal static class BarterOffers
     private static readonly MongoId BarterItemBase = new("5448eb774bdc2d0a728b4567");
 
     private static RagfairConfig? _ragfairConfig;
+    private static Action<string>? _warn;
+    private static int _warnedSptRoll;
 
     public static void Bind(ConfigManager configManager, ItemHelper itemHelper, RagfairServerHelper ragfair, RagfairPriceService prices, TemplateTable templates,
-        RagfairConfig ragfairConfig)
+        RagfairConfig ragfairConfig, Action<string> warn)
     {
         _config = configManager;
         _ragfairConfig = ragfairConfig;
@@ -496,6 +504,28 @@ internal static class BarterOffers
         _ragfair = ragfair;
         _prices = prices;
         _templates = templates;
+        _warn = warn;
+    }
+
+    // Barters on the flea follow Better Flea's chance only (Market tab, Barter offers).
+    public static void SilenceSptRoll()
+    {
+        if (_ragfairConfig?.Dynamic.Barter is not { } spt || spt.ChancePercent <= 0)
+        {
+            return;
+        }
+
+        WarnSptRoll(spt.ChancePercent);
+        spt.ChancePercent = 0;
+    }
+
+    public static void WarnSptRoll(double chancePercent)
+    {
+        if (Interlocked.Exchange(ref _warnedSptRoll, 1) == 0)
+        {
+            _warn?.Invoke($"[BetterFlea] SPT's flea barter chance ({chancePercent:0.##}%, from ragfair.json or another mod) is ignored. "
+                + "Better Flea sets how often an offer is a barter: Market tab, Barter offers (configs/market.jsonc barterOffers.chance).");
+        }
     }
 
     private static BarterOffersConfig Settings => _config!.Mod.GeneratedOffers.BarterOffers;
@@ -512,10 +542,14 @@ internal static class BarterOffers
             .OrderBy(entry => entry.Price)
             .ToList());
 
-    // Null = leave it to SPT.
+    // Null = stay a money offer.
     public static List<BarterScheme>? SchemeFor(List<Item> offerItems, BarterDetails barterConfig)
     {
-        var price = _prices!.GetDynamicOfferPriceForOffer(offerItems, Money.ROUBLES, false);
+        // Better Flea's normal price for it (a gun at its gun price, parts, condition and market included), not SPT's
+        // raw price: SPT's put a 133k M4A1 up for 16k of barter items.
+        var price = BetterFlea.Selling.SaleDelayGate.NormalPrice(offerItems) is > 0 and var normal
+            ? normal
+            : _prices!.GetDynamicOfferPriceForOffer(offerItems, Money.ROUBLES, false);
 
         if (price < barterConfig.MinRoubleCostToBecomeBarter || Wanted.Value.Count == 0)
         {
@@ -576,22 +610,23 @@ internal static class BarterOffers
     }
 }
 
+// A barter SPT rolled itself (its chance set after load) becomes a money offer: Better Flea's chance is the only one.
 public class BarterSchemePatch : AbstractPatch
 {
+    private static readonly MethodInfo CurrencyScheme = typeof(RagfairOfferGenerator).GetMethod("CreateCurrencyBarterScheme",
+        BindingFlags.Instance | BindingFlags.NonPublic, [typeof(IEnumerable<Item>), typeof(bool), typeof(double)])
+        ?? throw new MissingMethodException(nameof(RagfairOfferGenerator), "CreateCurrencyBarterScheme");
+
     protected override MethodBase GetTargetMethod()
     {
         return typeof(RagfairOfferGenerator).GetMethod("CreateBarterBarterScheme", BindingFlags.Instance | BindingFlags.NonPublic)!;
     }
 
     [PatchPrefix]
-    public static bool Prefix(IEnumerable<Item> offerItems, BarterDetails barterConfig, ref List<BarterScheme> __result)
+    public static bool Prefix(RagfairOfferGenerator __instance, IEnumerable<Item> offerItems, BarterDetails barterConfig, ref List<BarterScheme> __result)
     {
-        if (BarterOffers.SchemeFor(offerItems as List<Item> ?? offerItems.ToList(), barterConfig) is not { } scheme)
-        {
-            return true;
-        }
-
-        __result = scheme;
+        BarterOffers.WarnSptRoll(barterConfig.ChancePercent);
+        __result = (List<BarterScheme>)CurrencyScheme.Invoke(__instance, [offerItems, false, 1.0])!;
         return false;
     }
 }
@@ -614,6 +649,7 @@ public class SoldBeforeYouPatchesLoad(
 
         SoldBeforeYou.Bind(configManager, ragfairOfferService, eventOutputHolder, httpResponseUtil, localeService, itemHelper);
         new SoldBeforeYouPatch().Enable();
+        new TraderBarterFirPatch().Enable();
         return Task.CompletedTask;
     }
 }
@@ -644,7 +680,7 @@ internal static class SoldBeforeYou
         _itemHelper = itemHelper;
     }
 
-    public static ItemEventRouterResponse? BeforePurchase(ProcessRagfairTradeRequestData request, MongoId sessionId)
+    public static ItemEventRouterResponse? BeforePurchase(PmcData? pmcData, ProcessRagfairTradeRequestData request, MongoId sessionId)
     {
         if (request.Offers is null)
         {
@@ -661,7 +697,16 @@ internal static class SoldBeforeYou
         {
             if (wanted.Id is { } id && _offers!.GetOfferByOfferId(id) is { } offer && Flea.LevelLock.BuyRefusal(sessionId, offer) is { } tooLow)
             {
-                return _responses!.AppendErrorToOutput(_output!.GetOutput(sessionId), tooLow);
+                return Refuse(sessionId, tooLow);
+            }
+        }
+
+        foreach (var wanted in request.Offers)
+        {
+            if (wanted.Id is { } id && _offers!.GetOfferByOfferId(id) is { } offer
+                && NotFoundInRaid(pmcData, wanted.Items, offer.User?.MemberType == MemberCategory.Trader) is { } refusal)
+            {
+                return Refuse(sessionId, refusal);
             }
         }
 
@@ -691,6 +736,57 @@ internal static class SoldBeforeYou
         }
 
         return null;
+    }
+
+    // Barter offers can be set to take found in raid items only (barterOffers.firOnly; trader barters with
+    // firOnlyTraderBarters, on the flea and the trader's screen). Money always pays. Null = fine, otherwise why not.
+    public static string? NotFoundInRaid(PmcData? pmcData, List<IdWithCount>? paidWith, bool trader)
+    {
+        var settings = _config?.Mod.GeneratedOffers.BarterOffers;
+        if (settings is not { FirOnly: true } || (trader && !settings.FirOnlyTraderBarters)
+            || paidWith is not { Count: > 0 } || pmcData?.Inventory?.Items is not { } inventory)
+        {
+            return null;
+        }
+
+        foreach (var paid in paidWith)
+        {
+            var item = inventory.FirstOrDefault(entry => entry.Id == paid.Id);
+            if (item is not null && !_itemHelper!.IsOfBaseclass(item.Template, BaseClasses.MONEY) && item.Upd?.SpawnedInSession != true)
+            {
+                return $"Barters only take found in raid items. {GameName(item.Template)} isn't found in raid.";
+            }
+        }
+
+        return null;
+    }
+
+    // OfferNotFound (1503): the game shows the message as a notification and stays where it is. Any other code (or none)
+    // is a "Critical error" screen that sends the player back to the main menu.
+    public static ItemEventRouterResponse Refuse(MongoId sessionId, string message) =>
+        _responses!.AppendErrorToOutput(_output!.GetOutput(sessionId), message, BackendErrorCodes.OfferNotFound);
+
+    // The item's name as the game shows it (the player's language, else English), not its database name.
+    private static string GameName(MongoId tpl)
+    {
+        var key = $"{tpl} Name";
+        try
+        {
+            if (_locales!.GetLocaleDb(_locales.GetDesiredGameLocale()) is { } locale && locale.TryGetValue(key, out var text) && !string.IsNullOrEmpty(text))
+            {
+                return text;
+            }
+
+            if (_locales.GetLocaleDb("en") is { } english && english.TryGetValue(key, out var englishText) && !string.IsNullOrEmpty(englishText))
+            {
+                return englishText;
+            }
+        }
+        catch (Exception)
+        {
+        }
+
+        return _itemHelper?.GetItem(tpl).Value?.Name ?? "An item";
     }
 
     private static string SoldMessage()
@@ -727,14 +823,38 @@ public class SoldBeforeYouPatch : AbstractPatch
 
     // By position so it doesn't depend on SPT's parameter names.
     [PatchPrefix]
-    public static bool Prefix(ProcessRagfairTradeRequestData __1, MongoId __2, ref ItemEventRouterResponse __result)
+    public static bool Prefix(PmcData __0, ProcessRagfairTradeRequestData __1, MongoId __2, ref ItemEventRouterResponse __result)
     {
-        if (SoldBeforeYou.BeforePurchase(__1, __2) is not { } refusal)
+        if (SoldBeforeYou.BeforePurchase(__0, __1, __2) is not { } refusal)
         {
             return true;
         }
 
         __result = refusal;
+        return false;
+    }
+}
+
+// A trader barter bought on the trader's own screen, for barterOffers.firOnlyTraderBarters.
+public class TraderBarterFirPatch : AbstractPatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return typeof(TradeController).GetMethod(
+            nameof(TradeController.ConfirmTrading),
+            BindingFlags.Instance | BindingFlags.Public)!;
+    }
+
+    [PatchPrefix]
+    public static bool Prefix(PmcData __0, ProcessBaseTradeRequestData __1, MongoId __2, ref ItemEventRouterResponse __result)
+    {
+        if (__1 is not ProcessBuyTradeRequestData { Type: "buy_from_trader" } buy
+            || SoldBeforeYou.NotFoundInRaid(__0, buy.SchemeItems, trader: true) is not { } refusal)
+        {
+            return true;
+        }
+
+        __result = SoldBeforeYou.Refuse(__2, refusal);
         return false;
     }
 }
