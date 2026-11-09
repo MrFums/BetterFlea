@@ -63,7 +63,7 @@ goes a bit under what decent ones usually cost.
 
 ## How armour offers are made
 
-- **Plates:** 60% both, 12% front only, 8% back only, 20% none. 20% of plated ones mix a class 3 and a class 4; 15% are
+- **Plates:** 45% both, 9% front only, 6% back only, 40% none. 20% of plated ones mix a class 3 and a class 4; 15% are
   both class 3. 30% of armour that takes side plates has them. 5% are the best kit: class 4 front and back, class 6
   sides, all mint.
 - **Class 5 and 6 front and back plates are flea-banned** in this game version, so front and back plates on offers are
@@ -74,6 +74,8 @@ goes a bit under what decent ones usually cost.
   one is usually in the front.
 - **Condition by rarity:** mint, worn (a bit under max), destroyed (15-35% left but a good max: worth repairing) or
   obliterated (max worn right down too). About 1 offer in 8 is badly damaged. Helmets are damaged half as often.
+- **Worn armour is never priced under 40% of a new one** (55% at class 5, 65% at class 6, plus 5% for rare parts and
+  10% for superrare ones). This covers armour, helmets, plates and inserts, however worn.
 - **Helmets:** about 1 in 5 comes with something on it; a quarter of the helmets bosses wear come off a boss (good max,
   low current); face shields and night vision are sometimes listed flipped down.
 - **Repair kit bonus:** a repaired piece now and then has the gold background.

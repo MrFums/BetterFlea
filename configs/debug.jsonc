@@ -2,5 +2,11 @@
 // Please change these on the settings page (https://127.0.0.1:6969/betterflea), not in this file.
 {
   // true = write a lot of extra lines in the server log. Use this only to test.
-  "debugLogging": false
+  "debugLogging": false,
+  // Testing only: every wait before a player's offer sells is this many times shorter (10 = a 30-minute sale in 3
+  // minutes). Whether it sells doesn't change. The sale odds tables show the shorter waits too. 1 = real time.
+  "saleSpeed": 1,
+  // true = the settings page shows exactly how often and how fast an offer sells at each price. A player who can see
+  // that prices right up to the limit, so it's off: each offer only says roughly how it's priced.
+  "showSaleOdds": false
 }

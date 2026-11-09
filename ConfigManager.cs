@@ -119,7 +119,7 @@ public class ConfigManager(
         ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMinDiscount"], 0.15, 0.2),
         ("2.3.0d", "weapons.jsonc", ["presets", "buildDealMaxDiscount"], 0.3, 0.35),
         ("2.3.1", "selling.jsonc", ["flipPenalty", "maxExtraMinutes"], 90, 30),
-        // From the live flea (FLEA_OBSERVATIONS.md): mechanical keys nearly all full, marked keys nearly all at one use,
+        // From the live flea: mechanical keys nearly all full, marked keys nearly all at one use,
         // lowered max only on used guns and mostly 82-98, more repeated-digit prices and a longer overpriced end.
         ("2.4.0", "condition.jsonc", ["keys", "usedChance"], 0.4, 0.07),
         ("2.4.0", "condition.jsonc", ["keys", "usesLeftFalloff"], 0.97, 1.05),
@@ -131,7 +131,7 @@ public class ConfigManager(
         ("2.4.0", "condition.jsonc", ["guns", "lowMaxMax"], 95, 98),
         ("2.4.0", "prices.jsonc", ["sellers", "roundPriceChance"], 0.2, 0.4),
         ("2.4.0", "prices.jsonc", ["sellers", "overpriceMaxPercent"], 30, 50),
-        // The user's own look at the live flea: easier prices, offers listed for 12 or 24 hours (stacks for days), meds
+        // From the live flea: easier prices, offers listed for 12 or 24 hours (stacks for days), meds
         // and food nearly always full, a few more edition badges.
         ("2.4.0b", "prices.jsonc", ["sellers", "roundPriceChance"], 0.4, 0.75),
         ("2.4.0b", "market.jsonc", ["offerExpiry", "maxMinutes"], 1440, 7200),
@@ -160,7 +160,26 @@ public class ConfigManager(
         ("2.4.0j", "condition.jsonc", ["guns", "lowMaxChance"], 0.7, 0.85),
         // Flip penalty: enough to put flipping off, not to stall a sale.
         ("2.4.0k", "selling.jsonc", ["flipPenalty", "maxExtraMinutes"], 30, 10),
-        ("2.4.0k", "selling.jsonc", ["flipPenalty", "windowMinutes"], 60, 30)
+        ("2.4.0k", "selling.jsonc", ["flipPenalty", "windowMinutes"], 60, 30),
+        // A gun at the normal price sold in 9 to 37 minutes at 340,000 roubles; now 6 to 18 (dearness capped at 1.5).
+        ("2.5.2", "selling.jsonc", ["saleDelay", "uniqueMinMinutes"], 5, 4),
+        ("2.5.2", "selling.jsonc", ["saleDelay", "uniqueMaxMinutes"], 20, 12),
+        // Live ratings mostly run 0 to 500.
+        ("2.5.2b", "market.jsonc", ["sellerRating", "max"], 300, 500),
+        // A gun at its normal price sells in 1 to 4 minutes, about as fast as a GPU.
+        ("2.5.2c", "selling.jsonc", ["saleDelay", "uniqueMinMinutes"], 4, 1),
+        ("2.5.2c", "selling.jsonc", ["saleDelay", "uniqueMaxMinutes"], 12, 4),
+        // Overpricing goes by the roubles over now (overpriceRoubles); neverSellsPercent is only a safety cap again.
+        ("2.5.2d", "selling.jsonc", ["saleDelay", "neverSellsPercent"], 60, 100),
+        // A marked key at the normal price takes about 30 minutes, not 4; uniqueMaxMinutes is a cap now.
+        ("2.5.2e", "selling.jsonc", ["saleDelay", "uniqueMaxMinutes"], 4, 60),
+        // More bare carriers on the flea, cheapest first, with plated ones dearer.
+        ("2.6.0a", "armor.jsonc", ["plates", "both"], 0.6, 0.45),
+        ("2.6.0a", "armor.jsonc", ["plates", "frontOnly"], 0.12, 0.09),
+        ("2.6.0a", "armor.jsonc", ["plates", "backOnly"], 0.08, 0.06),
+        ("2.6.0a", "armor.jsonc", ["plates", "none"], 0.2, 0.4),
+        // The flip penalty (and the 48-hour rule with it) is off by default. 1 = true, 0 = false.
+        ("2.6.0b", "selling.jsonc", ["flipPenalty", "enabled"], 1, 0)
     ];
 
     private const string UpdatesFile = "applied-updates.json";
@@ -188,10 +207,13 @@ public class ConfigManager(
                 {
                     var section = change.Path[..^1].Aggregate((JsonNode?)values, (node, key) => node?[key]) as JsonObject;
                     var key = change.Path[^1];
+                    // A true/false setting goes as 1/0.
+                    var flag = section?[key] is JsonValue boolValue && boolValue.TryGetValue<bool>(out var on) ? on : (bool?)null;
                     if (double.IsNaN(change.Old) ? section is not null && !section.ContainsKey(key)
+                        : flag is { } set ? (set ? 1 : 0) == change.Old
                         : section?[key] is JsonValue value && value.TryGetValue<double>(out var current) && Math.Abs(current - change.Old) < 1e-9)
                     {
-                        section[key] = change.New;
+                        section![key] = flag is not null ? JsonValue.Create(change.New != 0) : JsonValue.Create(change.New);
                         moved++;
                     }
                 }
@@ -280,6 +302,8 @@ public class ConfigManager(
             PlayerSelling = selling,
             Economy = economy,
             DebugLogging = debug.DebugLogging,
+            SaleSpeed = Math.Clamp(debug.SaleSpeed, 1.0, 1000.0),
+            ShowSaleOdds = debug.ShowSaleOdds,
             Web = web
         };
     }
@@ -542,6 +566,20 @@ public class ConfigManager(
         delay.NoDelayChance = Math.Clamp(delay.NoDelayChance, 0.0, 1.0);
         delay.ExpensivePercent = Math.Clamp(delay.ExpensivePercent, 10.0, 500.0);
         delay.NeverSellsPercent = Math.Clamp(delay.NeverSellsPercent, delay.ExpensivePercent + 5, 1000.0);
+        delay.OverpriceRoubles = Math.Clamp(delay.OverpriceRoubles, 0.0, 10000000.0);
+        delay.OverpriceRoublesMaxPercent = Math.Clamp(delay.OverpriceRoublesMaxPercent, 0.0, 1000.0);
+        delay.OverpriceDearShrink = Math.Clamp(delay.OverpriceDearShrink, 0.0, 1.0);
+        delay.OverpriceWaitMinutes = Math.Clamp(delay.OverpriceWaitMinutes, 0.0, 600.0);
+        delay.DearFromRoubles = Math.Clamp(delay.DearFromRoubles, 1000.0, 100000000.0);
+        delay.GearOverpricePercent = Math.Clamp(delay.GearOverpricePercent, 1.0, 100.0);
+        delay.GearDearFromRoubles = Math.Clamp(delay.GearDearFromRoubles, 1000.0, 100000000.0);
+        delay.WreckedWaitMultiplier = Math.Clamp(delay.WreckedWaitMultiplier, 1.0, 20.0);
+        delay.CheaperWaitMultiplier = Math.Clamp(delay.CheaperWaitMultiplier, 1.0, 20.0);
+        Mod.Prices.UnusableKeys.PricePercent = Math.Clamp(Mod.Prices.UnusableKeys.PricePercent, 1.0, 100.0);
+        Mod.Prices.UnusableKeys.Keys ??= [];
+        delay.RareWaitMultiplier = Math.Clamp(delay.RareWaitMultiplier, 0.0, 10.0);
+        delay.SuperrareWaitMultiplier = Math.Clamp(delay.SuperrareWaitMultiplier, 0.0, 10.0);
+        delay.OverpriceDearSlowdown = Math.Clamp(delay.OverpriceDearSlowdown, 0.0, 1.0);
         if (delay.MinMinutes > delay.MaxMinutes)
         {
             logger.Warning("[BetterFlea] saleDelay.minMinutes (configs/selling.jsonc) is above maxMinutes, swapping them.");
@@ -598,6 +636,9 @@ public class ConfigManager(
         var armor = Mod.GeneratedOffers.Armor;
         armor.FlippedDownChance = Math.Clamp(armor.FlippedDownChance, 0.0, 1.0);
         armor.HelmetAttachmentChance = Math.Clamp(armor.HelmetAttachmentChance, 0.0, 1.0);
+        armor.NoFaceShieldChance = Math.Clamp(armor.NoFaceShieldChance, 0.0, 1.0);
+        armor.NoFaceShieldScamChance = Math.Clamp(armor.NoFaceShieldScamChance, 0.0, 1.0);
+        armor.FaceShieldChance = Math.Clamp(armor.FaceShieldChance, 0.0, 1.0);
         armor.HelmetDamage = Math.Clamp(armor.HelmetDamage, 0.0, 1.0);
         armor.RepairBuffChance = Math.Clamp(armor.RepairBuffChance, 0.0, 1.0);
 
@@ -608,6 +649,9 @@ public class ConfigManager(
         packs.HugeMax = Math.Clamp(packs.HugeMax, 1, 200);
         packs.HugeMin = Math.Clamp(packs.HugeMin, 1, packs.HugeMax);
         rating.EverydayMax = Math.Clamp(rating.EverydayMax, rating.Min, rating.Max);
+        rating.TopMax = Math.Max(rating.TopMax, rating.Max);
+        rating.TopChance = Math.Clamp(rating.TopChance, 0.0, 1.0);
+        rating.TopBulkChance = Math.Clamp(rating.TopBulkChance, 0.0, 1.0);
 
         var sales = Mod.GeneratedOffers.SimulatedSales;
         sales.EveryMinutes = Math.Clamp(sales.EveryMinutes, 1.0, 120.0);

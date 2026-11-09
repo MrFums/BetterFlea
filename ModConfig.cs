@@ -27,6 +27,14 @@ public record ModConfig
     [JsonPropertyName("debugLogging")]
     public bool DebugLogging { get; set; } = false;
 
+    // Testing only: players' sales come this many times sooner (debug.jsonc saleSpeed). 1 = real time.
+    [JsonPropertyName("saleSpeed")]
+    public double SaleSpeed { get; set; } = 1;
+
+    // The settings page shows the exact sale odds tables (debug.jsonc showSaleOdds). Off: only a rough verdict.
+    [JsonPropertyName("showSaleOdds")]
+    public bool ShowSaleOdds { get; set; } = false;
+
     [JsonPropertyName("web")]
     public WebConfig Web { get; set; } = new();
 
@@ -97,6 +105,16 @@ public record DebugFile
 {
     [JsonPropertyName("debugLogging")]
     public bool DebugLogging { get; set; } = false;
+
+    // Testing only: every wait before a player's offer sells is this many times shorter, so a sell test that takes
+    // hours takes minutes. Whether it sells doesn't change. 1 = real time.
+    [JsonPropertyName("saleSpeed")]
+    public double SaleSpeed { get; set; } = 1;
+
+    // The settings page's Lookup tab shows exactly how often and how fast an offer sells at each price. Off by default:
+    // a player who can see it prices right up to the limit, so it counts as a cheat. Off: each offer gets a rough verdict.
+    [JsonPropertyName("showSaleOdds")]
+    public bool ShowSaleOdds { get; set; } = false;
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }

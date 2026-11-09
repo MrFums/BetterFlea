@@ -11,7 +11,7 @@ namespace BetterFlea.Selling;
 // first) and the flip penalty. An item the player bought lately sells as shown up to expensivePercent over, never past.
 internal static class SaleOdds
 {
-    public static readonly double[] Ratios = [0.9, 1.0, 1.05, 1.1, 1.15, 1.2, 1.3, 1.4, 1.6, 1.8, 2.0];
+    public static readonly double[] Ratios = [0.9, 1.0, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.8, 2.0];
     private const int Runs = 2000;
 
     public sealed record Row(double Ratio, double Price, double Sells, double? MedianMinutes);
@@ -25,7 +25,7 @@ internal static class SaleOdds
             return Fixed(set, items);
         }
 
-        if (items.Count == 0 || SaleDelayGate.Settings is not { } settings || SaleDelayGate.NormalPrice(items) is not { } normal || normal <= 0)
+        if (items.Count == 0 || SaleDelayGate.Settings is null || SaleDelayGate.NormalPrice(items) is not { } normal || normal <= 0)
         {
             return null;
         }
@@ -33,17 +33,17 @@ internal static class SaleOdds
         var wrecked = BetterFlea.Prices.SellerPricing.IsWrecked(items);
         var plain = OrderBook.On && items.Count == 1 && items[0].Upd?.Repairable is null
             && !itemHelper.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON);
+        var gear = SaleDelayGate.IsGear(items, itemHelper);
         var hours = SaleDelayGate.OfferHours;
-        var volume = plain ? OrderBook.Volume(items[0].Template) : 1;
         var rows = new List<Row>();
         foreach (var ratio in Ratios)
         {
             var times = new List<double>();
             for (var run = 0; run < Runs; run++)
             {
-                var minutes = plain && ratio <= 1 + settings.ExpensivePercent / 100.0
-                    ? OrderBookSale(ratio, volume, settings, hours)
-                    : RolledSale(ratio, normal, wrecked, settings, hours, firstRoll: !plain);
+                var minutes = plain
+                    ? PlainSale(ratio, normal, items[0].Template, hours)
+                    : RolledSale(ratio, normal, items[0].Template, wrecked, gear, hours);
                 if (minutes is { } m)
                 {
                     times.Add(m);
@@ -71,80 +71,48 @@ internal static class SaleOdds
         foreach (var ratio in Ratios)
         {
             var minutes = (low + high) / 2 * SaleDelayGate.FixedScale(set, ratio);
-            var sells = minutes <= hours * 60 ? SaleDelayGate.FixedChance(set, ratio) : 0;
+            var sells = minutes <= hours * 60 ? SaleDelayGate.FixedChance(set, normal * ratio, normal) : 0;
             rows.Add(new Row(ratio, Math.Round(normal * ratio), sells, sells > 0 ? minutes : null));
         }
 
         return new Table(Math.Round(normal), false, false, hours, rows);
     }
 
-    // Gear and anything else the order book doesn't take: one roll when listed (its buyer comes after a wait), then
-    // another buyer every half unique wait, each taking it as often as BuyerTakes says. Wrecked gear only gets the
-    // first. A plain item past what the order book's buyers pay starts with the re-rolls.
-    private static double? RolledSale(double ratio, double normal, bool wrecked, SaleDelayConfig settings, double hours, bool firstRoll)
+    // Gear and anything else the order book doesn't take: it sells as often as OverpriceSells says, decided once.
+    // If it does, its buyer comes after a unique wait (less when it's cheaper than normal, three times as long when
+    // wrecked), plus OverpriceWait for how far over normal it is.
+    // gear: more room over normal (SaleDelayGate.IsGear, gearOverpricePercent).
+    private static double? RolledSale(double ratio, double normal, MongoId tpl, bool wrecked, bool gear, double hours)
     {
-        var end = hours * 60;
-        var chance = SaleDelayGate.BuyerTakes(ratio) * (wrecked ? SaleDelayGate.WreckedBuyerShare : 1);
-        if (chance <= 0)
+        var price = normal * ratio;
+        if (Random.Shared.NextDouble() >= SaleDelayGate.OverpriceSells(price, normal, gear: gear))
         {
             return null;
         }
 
-        if (firstRoll && Random.Shared.NextDouble() < chance)
-        {
-            var dear = SaleDelayGate.Dearness(normal);
-            var wait = (settings.UniqueMinMinutes + Random.Shared.NextDouble() * Math.Max(0, settings.UniqueMaxMinutes - settings.UniqueMinMinutes)) * dear;
-            var at = SaleDelayGate.SlowSaleSeconds(chance, settings.SlowSaleMaxHours) / 60.0
-                + wait * SaleDelayGate.WaitScale(ratio) * (wrecked ? SaleDelayGate.WreckedWaitMultiplier : 1);
-            return at <= end ? at : null;
-        }
+        var slow = wrecked ? SaleDelayGate.WreckedWaitMultiplier : 1;
+        var t = Math.Max(5 / 60.0, SaleDelayGate.RolledPriceWait(normal, tpl) * SaleDelayGate.WaitScale(Math.Min(1, ratio)) * slow)
+            + SaleDelayGate.OverWait(price, normal, SaleDelayGate.OverpriceX(price, normal, gear));
+        return t <= hours * 60 ? t : null;
+    }
 
-        if (wrecked)
+    // A plain item: buyers get to it after the item's first wait (OrderBook.Listed), less when it's cheaper than
+    // normal. At or under normal it then sells, as if yours were the cheapest offer. Over normal it sells as often as
+    // OverpriceSells says, after an OverpriceWait more (OrderBook.OverpricedFate).
+    private static double? PlainSale(double ratio, double normal, MongoId tpl, double hours)
+    {
+        var wait = OrderBook.FirstBuyerSeconds(tpl);
+        var t = (ratio <= OrderBook.QuickSellBelow ? 5 : Math.Max(5, wait * SaleDelayGate.WaitScale(Math.Min(1, ratio)))) / 60.0;
+        if (ratio > 1)
         {
-            return null;
-        }
-
-        for (var t = 0.0; ;)
-        {
-            t += SaleDelayGate.UniqueWaitMinutes(normal) * OrderBook.BuyerGap;
-            if (t > end)
+            if (Random.Shared.NextDouble() >= SaleDelayGate.OverpriceSells(normal * ratio, normal))
             {
                 return null;
             }
 
-            if (Random.Shared.NextDouble() < chance)
-            {
-                return t;
-            }
-        }
-    }
-
-    // A plain item up to expensivePercent over: the order book's buyers come at the item's pace and each pays up to a
-    // price of their own (most near normal, a few up to expensivePercent over), as if yours were the cheapest offer.
-    private static double? OrderBookSale(double ratio, double volume, SaleDelayConfig settings, double hours)
-    {
-        var buyers = OrderBook.BuyerSettings;
-        if (buyers is null)
-        {
-            return null;
+            t += SaleDelayGate.OverWait(normal * ratio, normal, SaleDelayGate.OverpriceX(normal * ratio, normal));
         }
 
-        var end = hours * 60;
-        var over = ratio - 1;
-        var expensive = Math.Max(0.01, settings.ExpensivePercent / 100.0);
-        var low = Math.Max(0.1, buyers.MinMinutes);
-        var t = ratio <= 1 ? 5 / 60.0 : 1;
-        while (t <= end)
-        {
-            var spread = Math.Abs(Math.Sqrt(-2 * Math.Log(1 - Random.Shared.NextDouble())) * Math.Cos(2 * Math.PI * Random.Shared.NextDouble()));
-            if (over <= Math.Min(expensive, spread * 0.06))
-            {
-                return t;
-            }
-
-            t += (low + Random.Shared.NextDouble() * Math.Max(0, buyers.MaxMinutes - low)) * volume;
-        }
-
-        return null;
+        return t <= hours * 60 ? t : null;
     }
 }

@@ -29,10 +29,11 @@ Reset to default on a setting or tab, or Reset everything in the More menu. Or d
 Check, in this order:
 1. **Is it over its normal price?** The game's average when you list is a *new* one's price; a worn or stripped item
    is worth less. Open the Lookup tab, Offers on the flea, and look at your offer's odds.
-2. **Did you buy it in the last 48 hours?** Then it never sells more than 15% over normal.
+2. **Did you buy it in the last 48 hours, with the flip penalty on?** Then it never sells more than 15% over normal. Its
+   offer shows a Flip penalty tag on the Lookup tab.
 3. **Is it wrecked?** Wrecked gear sells about 6 times in 10 even at normal, and almost never over it.
 4. **Does someone have it cheaper?** Buyers go to the cheapest offer first.
-5. **Did you buy several just now?** The flip penalty adds up to 10 minutes.
+5. **Did you buy several just now?** With the flip penalty on, it adds up to 10 minutes.
 
 **Can rare items sell slower, or everything straight away?**
 Turn on **Set sale times** (Selling tab, with Advanced settings on) and set a shortest and longest wait for common,

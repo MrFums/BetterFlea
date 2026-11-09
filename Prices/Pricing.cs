@@ -4,6 +4,7 @@ using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.DI;
+using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Helpers.Commerce;
 using SPTarkov.Server.Core.Helpers.Items;
 using SPTarkov.Server.Core.Helpers.Profile;
@@ -29,7 +30,8 @@ public class DynamicPricePatchesLoad(
     RagfairConfig ragfairConfig,
     QuestConfig questConfig,
     RagfairPriceService ragfairPriceService,
-    RagfairOfferService ragfairOfferService) : IOnLoad
+    RagfairOfferService ragfairOfferService,
+    PresetHelper presetHelper) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -42,7 +44,7 @@ public class DynamicPricePatchesLoad(
         BookPrice.Bind(itemHelper, handbookHelper, ragfairConfig, ragfairPriceService);
         SellerPricing.Bind(configManager, itemHelper, ragfairOfferService);
         QuestDifficulty.Bind(templateTable, tradersTable, questConfig, handbookHelper, itemHelper);
-        GunPricing.Bind(configManager, itemHelper, handbookHelper, tradersTable, ragfairPriceService);
+        GunPricing.Bind(configManager, itemHelper, handbookHelper, tradersTable, ragfairPriceService, presetHelper);
         EmptyFuelPricing.Bind(configManager, itemHelper, handbookHelper, ragfairPriceService);
         new DynamicPricePatch().Enable();
         new HighestTraderPricePatch().Enable();
@@ -899,13 +901,16 @@ internal static class GunPricing
     private static HandbookHelper? _handbook;
     private static TradersTable? _traders;
     private static RagfairPriceService? _prices;
+    private static PresetHelper? _presets;
     private static Lazy<Dictionary<MongoId, List<TraderOffer>>> _traderValues = new(LoadTraderValues);
     private static int _logged;
 
     private static readonly MongoId Fence = new("579dc571d53a0658a154fbec");
 
-    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, HandbookHelper handbook, TradersTable traders, RagfairPriceService prices)
+    public static void Bind(ConfigManager configManager, ItemHelper itemHelper, HandbookHelper handbook, TradersTable traders, RagfairPriceService prices,
+        PresetHelper presets)
     {
+        _presets = presets;
         _config = configManager;
         _itemHelper = itemHelper;
         _handbook = handbook;
@@ -930,20 +935,35 @@ internal static class GunPricing
 
     // A part from a hard trader unlock keeps some of its flea price: few players can buy it there. The easiest
     // trader offer of it (the cheapest value) counts. With partsAtFleaPrice on, only the gun itself is valued this
-    // way and its parts are worth what they sell for on their own, so taking a gun apart makes no money.
+    // way and its parts go by what they sell for on their own, less attachedPartPercent: buyers pay less for parts on
+    // a gun than one by one, so taking a gun apart and selling the parts makes a little (the flip penalty slows that).
     public static double Value(IEnumerable<Item> items)
     {
         var settings = Settings!;
         var share = settings.TraderPricePercent / 100;
+        var attached = Math.Clamp(settings.AttachedPartPercent / 100, 0, 1);
         var values = _traderValues.Value;
         var list = items as IList<Item> ?? items.ToList();
+        // The parts the gun comes with (its default build) are part of what the gun is worth; only what's been added
+        // or swapped in counts at attachedPartPercent.
+        var stock = list.Count > 0 && settings.PartsAtFleaPrice && attached < 1 ? StockParts(list[0].Template) : null;
         var worth = list.Select((item, index) => (item, index)).Sum(entry =>
         {
             var item = entry.item;
             var flea = BookPrice.Of(item.Template);
+            if (entry.index > 0 && settings.PartsAtFleaPrice)
+            {
+                if (stock is not null && stock.GetValueOrDefault(item.Template) > 0)
+                {
+                    stock[item.Template]--;
+                    return flea;
+                }
+
+                return KeepsFullPrice(item.Template) ? flea : flea * attached;
+            }
+
             // A price the admin set (Your prices) is the price, whatever traders sell it for.
-            if ((entry.index > 0 && settings.PartsAtFleaPrice) || LivePrices.HasOwnPrice(item.Template)
-                || !values.TryGetValue(item.Template, out var offers))
+            if (LivePrices.HasOwnPrice(item.Template) || !values.TryGetValue(item.Template, out var offers))
             {
                 return flea;
             }
@@ -959,6 +979,37 @@ internal static class GunPricing
         // Guns drift with the market too, but less than loose items: the gun's own drift at 40%.
         return list.Count > 0 ? worth * (1 + (PriceGate.DriftOf(list[0].Template) - 1) * 0.4) : worth;
     }
+
+    // Sights, scopes, suppressors and tactical devices hold their value on a gun (they move from gun to gun), and so
+    // do the rounds loaded in it.
+    private static readonly MongoId[] FullPriceParts =
+    [
+        BaseClasses.COLLIMATOR, BaseClasses.COMPACT_COLLIMATOR, BaseClasses.OPTIC_SCOPE, BaseClasses.ASSAULT_SCOPE,
+        BaseClasses.SPECIAL_SCOPE, BaseClasses.SILENCER, BaseClasses.FLASHLIGHT, BaseClasses.LIGHT_LASER,
+        BaseClasses.TACTICAL_COMBO, BaseClasses.AMMO
+    ];
+
+    private static bool KeepsFullPrice(MongoId tpl) => _itemHelper!.IsOfBaseclasses(tpl, FullPriceParts);
+
+    // Gun -> how many of each part its default build has. A fresh copy each call (Value counts them off).
+    private static readonly Lazy<Dictionary<MongoId, Dictionary<MongoId, int>>> DefaultBuilds = new(() =>
+    {
+        var builds = new Dictionary<MongoId, Dictionary<MongoId, int>>();
+        foreach (var preset in _presets?.GetDefaultPresets().Values.ToList() ?? [])
+        {
+            if (preset.Items is not { Count: > 1 } parts || builds.ContainsKey(parts[0].Template))
+            {
+                continue;
+            }
+
+            builds[parts[0].Template] = parts.Skip(1).GroupBy(part => part.Template).ToDictionary(group => group.Key, group => group.Count());
+        }
+
+        return builds;
+    });
+
+    private static Dictionary<MongoId, int>? StockParts(MongoId gun) =>
+        DefaultBuilds.Value.TryGetValue(gun, out var parts) ? new Dictionary<MongoId, int>(parts) : null;
 
     // The higher of what its loyalty level and how hard its unlock is say.
     private static double FleaShare(Unlock unlock)
@@ -1214,6 +1265,20 @@ public class FleaPriceMultipliers(
                 if (CategoryMultiplier(tpl, item, categories, named) is { } multiplier && Math.Abs(multiplier - 1) > 1e-9)
                 {
                     wanted[tpl] = multiplier;
+                }
+            }
+        }
+
+        // Keys that open nothing (unusableKeys) are worth pricePercent of their usual price, on top of the above.
+        // The floor still keeps them at what a trader pays.
+        if (prices.UnusableKeys is { Enabled: true } unusable)
+        {
+            var share = Math.Clamp(unusable.PricePercent / 100.0, 0.01, 1);
+            foreach (var id in unusable.Keys)
+            {
+                if (MongoId.IsValidMongoId(id) && new MongoId(id) is var tpl && templates.Items.ContainsKey(tpl) && share < 1)
+                {
+                    wanted[tpl] = wanted.GetValueOrDefault(tpl, 1.0) * share;
                 }
             }
         }

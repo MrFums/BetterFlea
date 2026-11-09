@@ -8,13 +8,16 @@
 // the light class 4s (Monoclete, Elaphros, Titan). When the two plates differ, the better one is usually in the front.
 {
   "enabled": true,
-  "plates": { "both": 0.6, "frontOnly": 0.12, "backOnly": 0.08, "none": 0.2 }, // which front/back plates it comes with
+  "plates": { "both": 0.45, "frontOnly": 0.09, "backOnly": 0.06, "none": 0.4 }, // which front/back plates it comes with
   "mixedClassChance": 0.2,    // one class 3 and one class 4 plate
   "class3Chance": 0.15,       // both class 3 (old or budget kit)
   "sidePlateChance": 0.3,     // armor that takes side plates has them (with or without front/back plates)
   "bestKitChance": 0.05,      // class 4 front/back + class 6 sides, all mint: the best (and priciest) there is
   "flippedDownChance": 0.3,   // chance a face shield, visor or night vision on a helmet is listed flipped down
-  "helmetAttachmentChance": 0.2, // chance a helmet comes with something on it (a Bastion's armor plate, a shroud, ears)
+  "helmetAttachmentChance": 0.2, // chance a helmet comes with something on it (a Bastion's armor plate, a shroud, ears), not a face shield
+  "noFaceShieldChance": 0.25, // chance a helmet that normally has a face shield (Killa's) is listed without it, priced to match
+  "noFaceShieldScamChance": 0.1, // of those, the share priced as if the face shield were still on
+  "faceShieldChance": 0.2,    // chance a helmet that comes without a face shield (an Altyn, a Rys-T, a FAST) is listed with one that fits it
   "helmetDamage": 0.5,        // helmets are rarely wrecked. 1 = as damaged as other armor
   "bossHelmetChance": 0.25,   // a helmet bosses or guards wear sometimes comes off one: good max, low current
   "repairBuffChance": 0.02,   // a piece with a lowered max now and then has a repair kit bonus (the gold background)

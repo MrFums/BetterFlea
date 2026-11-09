@@ -70,7 +70,7 @@ internal static class UsedListingsGate
         if (upd.Key is not null)
         {
             var max = props.MaximumNumberOfUsage ?? 0;
-            if (RollKeyUsesLeft(max, KeySettingsFor(itemDetails.Id), props.RarityPvE) is { } left)
+            if (RollKeyUsesLeft(max, KeySettingsFor(itemDetails.Id), props.RarityPvE, itemDetails.Id) is { } left)
             {
                 upd.Key.NumberOfUsages = max - left;
                 GeneratedKeyMaxUses[itemDetails.Id] = max;
@@ -423,9 +423,14 @@ internal static class UsedListingsGate
         return used.Keys;
     }
 
-    // null = leave it, max = new, otherwise 1..max-1.
-    internal static int? RollKeyUsesLeft(int max, KeyListingSettings settings, string? rarity = null)
+    // null = leave it, max = new, otherwise 1..max-1. A key that opens nothing (unusableKeys) is always new.
+    internal static int? RollKeyUsesLeft(int max, KeyListingSettings settings, string? rarity = null, MongoId? tpl = null)
     {
+        if (tpl is { } id && _config?.Mod.Prices.UnusableKeys.Has(id.ToString()) == true)
+        {
+            return max >= 2 ? max : null;
+        }
+
         if (!settings.Enabled || max < 2)
         {
             return null;
@@ -576,14 +581,33 @@ public class ArmorQualityPatch : AbstractPatch
             return;
         }
 
-        __result = Quality(full, max, current);
+        __result = Quality(full, max, current, MinQuality(itemDetails.Properties?.ArmorClass, itemDetails.Properties?.RarityPvE));
+    }
+
+    // A worn part still has a use (repaired, or kept for a later raid), so it never drops under this share of a new
+    // one: 40%, 55% at class 5, 65% at class 6, since good armour is worth having even worn. A rare part keeps 5% more,
+    // a superrare one 10%.
+    internal static double MinQuality(double? armorClass, string? rarity)
+    {
+        var floor = armorClass switch
+        {
+            >= 6 => 0.65,
+            >= 5 => 0.55,
+            _ => 0.4
+        };
+        return floor + rarity switch
+        {
+            "Superrare" => 0.1,
+            "Rare" => 0.05,
+            _ => 0
+        };
     }
 
     // Share of a new one's price at this max and current, out of full (the template's max).
-    internal static double Quality(double full, double max, double current)
+    internal static double Quality(double full, double max, double current, double floor = 0.4)
     {
         var kept = Math.Pow(Math.Clamp(max / full, 0, 1), MaxWeight);
-        return Math.Clamp(kept * (1 - CurrentShare + CurrentShare * Math.Clamp(current / max, 0, 1)), 0.01, 1);
+        return Math.Clamp(kept * (1 - CurrentShare + CurrentShare * Math.Clamp(current / max, 0, 1)), floor, 1);
     }
 }
 
@@ -637,7 +661,7 @@ public class StartupKeyOfferResync(
                     continue;
                 }
 
-                var left = UsedListingsGate.RollKeyUsesLeft(max, settings, itemHelper.GetItem(tpl).Value?.Properties?.RarityPvE) ?? max;
+                var left = UsedListingsGate.RollKeyUsesLeft(max, settings, itemHelper.GetItem(tpl).Value?.Properties?.RarityPvE, tpl) ?? max;
                 key.NumberOfUsages = max - left;
 
                 if (!ignoresCondition)

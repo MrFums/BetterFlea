@@ -42,12 +42,16 @@
   },
 
   // The flea rating shown next to a generated seller (SPT's own is -2 to 20). Everyday players are min up to
-  // everydayMax, most in double digits; regulars are 20 up to max, the high end rarer. Someone selling several of one item is
+  // everydayMax, most in double digits; regulars are 20 up to max, the higher the rarer. Someone selling several of one item is
   // usually a flipper, so most of them are regulars (not all). Some single-item sellers are new to the flea (-2 up to 1).
+  // Now and then a seller is far above max, up to topMax, the higher the much rarer: nearly always a flipper selling in bulk.
   "sellerRating": {
     "enabled": true,
     "min": 2,
-    "max": 300,
+    "max": 500,
+    "topMax": 3000,
+    "topChance": 0.01,               // chance a single-item seller is one of these, late in the wipe (a fifth of it early on)
+    "topBulkChance": 0.06,           // the same for someone selling several of one item
     "everydayMax": 100,
     "regularChance": 0.25,           // chance a single-item seller is a regular
     "flipperChance": 0.65,           // chance someone selling several of one item is a regular. A bit more for bigger stacks (90% at most)

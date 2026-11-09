@@ -2014,6 +2014,8 @@ public class RandomBuildPatch : AbstractPatch
 
         ArmorOffers.FitPlates(itemWithChildren);
         ArmorOffers.FitHelmetAttachment(itemWithChildren);
+        ArmorOffers.MaybeDropFaceShield(itemWithChildren);
+        ArmorOffers.FitFaceShield(itemWithChildren);
         PresetOfferGate.MaybeRandomBuild(itemWithChildren);
     }
 }
@@ -2057,6 +2059,7 @@ public class OfferPricingPatch : AbstractPatch
             }
 
             BetterFlea.Prices.SellerPricing.ApplyMultiplier(details);
+            ArmorOffers.ChargeMissingFaceShield(details);
             BetterFlea.Prices.SellerPricing.CapUsedKey(details);
             BetterFlea.Prices.SellerPricing.PriceJunk(details);
             BetterFlea.Prices.SellerPricing.Humanise(details);

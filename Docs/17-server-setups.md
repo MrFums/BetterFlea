@@ -23,7 +23,7 @@ Flea style **Live progression**, then:
 | `listings.jsonc: listings.multiplier` | 1.5 | Fewer offers |
 | `selling.jsonc: foundInRaidOnly` | true | Only loot can be sold. Bought items aren't found in raid, so no flipping at all |
 | `selling.jsonc: saleDelay.expensivePercent` | 10 | Buyers less patient with high prices |
-| `selling.jsonc: saleDelay.neverSellsPercent` | 60 | Nothing sells over 1.6x normal |
+| `selling.jsonc: saleDelay.overpriceRoubles` | 4000 | Less room to overprice cheap items |
 
 For a much rougher market, try the **Rough market** flea style instead: fewer offers, mostly worn, stripped or broken.
 
@@ -37,7 +37,7 @@ Flea style **Better Flea (recommended)**, then:
 |---|---|---|
 | `prices.jsonc: priceMultiplier` | 0.85 | Everything 15% cheaper |
 | `selling.jsonc: saleDelay.minMinutes`, `maxMinutes` | 1, 3 | Shorter waits at the normal price |
-| `selling.jsonc: saleDelay.uniqueMinMinutes`, `uniqueMaxMinutes` | 2, 8 | Shorter waits for guns and gear |
+| `selling.jsonc: saleDelay.uniqueMinMinutes`, `uniqueMaxMinutes` | 0.5, 10 | Shorter waits for guns, gear and dear items |
 | `selling.jsonc: saleDelay.expensivePercent` | 25 | More buyers stay interested in high prices |
 | `selling.jsonc: undercut.enabled` | false | Nobody undercuts you |
 

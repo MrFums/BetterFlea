@@ -118,6 +118,7 @@
   .children { display: none; background: rgba(0, 0, 0, 0.2); border-top: 1px solid var(--line); padding-left: 16px; }
   .group.open > .children { display: block; }
   .group.disabled > .children { opacity: 0.45; }
+  .part-head { color: var(--faint); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; padding: 12px 14px 4px 0; border-bottom: 1px solid var(--line); }
   .children > .row:first-child, .children > .group:first-child > .row { border-top: 0; }
   .group > .row .note { margin-left: 16px; }
   .meta { color: var(--faint); font-size: 12px; display: flex; align-items: center; gap: 10px; }
@@ -384,6 +385,15 @@
   details.offer summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
   details.offer summary .n { color: var(--faint); font-size: 12px; }
   details.offer summary .when { color: var(--muted); font-size: 12.5px; }
+  .offer-row { border-top: 1px solid var(--line); padding: 8px 0; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  .offer-row .n { color: var(--faint); font-size: 12px; }
+  .offer-row .when { color: var(--muted); font-size: 12.5px; }
+  .verdict { font-size: 12.5px; font-weight: 600; }
+  .flip-note { border: 1px solid rgba(226, 173, 79, 0.4); border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; font-size: 13.5px; color: var(--muted); }
+  .flip-note[hidden] { display: none; }
+  .verdict.underpriced, .verdict.good { color: var(--green); }
+  .verdict.dear { color: var(--warn); }
+  .verdict.overpriced { color: var(--bad); }
   .econ-row .synced { color: var(--muted); font-size: 12px; margin-top: 2px; }
   body.guest .search, body.guest #status, body.guest #discard, body.guest #save, body.guest #menu { display: none; }
   #loginDialog label { display: block; margin: 10px 0 4px; color: var(--text); font-size: 13px; }
@@ -577,12 +587,20 @@ const LABELS = {
   "condition.jsonc:guns.bossGunWear": "Boss gun wear",
   "condition.jsonc:*.repairBuffChance": "Repair kit bonus",
   "armor.jsonc:helmetAttachmentChance": "Helmet attachments",
+  "armor.jsonc:noFaceShieldChance": "Helmets without their face shield",
+  "armor.jsonc:noFaceShieldScamChance": "Of those, priced as if it had one",
+  "armor.jsonc:faceShieldChance": "Bare helmets with a face shield",
   "armor.jsonc:helmetDamage": "Helmet damage",
   "armor.jsonc:bossHelmetChance": "Boss helmets",
   "armor.jsonc:repairBuffChance": "Repair kit bonus",
   "market.jsonc:simulatedSales": "Other buyers",
   "market.jsonc:soldBeforeYouChance": "Sold before you",
+  "market.jsonc:barterOffers.firOnly": "Found in raid items only",
+  "market.jsonc:barterOffers.firOnlyTraderBarters": "Trader barters need found in raid too",
   "market.jsonc:sellerRating": "Seller ratings",
+  "market.jsonc:sellerRating.topMax": "Top sellers: highest rating",
+  "market.jsonc:sellerRating.topChance": "Top seller chance",
+  "market.jsonc:sellerRating.topBulkChance": "Top seller chance (stacks)",
   "market.jsonc:packs.chancePercent": "Packs",
   "market.jsonc:packs.hugeChance": "Silly packs",
   "prices.jsonc:priceMultiplier": "All flea prices",
@@ -596,6 +614,7 @@ const LABELS = {
   "prices.jsonc:guns": "Gun prices",
   "prices.jsonc:guns.traderPricePercent": "Share of trader price",
   "prices.jsonc:guns.partsAtFleaPrice": "Parts at their flea price",
+  "prices.jsonc:guns.attachedPartPercent": "Parts on a gun (% of their price)",
   "prices.jsonc:guns.fleaShareByLoyalty": "Flea value by loyalty level",
   "prices.jsonc:guns.fleaShareByLoyalty.1": "Loyalty 1",
   "prices.jsonc:guns.fleaShareByLoyalty.2": "Loyalty 2",
@@ -620,10 +639,32 @@ const LABELS = {
   "selling.jsonc:flipPenalty": "Flip penalty",
   "selling.jsonc:purchaseLock": "Trader item lock",
   "selling.jsonc:purchaseLock.includeFleaPurchases": "Lock flea purchases too",
-  "selling.jsonc:saleDelay.cheaperOfferShare": "Buyers left when someone is cheaper",
-  "selling.jsonc:saleDelay.uniqueMinMinutes": "Guns and armour: shortest wait (minutes)",
-  "selling.jsonc:saleDelay.uniqueMaxMinutes": "Guns and armour: longest wait (minutes)",
-  "selling.jsonc:saleDelay.slowSaleMaxHours": "Slow sales: up to (hours)",
+  "selling.jsonc:saleDelay.uniqueMinMinutes": "Guns, armour and dear items: wait at 20k (minutes)",
+  "selling.jsonc:saleDelay.uniqueMaxMinutes": "Guns, armour and dear items: longest usual wait (minutes)",
+  "selling.jsonc:saleDelay.rareWaitMultiplier": "Rare items wait this many times as long",
+  "selling.jsonc:saleDelay.superrareWaitMultiplier": "Superrare items wait this many times as long",
+  "selling.jsonc:saleDelay.slowSaleMaxHours": "Plain items: slow sales up to (hours)",
+  "selling.jsonc:saleDelay.overpriceRoubles": "Room over normal, in roubles",
+  "selling.jsonc:saleDelay.overpriceRoublesMaxPercent": "Room in roubles, at most (% of normal)",
+  "selling.jsonc:saleDelay.overpriceDearShrink": "Less room on dear items",
+  "selling.jsonc:saleDelay.overpriceDearSlowdown": "Slower over normal on dear items",
+  "selling.jsonc:saleDelay.overpriceWaitMinutes": "Wait at the whole room over (minutes)",
+  "selling.jsonc:saleDelay.dearFromRoubles": "Dear from (roubles)",
+  "selling.jsonc:saleDelay.gearOverpricePercent": "Room over normal for gear (%)",
+  "selling.jsonc:saleDelay.gearDearFromRoubles": "Gear dear from (roubles)",
+  "selling.jsonc:saleDelay.classicOverpricing": "Old overpricing (2.5.1, not recommended)",
+  "selling.jsonc:saleDelay.wreckedWaitMultiplier": "Wrecked gear waits this many times as long",
+  "selling.jsonc:saleDelay.cheaperWaitMultiplier": "Gear someone has cheaper waits this many times as long",
+  "selling.jsonc:saleDelay.minMinutes": "Plain items: shortest wait (minutes)",
+  "selling.jsonc:saleDelay.maxMinutes": "Plain items: longest wait (minutes)",
+  "selling.jsonc:saleDelay.noDelayChance": "Plain items: chance of no wait",
+  "prices.jsonc:unusableKeys": "Keys that open nothing",
+  "prices.jsonc:unusableKeys.pricePercent": "Price (% of usual)",
+  "prices.jsonc:unusableKeys.keys": "Keys",
+  "market.jsonc:sellerBadges": "Seller badges",
+  "market.jsonc:sellerBadges.edgeOfDarknessChance": "Edge of Darkness badge chance",
+  "market.jsonc:sellerBadges.unheardChance": "Unheard badge chance",
+  "market.jsonc:sellerBadges.specialChance": "Developer, Sherpa or Emissary badge chance",
   "prices.jsonc:sellers.roundPriceChance": "Easy round prices",
   "prices.jsonc:sellers.trollChance": "Troll prices",
   "prices.jsonc:sellers.trollGunChance": "Troll prices on guns",
@@ -691,7 +732,9 @@ const LABELS = {
   "weapons.jsonc:moddedParts.disabledMods": "By mod",
   "weapons.jsonc:moddedParts.allowFleaBannedParts": "Allow flea-banned modded parts",
   "economy.jsonc:recordPriceHistory": "Record price history",
-  "debug.jsonc:debugLogging": "Debug logging"
+  "debug.jsonc:debugLogging": "Debug logging",
+  "debug.jsonc:saleSpeed": "Sale speed (testing)",
+  "debug.jsonc:showSaleOdds": "Show exact sale odds (cheat)"
 };
 
 const DESC = {
@@ -842,7 +885,10 @@ const DESC = {
   "armor.jsonc:sidePlateChance": "Chance armour that takes side plates has them.",
   "armor.jsonc:bestKitChance": "Chance of class 4 front and back with class 6 sides, all mint.",
   "armor.jsonc:flippedDownChance": "Chance a face shield, visor or night vision is listed flipped down.",
-  "armor.jsonc:helmetAttachmentChance": "Chance a helmet comes with something on it, like a Bastion's armor plate, a shroud or ears.",
+  "armor.jsonc:helmetAttachmentChance": "Chance a helmet comes with something on it, like a Bastion's armor plate, a shroud or ears. Face shields have their own chance.",
+  "armor.jsonc:noFaceShieldChance": "Chance a helmet that normally has a face shield (Killa's) is listed without it, priced to match.",
+  "armor.jsonc:faceShieldChance": "Chance a helmet that comes without a face shield (an Altyn, a Rys-T, a FAST) is listed with one that fits it, priced with it on.",
+  "armor.jsonc:noFaceShieldScamChance": "Of the helmets listed without their face shield, the share priced as if it were still on: a seller hoping nobody looks.",
   "armor.jsonc:helmetDamage": "Helmets are rarely wrecked. 1 = as often badly damaged as other armor, 0 = never.",
   "armor.jsonc:bossHelmetChance": "Chance a helmet a boss or guard can wear comes off one: a good max (88-100%) but a low current (20-55%), as they were shot until they dropped.",
   "armor.jsonc:repairBuffChance": "Chance a piece with a lowered max has a repair kit bonus (the gold background). Very rare.",
@@ -875,6 +921,9 @@ const DESC = {
   "market.jsonc:sellerRating.regularChance": "Chance someone selling one item is a regular with a high rating.",
   "market.jsonc:sellerRating.flipperChance": "Chance someone selling a stack is a flipper with a high rating.",
   "market.jsonc:sellerRating.newSellerChance": "Chance a seller is brand new to the flea.",
+  "market.jsonc:sellerRating.topMax": "A few sellers are far above the highest rating, up to this. The higher, the much rarer.",
+  "market.jsonc:sellerRating.topChance": "Chance a single-item seller is one of those, late in the wipe (a fifth of it early on).",
+  "market.jsonc:sellerRating.topBulkChance": "The same for someone selling several of one item: nearly all of those sellers are flippers.",
   "market.jsonc:packs": "Several items you have to buy all together. Most are scams.",
   "market.jsonc:packs.chancePercent": "Share of offers that are packs.",
   "market.jsonc:packs.min": "Fewest items in a pack.",
@@ -925,7 +974,8 @@ const DESC = {
   "prices.jsonc:demand.maxDropPercent": "The most selling can lower it, in %.",
   "prices.jsonc:demand.recoverMinutes": "Half of a rise or drop wears off in this many minutes.",
   "prices.jsonc:guns.traderPricePercent": "A part a trader sells is worth this much of the trader's price.",
-  "prices.jsonc:guns.partsAtFleaPrice": "On: a gun's parts are worth what they sell for on their own, and only the gun itself goes by trader prices, so taking a gun apart and selling the parts makes no money. Off: the parts go by trader prices too.",
+  "prices.jsonc:guns.partsAtFleaPrice": "On: a gun's parts go by what they sell for on their own (less the share below), and only the gun itself goes by trader prices. Off: the parts go by trader prices too.",
+  "prices.jsonc:guns.attachedPartPercent": "With parts at their flea price: a part on a gun is worth this much of its own flea price, as buyers pay less for parts on a gun than one by one (a 100k gun with a 50k grip is about 135k). The parts the gun comes with, sights, scopes, suppressors, tactical devices and loaded rounds keep their full price. 100 = full price.",
   "prices.jsonc:guns.fleaShareByLoyalty": "How much of its flea price a part keeps, by the loyalty level a trader needs to sell it. 0 = trader price, 1 = flea price.",
   "prices.jsonc:guns.fleaShareByDifficulty": "How much of its flea price a part keeps, by how hard its unlock is: the quest it's behind (level lock, the quests before it, kills, bosses, maps, hand-ins) or a hidden trader like the BTR Driver or Lightkeeper. Modded quests and traders count too. 0 = trader price, 1 = flea price.",
   "prices.jsonc:guns.priceAtHalfDurabilityPercent": "What a gun at half durability is worth, in % of a new one. Counts for the whole gun, parts included. 50 = straight line (70% durability = 70% of the price), 100 = durability doesn't count. SPT's own is about 71.",
@@ -934,15 +984,36 @@ const DESC = {
   "selling.jsonc:enabled": "Let players list their own items on the flea.",
   "selling.jsonc:foundInRaidOnly": "Only found in raid items can be listed.",
   "selling.jsonc:notifications": "Off: no pop-ups and no Messenger messages about the flip penalty, or about a trader item that can't be listed.",
-  "selling.jsonc:saleDelay": "How fast your offers sell depends on your price: cheap in under a minute, normal in a few minutes, overpriced hardly ever. Better Flea works each sale out from the market: your price, other sellers' offers, undercuts and the buyers. Want fixed waits you choose instead? Turn on Set sale times (Advanced settings).",
-  "selling.jsonc:saleDelay.minMinutes": "Shortest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
-  "selling.jsonc:saleDelay.maxMinutes": "Longest wait at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
-  "selling.jsonc:saleDelay.noDelayChance": "Chance of no wait at all for offers at or under the normal price.",
-  "selling.jsonc:saleDelay.uniqueMinMinutes": "A gun, armour or anything with durability at the normal price waits this long for a buyer (between this and the longest), for an item of about 100,000 roubles. Dearer ones wait longer; cheaper than normal, much less.",
-  "selling.jsonc:saleDelay.slowSaleMaxHours": "An offer priced over normal has a lower chance to sell. When it does sell, the buyer can come any time up to this many hours after listing: the lower the chance, the later on average. Offers at or under normal aren't affected.",
-  "selling.jsonc:saleDelay.expensivePercent": "This far over the normal price, only 1 in 20 buyers is interested. Dearer offers still sell now and then, but wait much longer and may expire first.",
-  "selling.jsonc:saleDelay.neverSellsPercent": "This far over the normal price an offer never sells. 100 = twice the normal price.",
-  "selling.jsonc:flipPenalty": "Buy lots of one item and list it straight away, and buyers take longer to turn up. Needs Sale speed on.",
+  "selling.jsonc:saleDelay": "How fast your offers sell depends on your price and the item: cheap in under a minute, at the normal price from a minute (wires) to half an hour (a marked key), a bit over normal later and less often, far over never. Better Flea works each sale out from the market: your price, other sellers' offers, undercuts and the buyers. Want fixed waits you choose instead? Turn on Set sale times (Advanced settings).",
+  "selling.jsonc:saleDelay.minMinutes": "Only with Buyers off: the shortest wait for a plain item (not a gun or anything with durability) at the normal price, in minutes. With Buyers on, the buyers decide when plain items sell. Part of a minute works: 0.5 = 30 seconds.",
+  "selling.jsonc:saleDelay.maxMinutes": "Only with Buyers off: the longest wait for a plain item at the normal price, in minutes. Part of a minute works: 0.5 = 30 seconds.",
+  "selling.jsonc:saleDelay.noDelayChance": "Only with Buyers off: the chance a plain item at or under the normal price sells with no wait at all.",
+  "selling.jsonc:saleDelay.uniqueMinMinutes": "A gun, armour or anything with durability at the normal price usually waits this long for a buyer at 20,000 roubles or less, times the square root of how many times dearer it is: about 1.3 minutes at 33,000, 2.3 at 110,000, 4 at 340,000. Dear plain items that seldom trade (a GPU, a LEDX) wait the same; busy ones (wires) only seconds. Each wait is random around that, most between half and twice it, never straight away. Cheaper than normal, much less.",
+  "selling.jsonc:saleDelay.uniqueMaxMinutes": "The usual wait at the normal price is never longer than this, however dear the item. An 8,250,000 marked key takes about 30 minutes, so 60 doesn't cut anything at the defaults.",
+  "selling.jsonc:saleDelay.rareWaitMultiplier": "An item the game counts as rare waits this many times as long at the normal price. 1 = the same as a common item.",
+  "selling.jsonc:saleDelay.superrareWaitMultiplier": "An item the game counts as superrare (a LEDX, a GPU, marked keys) waits this many times as long at the normal price: a LEDX about 9 minutes, a marked key about 30. 1 = the same as a common item.",
+  "selling.jsonc:saleDelay.slowSaleMaxHours": "Only with Buyers off: a pile of a plain item priced over normal that does sell finds its buyer any time up to this many hours after listing, the lower its chance the later on average. With Buyers on, the buyers decide. Offers at or under normal aren't affected.",
+  "selling.jsonc:saleDelay.expensivePercent": "How much room over the normal price an offer has: 0.8 times this share of the normal price, plus the room in roubles. Up to half the room over, it always sells; at the whole room, half the time; from one and a half times the room, never. Whether it sells is decided once, so leaving it up longer doesn't help. An item you bought lately never sells past this much over.",
+  "selling.jsonc:saleDelay.overpriceRoubles": "The rest of the room over the normal price, in roubles. A few thousand over on cheap wires hardly matters; the same share over on a GPU does.",
+  "selling.jsonc:saleDelay.overpriceRoublesMaxPercent": "The room in roubles is never more than this share of the normal price, so cheap items don't get far more room than dear ones.",
+  "selling.jsonc:saleDelay.overpriceDearShrink": "Over 100,000 roubles the room's share of the normal price shrinks the dearer the item: (100,000 / normal) to this power. At 0.2 a LEDX has 8% room and a marked key 5%, so nobody makes a million on a key by overpricing it. 0 = the same share for every price.",
+  "selling.jsonc:saleDelay.overpriceWaitMinutes": "How long an offer over normal usually waits on top of its normal wait, at the whole room over (where it sells half the time). Less room over, much less: a fifth of the room over waits about a tenth as long. Dear items wait longer again (Slower over normal on dear items). Each wait is random around it, most between half and twice it.",
+  "selling.jsonc:saleDelay.dearFromRoubles": "From this normal price an item counts as dear: it gets less room over normal (Less room on dear items) and waits longer over it (Slower over normal on dear items).",
+  "selling.jsonc:saleDelay.gearOverpricePercent": "How far over its normal price gear can go and still sell: guns, armour, helmets, rigs with plates, and anything with durability or with parts in it. A Slick's value hangs on its plates and their wear, a gun's on its parts, so nobody knows it to the rouble. Up to half this over always sells, at the whole of it about half the time. Single items (wires, a LEDX, a key) go by the room setting above instead.",
+  "selling.jsonc:saleDelay.classicOverpricing": "Not recommended, and there's little reason to use it: it's only here for anyone who preferred how 2.5.1 felt. On: an offer over normal goes by 2.5.1's percent rule instead of the room above. Every item gets the same room as a share of its price, with no rouble room, no extra room for gear and no less room on dear items, so overpricing hardly matters: a 12 hour offer 40% over still sells most of the time. Off is the default and the fairer rule.",
+  "selling.jsonc:saleDelay.gearDearFromRoubles": "Gear dearer than this gets less room over normal (Less room on dear items), so an expensive build can't go far over in roubles.",
+  "selling.jsonc:saleDelay.wreckedWaitMultiplier": "Wrecked armour or a wrecked helmet is a slow sell even at a fair price: its buyer takes this many times as long to come.",
+  "selling.jsonc:saleDelay.cheaperWaitMultiplier": "One thing with durability listed on its own (glasses, a bare helmet, a plate) that another seller has cheaper (unless yours is well under normal): its buyer takes this many times as long to come. Guns, and gear with parts or plates in it, aren't compared.",
+  "prices.jsonc:unusableKeys": "Keys that open nothing in the game: no lock on any map takes them and no quest needs them (the door, safe or car is always open, or gone). Nobody can have used one, so they're always listed new, and with no use they're worth little, never under what a trader pays. Turn it off for their usual price.",
+  "prices.jsonc:unusableKeys.pricePercent": "What these keys cost, in % of their usual price. Never under what a trader pays (Price floor), so nobody can buy one here and sell it to a trader for profit.",
+  "prices.jsonc:unusableKeys.keys": "The keys this goes for. As it ships: every key with no use in the game, the ten Health Resort room keys on Shoreline, the Gas station, Store, Weapon and Weather station safe keys, the Folding car, VAZ and Yotota car keys, both Pumping station keys, the Pinewood hotel room 206 key, the Unity Credit Bank archive room key, the RB-PP key and the Missam forklift key. Add any other key a map mod leaves without a use.",
+  "market.jsonc:sellerBadges": "Badges next to a generated seller's name, like the real flea's Edge of Darkness and Unheard players. Each seller keeps the same badge (and rating) on every offer. Never a trader's or system badge.",
+  "market.jsonc:sellerBadges.edgeOfDarknessChance": "Chance a seller has the Edge of Darkness badge. 0.25 = 1 in 4.",
+  "market.jsonc:sellerBadges.unheardChance": "Chance a seller has the Unheard badge. 0.2 = 1 in 5.",
+  "market.jsonc:sellerBadges.specialChance": "Chance a seller has a Developer, Sherpa or Emissary badge. 0.001 = 1 in 1000.",
+  "selling.jsonc:saleDelay.overpriceDearSlowdown": "Over 100,000 roubles an offer over normal waits longer the dearer the item: (normal / 100,000) to this power times as long. At 0.4 twice as long on a LEDX, 6 times on a marked key. 0 = no longer.",
+  "selling.jsonc:saleDelay.neverSellsPercent": "Safety cap: this far over the normal price nothing sells. 100 = twice the normal price. At the default room nothing sells past 78% over anyway.",
+  "selling.jsonc:flipPenalty": "Off by default. On: buy lots of one item and list it straight away, and buyers take longer to turn up, and anything bought in the last 48 hours (a part in it too, like one plate) never sells more than 15% over normal. Its offers show a Flip penalty tag on the Lookup tab. Needs Sale speed on.",
   "selling.jsonc:flipPenalty.windowMinutes": "How long a purchase counts, in minutes.",
   "selling.jsonc:flipPenalty.freePurchases": "Purchases of one item before it counts.",
   "selling.jsonc:flipPenalty.purchasesForMaxPenalty": "Purchases for the full penalty.",
@@ -951,7 +1022,6 @@ const DESC = {
   "selling.jsonc:flipPenalty.fenceMultiplier": "Each Fence purchase counts as this many.",
   "selling.jsonc:purchaseLock": "Items bought from traders (Fence too) can never be listed. Ammo and stacks aren't locked. Purchases are remembered while this is off too, so turning it on also locks what was bought before.",
   "selling.jsonc:purchaseLock.includeFleaPurchases": "Also lock items bought from other players on the flea.",
-  "selling.jsonc:saleDelay.cheaperOfferShare": "Another seller already has the item cheaper: this share of buyers is left for your offer. Offers well under the normal price are not affected.",
   "selling.jsonc:undercut": "Your offer is the cheapest up? Now and then another seller lists just under it a few minutes later and takes most of its buyers. The dearer your offer, the likelier. Well under the normal price, it sells before anyone bothers.",
   "selling.jsonc:buyers": "Buyers go down the list. For the item you have open and every item you have listed, a buyer turns up every 15 seconds to a minute and takes the cheapest single offer (not packs or barters) if the price is one people pay. Your offer sells when the buyers get to it, so cheaper offers go first. Each buyer takes one or two, or a round lot of ammo, and buyers come less often after each sale, so a pile sells a bit at a time. A bought offer is replaced by a new seller a few minutes later. The game's average price when you list is Better Flea's normal price, so listing at the average is fair.",
   "weapons.jsonc:presets.forgotScopeChance": "Chance a scoped build is listed as if the scope were not on it, as if the seller forgot it. Never below the price floor.",
@@ -997,7 +1067,9 @@ const DESC = {
   "economy.jsonc:priceOverrides": "Set an item's base price yourself, in roubles, in place of Better Flea's, the live or SPT's. Mainly for a modded item its mod prices oddly. This is the base price, before multipliers, drift and the Wipe Cycle, not what the item ends up listed at. Not sure what to put? Look up a similar base-game item in Item lookup on the Lookup tab, use its Base price and tweak it from there. A gun's price is the gun on its own: its parts are priced separately. Traders don't change. New offers get the new price.",
 
   // Debug
-  "debug.jsonc:debugLogging": "Write lots of extra lines in the server log. Only for testing."
+  "debug.jsonc:debugLogging": "Write lots of extra lines in the server log. Only for testing.",
+  "debug.jsonc:saleSpeed": "Only for testing: every wait before your offers sell is this many times shorter, so a sale that takes half an hour takes 3 minutes at 10. Whether an offer sells doesn't change. The sale odds tables show the shorter waits too. 1 = real time.",
+  "debug.jsonc:showSaleOdds": "On: the Lookup tab shows exactly how often and how fast an offer sells at each price, for every item and every player's offer. A player who can see that prices right up to the limit, so it's off by default. Off: each player's offer only says roughly how it's priced (underpriced, priced well, a bit dear, overpriced), and Item lookup doesn't show the odds."
 };
 
 // Shown only with Advanced settings on.
@@ -1016,10 +1088,10 @@ const ADVANCED = [
   "weapons.jsonc:presets.comboTacticalWeight", "weapons.jsonc:presets.laserLightChance", "weapons.jsonc:presets.extraTacticalChance",
   "weapons.jsonc:presets.emptyMountChance", "weapons.jsonc:presets.emptyRingsChance", "weapons.jsonc:presets.maxAttachmentDepth",
   "weapons.jsonc:presets.backupSightChance",
-  "armor.jsonc:conditionByRarity", "flea.jsonc:levelLock.levels", "prices.jsonc:guns.priceAtHalfDurabilityPercent", "prices.jsonc:guns.offerMinPercent", "prices.jsonc:guns.offerMaxPercent", "prices.jsonc:guns.stockOfferMinPercent", "prices.jsonc:guns.stockOfferMaxPercent", "weapons.jsonc:presets.nearStockMax",
-  "market.jsonc:simulatedSales.everyMinutes", "market.jsonc:simulatedSales.dealSpeedup", "prices.jsonc:spread", "prices.jsonc:demand.floodDropPercent", "prices.jsonc:demand.maxDropPercent", "prices.jsonc:demand.maxRisePercent", "selling.jsonc:undercut.minMinutes", "selling.jsonc:undercut.maxMinutes", "selling.jsonc:undercut.buyersLeft", "selling.jsonc:saleDelay.cheaperOfferShare", "selling.jsonc:buyers.slowdown", "selling.jsonc:buyers.recoverMinutes", "selling.jsonc:buyers.relistMinMinutes", "selling.jsonc:buyers.relistMaxMinutes", "selling.jsonc:buyers.rarityMultipliers", "selling.jsonc:saleTime",
+  "armor.jsonc:conditionByRarity", "flea.jsonc:levelLock.levels", "prices.jsonc:guns.priceAtHalfDurabilityPercent", "prices.jsonc:guns.attachedPartPercent", "prices.jsonc:guns.offerMinPercent", "prices.jsonc:guns.offerMaxPercent", "prices.jsonc:guns.stockOfferMinPercent", "prices.jsonc:guns.stockOfferMaxPercent", "weapons.jsonc:presets.nearStockMax",
+  "market.jsonc:simulatedSales.everyMinutes", "market.jsonc:simulatedSales.dealSpeedup", "prices.jsonc:spread", "prices.jsonc:demand.floodDropPercent", "prices.jsonc:demand.maxDropPercent", "prices.jsonc:demand.maxRisePercent", "selling.jsonc:undercut.minMinutes", "selling.jsonc:undercut.maxMinutes", "selling.jsonc:undercut.buyersLeft", "selling.jsonc:saleDelay.overpriceRoublesMaxPercent", "selling.jsonc:saleDelay.overpriceDearShrink", "selling.jsonc:saleDelay.overpriceDearSlowdown", "selling.jsonc:saleDelay.overpriceWaitMinutes", "selling.jsonc:saleDelay.dearFromRoubles", "selling.jsonc:saleDelay.gearDearFromRoubles", "selling.jsonc:saleDelay.wreckedWaitMultiplier", "selling.jsonc:saleDelay.cheaperWaitMultiplier", "selling.jsonc:saleDelay.slowSaleMaxHours", "selling.jsonc:saleDelay.minMinutes", "selling.jsonc:saleDelay.maxMinutes", "market.jsonc:sellerBadges.specialChance", "selling.jsonc:saleDelay.rareWaitMultiplier", "selling.jsonc:saleDelay.superrareWaitMultiplier", "selling.jsonc:buyers.slowdown", "selling.jsonc:buyers.recoverMinutes", "selling.jsonc:buyers.relistMinMinutes", "selling.jsonc:buyers.relistMaxMinutes", "selling.jsonc:buyers.rarityMultipliers", "selling.jsonc:saleTime",
   "market.jsonc:barterOffers.valueMin", "market.jsonc:barterOffers.valueMax",
-  "market.jsonc:sellerRating.min", "market.jsonc:sellerRating.max", "market.jsonc:sellerRating.everydayMax",
+  "market.jsonc:sellerRating.min", "market.jsonc:sellerRating.max", "market.jsonc:sellerRating.everydayMax", "market.jsonc:sellerRating.topMax", "market.jsonc:sellerRating.topChance", "market.jsonc:sellerRating.topBulkChance",
   "market.jsonc:packs.min", "market.jsonc:packs.max", "market.jsonc:packs.hugeMin", "market.jsonc:packs.hugeMax",
   "prices.jsonc:floor.logTraderProfitLoops", "prices.jsonc:floor.ignoreForTraderLoops", "prices.jsonc:drift.stepPercent", "prices.jsonc:drift.updateMinutes",
   "prices.jsonc:sellers.wornOverpriceChance", "prices.jsonc:sellers.overpriceMinPercent", "prices.jsonc:sellers.overpriceMaxPercent",
@@ -1052,7 +1124,7 @@ const CHOICES = {
 };
 
 // Lists of item ids.
-const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems"];
+const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems", "prices.jsonc:unusableKeys.keys"];
 // Item or category ids, each with a level.
 const LEVEL_TABLES = ["flea.jsonc:levelLock.levels"];
 // Item or category -> price multiplier, the same table with multipliers in place of levels.
@@ -1092,11 +1164,11 @@ const STYLES = [
         fuel: { usedChance: 0.8, emptyChance: 0.15 }, repairKits: { usedChance: 0.8 },
         guns: { wornChanceByRarity: { Common: 1, Rare: 1, Superrare: 0.9 }, lowMaxChance: 0.6 } },
       "weapons.jsonc": { presets: { stripped: { weight: 0.6 }, broken: { weight: 0.5 }, gutted: { weight: 0.25 }, modded: { weight: 0.05, dearWeight: 0.12 } } },
-      "armor.jsonc": { plates: { both: 0.35, frontOnly: 0.15, backOnly: 0.1, none: 0.4 },
+      "armor.jsonc": { plates: { both: 0.25, frontOnly: 0.12, backOnly: 0.08, none: 0.55 },
         conditionByRarity: { Common: BAD_CONDITION, Rare: BAD_CONDITION, Superrare: BAD_CONDITION } },
       "market.jsonc": { soldBeforeYouChance: 0.2, simulatedSales: { normalSellChancePerHour: 0.1 } },
       "prices.jsonc": { sellers: { overpriceChance: 0.25 } },
-      "selling.jsonc": { buyers: { rarityMultipliers: { Common: 1.5, Rare: 2.5, Superrare: 5 } } }
+      "selling.jsonc": { saleDelay: { uniqueMinMinutes: 2 }, buyers: { rarityMultipliers: { Common: 1.5, Rare: 2.5, Superrare: 5 } } }
     } },
   { id: "overpriced", name: "Overpriced", short: "Everything costs about 50% more.", about: "Everything on the flea costs half as much again, some sellers ask even more, quick sells are gone and guns cost more than at the traders.",
     files: {
@@ -1111,7 +1183,7 @@ const STYLES = [
       "prices.jsonc": { priceMultiplier: 0.85, sellers: { overpriceChance: 0.02, quickSellChance: 0.3, quickSellMinPercent: 20, quickSellMaxPercent: 50 }, guns: { traderPricePercent: 80 } },
       "weapons.jsonc": { presets: { buildDealChance: 0.4, buildDealMaxDiscount: 0.45, buildStealChance: 0.05 } },
       "market.jsonc": { offerExpiry: { minMinutes: 60, maxMinutes: 360 }, simulatedSales: { normalSellChancePerHour: 0.15 }, packs: { chancePercent: 6, scamChance: 0.2 } },
-      "selling.jsonc": { saleDelay: { minMinutes: 1, maxMinutes: 4 }, buyers: { rarityMultipliers: { Common: 1, Rare: 1, Superrare: 1.5 } } }
+      "selling.jsonc": { saleDelay: { minMinutes: 1, maxMinutes: 4, uniqueMinMinutes: 0.5, superrareWaitMultiplier: 1 }, buyers: { rarityMultipliers: { Common: 1, Rare: 1, Superrare: 1.5 } } }
     } },
   { id: "chaos", name: "Chaos", short: "Everything turned right up.", about: "Everything turned up: piles of offers, scams and giant packs, wild prices, loaded mags and sold-before-you everywhere.",
     files: {
@@ -1424,6 +1496,7 @@ function renderGuest() {
   home.insertBefore(economyCard(), home.children[1]);
   const e = state.econ || (state.econ = { level: 0, item: null });
   home.insertBefore(itemLookup(e, e.data || {}), home.children[2]);
+  home.insertBefore(flipNote(), home.children[2]);
   home.insertBefore(offersCard(), home.children[3]);
   main.appendChild(home);
   drawCharts();
@@ -1697,8 +1770,28 @@ function currentStyle() {
     && state.files.filter(styled).every(f => same(f.values, styleKeeps(f, merge(f.defaults, s.files[f.file] || {})))));
 }
 
+// A long group split into parts with a heading each, in this order (whatever order the file has them in).
+const PARTS = {
+  "selling.jsonc:saleDelay": [
+    ["Wait at the normal price", ["uniqueMinMinutes", "uniqueMaxMinutes", "rareWaitMultiplier", "superrareWaitMultiplier", "wreckedWaitMultiplier", "cheaperWaitMultiplier"]],
+    ["Over the normal price", ["expensivePercent", "gearOverpricePercent", "overpriceRoubles", "overpriceRoublesMaxPercent", "overpriceWaitMinutes", "dearFromRoubles", "gearDearFromRoubles", "overpriceDearShrink", "overpriceDearSlowdown", "neverSellsPercent", "classicOverpricing"]],
+    ["Only with Buyers off", ["minMinutes", "maxMinutes", "noDelayChance", "slowSaleMaxHours"]]
+  ]
+};
+function partHeading(f, path, key) {
+  const parts = PARTS[f.file + ":" + path.join(".")];
+  const part = parts && parts.find(p => p[1][0] === key);
+  return part ? make("div", "part-head", part[0]) : null;
+}
+
 function ordered(f, path, obj) {
   const prefix = path.length ? path.join(".") + "." : "";
+  const parts = PARTS[f.file + ":" + path.join(".")];
+  if (parts) {
+    const fixed = parts.flatMap(p => p[1]);
+    const place = (k) => { const i = fixed.indexOf(k); return i < 0 ? -1 : i; };
+    return Object.keys(obj).sort((a, b) => place(a) - place(b));
+  }
   const rank = (k) => { const i = f.order.indexOf(prefix + k); return i < 0 ? 1e9 : i; };
   const keys = Object.keys(obj).sort((a, b) => rank(a) - rank(b));
   // Prices by category sits under All flea prices, even in a settings file older than it (where it'd come last).
@@ -1816,6 +1909,8 @@ function group(f, path, value, def) {
     if (hasSwitch && key === "enabled") continue;
     const child = node(f, path.concat(key));
     if (!child) continue;
+    const head = partHeading(f, path, key);
+    if (head) children.appendChild(head);
     if (openTable) addRemove(child, f, path, key);
     children.appendChild(child);
   }
@@ -2928,6 +3023,7 @@ function itemLookup(e, d) {
     refresh.onclick = () => { refresh.disabled = true; loadEconomy(); };
     const title = make("div", "k", e.item.name);
     if (d.mod) title.appendChild(modTag(d.mod));
+    if (d.flipPenalty) title.appendChild(penaltyTag());
     head.append(title, refresh);
     look.appendChild(head);
     const econ = state.guest ? state.overview || {} : state.byFile["economy.jsonc"].values;
@@ -2956,6 +3052,8 @@ function itemLookup(e, d) {
       make("div", "", (d.stockBuild ? "Actual value (default build): " : "Actual value: ") + (d.fleaPrice ? count(d.fleaPrice) + " ₽" : "none")));
     look.appendChild(facts);
     if (d.odds) look.appendChild(oddsTable(d.odds, "Selling one (as found, not bought):"));
+    else if (d.oddsHidden) look.appendChild(make("div", "s", "How it would sell at each price is hidden: Show exact sale odds (Debug tab). Players' offers below say roughly how each is priced."));
+    if (d.flipPenalty && !d.odds) look.appendChild(make("div", "s", "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal."));
     look.appendChild(stockChart(e, e.item.id));
     look.appendChild(make("div", "s", "Through a wipe (with the Wipe Cycle on):"));
     const chart = make("div", "chart");
@@ -2980,7 +3078,7 @@ function oddsTable(o, title, listed) {
     const over = Math.round((r.ratio - 1) * 100);
     row.append(make("td", "", count(r.price) + " ₽"), make("td", "", (over > 0 ? "+" : "") + over + "%"),
       make("td", "", r.sells >= 0.995 ? "Always" : r.sells <= 0.005 ? "Never" : Math.round(r.sells * 100) + "%"),
-      make("td", "", r.minutes == null ? "–" : r.minutes < 1 ? "Under a minute" : duration(r.minutes * 60)));
+      make("td", "", r.minutes == null ? "–" : r.minutes < 1 ? Math.max(5, Math.round(r.minutes * 60)) + "s" : duration(r.minutes * 60)));
     table.appendChild(row);
   }
   const scroll = make("div", "odds-wrap");
@@ -2990,9 +3088,26 @@ function oddsTable(o, title, listed) {
   notes.append(make("div", "", "Normal price: " + count(o.normal) + " ₽. Sells: how often it sells before the " + o.hours + " hour offer ends, if no other seller has it cheaper."));
   if (o.wrecked) notes.appendChild(make("div", "", "Wrecked: a hard sell even at the normal price, and it only gets one buyer's look."));
   if (o.plain) notes.appendChild(make("div", "", "Up to a little over normal, buyers come at this item's own pace and buy the cheapest offers first."));
-  notes.appendChild(make("div", "", "Bought from a trader or the flea in the last 48 hours? Then it never sells more than 15% over normal."));
+  if (state.flipPenalty)
+    notes.appendChild(make("div", "", "Bought from a trader or the flea in the last 48 hours? Then it never sells more than 15% over normal."));
   box.appendChild(notes);
   return box;
+}
+
+// What the server's verdict on a player's offer means (ConfigPage.Verdict), when the exact odds are hidden.
+const VERDICTS = {
+  underpriced: "Underpriced, should sell quickly",
+  good: "Priced well, should sell in decent time",
+  dear: "A bit dear, may not sell",
+  overpriced: "Overpriced, likely not to sell"
+};
+
+// An offer with the flip penalty on it: bought in the last 48 hours (or a part in it was), so it never sells more than
+// 15% over normal, whatever the odds say.
+function penaltyTag() {
+  const tag = make("span", "tag", "Flip penalty");
+  tag.title = "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.";
+  return tag;
 }
 
 // Every player's offers that are up, each with how it sells at other prices. Guests see it too. Kept between redraws
@@ -3008,24 +3123,42 @@ function offersCard() {
   const show = (d) => {
     body.innerHTML = "";
     if (!d) { body.appendChild(make("div", "s", "Couldn't load the offers.")); return; }
+    state.flipPenalty = !!d.flipPenalty;
+    for (const flip of document.querySelectorAll(".flip-note")) flip.hidden = !state.flipPenalty;
     if (!d.offers || !d.offers.length) { body.appendChild(make("div", "s", "No player offers are up right now.")); }
-    else body.appendChild(make("div", "s", "Players' offers that are up. Open one to see how it would sell at other prices."));
+    else body.appendChild(make("div", "s", d.showOdds ? "Players' offers that are up, newest first. Open one to see how it would sell at other prices."
+      : "Players' offers that are up, newest first, and roughly how each is priced."));
     for (const o of d.offers || []) {
+      // Without Show exact sale odds (Debug tab) the server sends only a verdict: no table, no price against normal.
+      if (!o.odds) {
+        const row = make("div", "offer-row");
+        const title = make("b", "", o.name);
+        if (o.mod) title.appendChild(modTag(o.mod));
+        if (o.penalty) title.appendChild(penaltyTag());
+        row.append(title, make("span", "n", o.player), make("span", "", count(o.price) + " ₽" + (o.quantity > 1 ? " × " + o.quantity : "")));
+        if (o.verdict) row.appendChild(make("span", "verdict " + o.verdict, VERDICTS[o.verdict] || o.verdict));
+        row.appendChild(make("span", "when", "Ends in " + duration(Math.max(0, o.endsAt - d.now))));
+        body.appendChild(row);
+        continue;
+      }
       const item = make("details", "offer");
       const sum = make("summary");
       const title = make("b", "", o.name);
       if (o.mod) title.appendChild(modTag(o.mod));
+      if (o.penalty) title.appendChild(penaltyTag());
       sum.append(title, make("span", "n", o.player), make("span", "", count(o.price) + " ₽" + (o.quantity > 1 ? " × " + o.quantity : "")));
       if (o.odds) {
         const over = Math.round((o.price / o.odds.normal - 1) * 100);
         sum.appendChild(make("span", "n", (over > 0 ? "+" : "") + over + "%"));
       }
-      sum.appendChild(make("span", "when", o.sellsAt ? (o.sellsAt <= d.now ? "Sold" : "A buyer comes in " + duration(o.sellsAt - d.now))
-        : "No buyer yet, ends in " + duration(Math.max(0, o.endsAt - d.now))));
+      // Never whether or when it sells: that's decided when it's listed, and knowing it would let a player take an
+      // offer down and list it again until it sells. Only its odds (below) and when it ends.
+      sum.appendChild(make("span", "when", "Ends in " + duration(Math.max(0, o.endsAt - d.now))));
       item.appendChild(sum);
       item.appendChild(o.odds ? oddsTable(o.odds, "", o.price) : make("div", "s", "No odds: sale delays are off."));
       body.appendChild(item);
     }
+    if (d.more > 0) body.appendChild(make("div", "s", count(d.more) + " older " + (d.more === 1 ? "offer isn't" : "offers aren't") + " shown."));
     body.appendChild(make("div", "s", "Updated " + clock(d.now) + "."));
   };
   const load = () => {
@@ -3040,6 +3173,18 @@ function offersCard() {
   return card;
 }
 
+// Flip penalty on (the offers answer says so): a tag and a note above Item lookup, since the odds don't show it.
+function flipNote() {
+  const flip = make("div", "flip-note");
+  flip.hidden = !state.flipPenalty;
+  const flipTag = make("span", "tag", "Flip penalty");
+  flipTag.style.marginLeft = "0";
+  const flipText = make("span", "", "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.");
+  flipText.style.marginLeft = "8px";
+  flip.append(flipTag, flipText);
+  return flip;
+}
+
 // The Lookup tab: Item lookup (prices, sale odds, price history, the wipe) and the players' offers that are up.
 function lookupSection() {
   const section = document.createElement("section");
@@ -3048,6 +3193,7 @@ function lookupSection() {
   t.append(make("h2", "", "Lookup"), make("p", "", "Any item's prices, how it would sell and its price history, and the players' offers on the flea right now."));
   head.appendChild(t);
   section.appendChild(head);
+  section.appendChild(flipNote());
   const e = state.econ || (state.econ = { level: 0, item: null });
   if (!e.data && !e.loading) { e.loading = true; loadEconomy(); }
   section.appendChild(itemLookup(e, e.data || {}));

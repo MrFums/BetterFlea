@@ -322,7 +322,10 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
             result["stockBuild"] = build is { Count: > 1 };
             // A gun's base price is the gun on its own; its default build adds the parts' base prices.
             result["buildBasePrice"] = build is { Count: > 1 } ? Math.Round(build.Sum(part => templates.Prices.GetValueOrDefault(part.Template))) : null;
-            result["odds"] = Odds(build is { Count: > 1 } ? build : [new Item { Id = new MongoId(), Template = tpl }]);
+            // The exact odds only with debug.jsonc showSaleOdds: they tell a player exactly how far over normal to go.
+            result["odds"] = ShowOdds ? Odds(build is { Count: > 1 } ? build : [new Item { Id = new MongoId(), Template = tpl }]) : null;
+            result["oddsHidden"] = !ShowOdds;
+            result["flipPenalty"] = FlipPenaltyOn;
             var lookup = LivePrices.Lookup(tpl);
             result["sptPrice"] = lookup.Spt is { } s ? Math.Round(s) : null;
             result["livePrice"] = lookup.Live;
@@ -391,20 +394,49 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
 
     // How a player's offer of these items sells at a range of prices (BetterFlea.Selling.SaleOdds). Null with sale
     // delays off.
-    private JsonObject? Odds(List<Item> items)
+    private JsonObject? Odds(List<Item> items) =>
+        BetterFlea.Selling.SaleOdds.For(items, itemHelper) is { } table ? OddsJson(table) : null;
+
+    // debug.jsonc showSaleOdds: the settings page gets the exact odds tables. Off (the default), they never leave the
+    // server: a player who could see them would price right up to the limit. Each offer gets a Verdict instead.
+    private bool ShowOdds => configManager.Mod.ShowSaleOdds;
+
+    // The flip penalty (selling.jsonc flipPenalty) with sale delays on: the Lookup tab says so, since the odds don't show it.
+    private bool FlipPenaltyOn => configManager.Mod.PlayerSelling is { Enabled: true } selling && selling.SaleDelay.Enabled && selling.FlipPenalty.Enabled;
+
+    // How an offer at this price is likely to do, in a word, without the numbers: "underpriced" (well under normal,
+    // sells quickly), "good" (sells at least 4 times in 5, in decent time), "dear" (may well not sell), "overpriced"
+    // (likely not to sell). Its chance is read between the table's rows either side of its price.
+    private static string? Verdict(BetterFlea.Selling.SaleOdds.Table table, double? price)
     {
-        if (BetterFlea.Selling.SaleOdds.For(items, itemHelper) is not { } table)
+        if (price is not { } each || each <= 0 || table.Normal <= 0 || table.Rows.Count == 0)
         {
             return null;
         }
 
+        var ratio = each / table.Normal;
+        if (ratio < 0.97)
+        {
+            return "underpriced";
+        }
+
+        var rows = table.Rows.OrderBy(row => row.Ratio).ToList();
+        var below = rows.LastOrDefault(row => row.Ratio <= ratio) ?? rows[0];
+        var above = rows.FirstOrDefault(row => row.Ratio >= ratio) ?? rows[^1];
+        var sells = above.Ratio <= below.Ratio ? below.Sells
+            : below.Sells + (above.Sells - below.Sells) * (ratio - below.Ratio) / (above.Ratio - below.Ratio);
+        return sells >= 0.8 ? "good" : sells >= 0.3 ? "dear" : "overpriced";
+    }
+
+    private static JsonObject OddsJson(BetterFlea.Selling.SaleOdds.Table table)
+    {
         return new JsonObject
         {
             ["normal"] = table.Normal, ["wrecked"] = table.Wrecked, ["plain"] = table.Plain, ["hours"] = table.Hours,
             ["rows"] = new JsonArray(table.Rows.Select(row => (JsonNode)new JsonObject
             {
                 ["ratio"] = row.Ratio, ["price"] = row.Price, ["sells"] = Math.Round(row.Sells, 3),
-                ["minutes"] = row.MedianMinutes is { } m ? Math.Round(m) : null
+                ["minutes"] = row.MedianMinutes is { } m ? Math.Round(m, 2) : null
             }).ToArray())
         };
     }
@@ -440,24 +472,40 @@ public class ConfigPage(ISptLogger<ConfigPage> logger, ConfigManager configManag
         };
     }
 
-    // Every player's offers that are up: what each is, its price against its normal, when it sells if a buyer is
-    // already lined up, and its odds at other prices.
+    // Players' offers that are up, newest first: what each is, its price against its normal, when it ends, and its odds
+    // at other prices. Only the newest ShownOffers (each table takes a while). Never whether or when it sells: that's
+    // decided when it's listed, and a player who could see it would take the offer down and list it again until it sells.
+    private const int ShownOffers = 30;
+
     private JsonObject Offers()
     {
         var list = new JsonArray();
-        foreach (var (player, offer) in BetterFlea.Selling.OrderBook.AllPlayerOffers().Take(30))
+        var all = BetterFlea.Selling.OrderBook.AllPlayerOffers().OrderByDescending(entry => entry.Offer.StartTime ?? 0).ToList();
+        foreach (var (player, offer, id) in all.Take(ShownOffers))
         {
             var items = offer.Items!;
-            var odds = Odds(items);
-            var sale = offer.SellResults?.ToList().Where(result => result.SellTime is not null).Min(result => result.SellTime);
+            var table = BetterFlea.Selling.SaleOdds.For(items, itemHelper);
+            // Bought in the last 48 hours with the flip penalty on: never sells past expensivePercent over normal, which
+            // the odds table doesn't show, so the offer says so and its verdict goes by it.
+            var penalty = BetterFlea.Selling.FlipPenaltyGate.BoughtLately(id, items);
+            var verdict = !ShowOdds && table is not null ? Verdict(table, offer.RequirementsCost) : null;
+            if (penalty && verdict is not null && table!.Normal > 0 && offer.RequirementsCost is { } asked
+                && asked / table.Normal - 1 > configManager.Mod.PlayerSelling.SaleDelay.ExpensivePercent / 100)
+            {
+                verdict = "overpriced";
+            }
+
             list.Add(new JsonObject
             {
                 ["player"] = player, ["name"] = ItemName(items[0].Template), ["mod"] = ModItems.All.GetValueOrDefault(items[0].Template), ["price"] = offer.RequirementsCost is { } cost ? Math.Round(cost) : null,
-                ["quantity"] = offer.Quantity, ["endsAt"] = offer.EndTime, ["sellsAt"] = sale, ["odds"] = odds
+                ["quantity"] = offer.Quantity, ["endsAt"] = offer.EndTime,
+                ["odds"] = ShowOdds && table is not null ? OddsJson(table) : null,
+                ["verdict"] = verdict,
+                ["penalty"] = penalty
             });
         }
 
-        return new JsonObject { ["offers"] = list, ["now"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
+        return new JsonObject { ["offers"] = list, ["more"] = Math.Max(0, all.Count - ShownOffers), ["now"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), ["showOdds"] = ShowOdds, ["flipPenalty"] = FlipPenaltyOn };
     }
 
     // Server mods that add items: how many, and of which types (the bannedCategories names). Items that can never be

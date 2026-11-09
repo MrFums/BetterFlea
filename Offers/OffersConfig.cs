@@ -250,6 +250,18 @@ public record ArmorOffersConfig
     [JsonPropertyName("helmetAttachmentChance")]
     public double HelmetAttachmentChance { get; set; } = 0.2;
 
+    // A helmet that normally has a face shield (Killa's, an Altyn) is listed without it, and priced to match.
+    [JsonPropertyName("noFaceShieldChance")]
+    public double NoFaceShieldChance { get; set; } = 0.25;
+
+    // Of those, this share are priced as if the face shield were still on (a seller hoping nobody looks).
+    [JsonPropertyName("noFaceShieldScamChance")]
+    public double NoFaceShieldScamChance { get; set; } = 0.1;
+
+    // A helmet that comes without a face shield (an Altyn, a Rys-T, a FAST) is listed with one that fits it.
+    [JsonPropertyName("faceShieldChance")]
+    public double FaceShieldChance { get; set; } = 0.2;
+
     // Helmets are rarely badly damaged.
     // 1 = like the rest, 0 = never badly damaged.
     [JsonPropertyName("helmetDamage")]
@@ -275,16 +287,16 @@ public record ArmorOffersConfig
 public record ArmorPlateMixConfig
 {
     [JsonPropertyName("both")]
-    public double Both { get; set; } = 0.6;
+    public double Both { get; set; } = 0.45;
 
     [JsonPropertyName("frontOnly")]
-    public double FrontOnly { get; set; } = 0.12;
+    public double FrontOnly { get; set; } = 0.09;
 
     [JsonPropertyName("backOnly")]
-    public double BackOnly { get; set; } = 0.08;
+    public double BackOnly { get; set; } = 0.06;
 
     [JsonPropertyName("none")]
-    public double None { get; set; } = 0.2;
+    public double None { get; set; } = 0.4;
 }
 
 public record ArmorConditionWeights
@@ -510,7 +522,17 @@ public record SellerRatingConfig
     public double Min { get; set; } = 2;
 
     [JsonPropertyName("max")]
-    public double Max { get; set; } = 300;
+    public double Max { get; set; } = 500;
+
+    // A few sellers are far above max (live: 522 up to 2,893, seldom): mostly flippers and bulk sellers.
+    [JsonPropertyName("topMax")]
+    public double TopMax { get; set; } = 3000;
+
+    [JsonPropertyName("topChance")]
+    public double TopChance { get; set; } = 0.01;
+
+    [JsonPropertyName("topBulkChance")]
+    public double TopBulkChance { get; set; } = 0.06;
 
     [JsonPropertyName("everydayMax")]
     public double EverydayMax { get; set; } = 100;

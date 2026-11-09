@@ -54,13 +54,21 @@ public record SaleDelayConfig
     [JsonPropertyName("noDelayChance")]
     public double NoDelayChance { get; set; } = 0.1;
 
-    // A gun, armour or anything with durability at the normal price: this many minutes (random between) for an item
-    // of about 100,000 roubles, longer for dearer ones.
+    // A gun, armour or anything with durability at the normal price usually waits this long at 20,000 roubles or
+    // less, times the square root of how many times dearer it is, never over uniqueMaxMinutes (SaleDelayGate.PriceWait).
+    // A dear plain item that seldom trades waits the same.
     [JsonPropertyName("uniqueMinMinutes")]
-    public double UniqueMinMinutes { get; set; } = 5;
+    public double UniqueMinMinutes { get; set; } = 1;
 
     [JsonPropertyName("uniqueMaxMinutes")]
-    public double UniqueMaxMinutes { get; set; } = 20;
+    public double UniqueMaxMinutes { get; set; } = 60;
+
+    // A rare or superrare item (the game's own rarity) waits this many times as long at the normal price.
+    [JsonPropertyName("rareWaitMultiplier")]
+    public double RareWaitMultiplier { get; set; } = 1.25;
+
+    [JsonPropertyName("superrareWaitMultiplier")]
+    public double SuperrareWaitMultiplier { get; set; } = 1.5;
 
     [JsonPropertyName("slowSaleMaxHours")]
     public double SlowSaleMaxHours { get; set; } = 4;
@@ -68,12 +76,61 @@ public record SaleDelayConfig
     [JsonPropertyName("expensivePercent")]
     public double ExpensivePercent { get; set; } = 15;
 
+    // A safety cap: this far over normal nothing sells. At the defaults the rouble rule (OverpriceX) stops sales by
+    // 78% over at most, so this only matters with gentler settings.
     [JsonPropertyName("neverSellsPercent")]
     public double NeverSellsPercent { get; set; } = 100;
 
-    // Share of buyers left when a cheaper offer of the same item is already on the market.
-    [JsonPropertyName("cheaperOfferShare")]
-    public double CheaperOfferShare { get; set; } = 0.35;
+    // 2.5.1's overpricing in place of the rouble room (SaleDelayGate.Classic): every item gets the same room as a share
+    // of its price, with no rouble room, no gear room and no less room on dear items, and buyers keep coming over
+    // the offer's hours. Off by default and not recommended: only for anyone who preferred how 2.5.1 felt.
+    [JsonPropertyName("classicOverpricing")]
+    public bool ClassicOverpricing { get; set; } = false;
+
+    // How far over normal an offer can go is judged in roubles (SaleDelayGate.OverpriceX): the roubles over against
+    // 0.8 x expensivePercent of the normal price plus this many roubles...
+    [JsonPropertyName("overpriceRoubles")]
+    public double OverpriceRoubles { get; set; } = 8000;
+
+    // ...that part never more than this share of the normal price, so a cheap item doesn't get far more room.
+    [JsonPropertyName("overpriceRoublesMaxPercent")]
+    public double OverpriceRoublesMaxPercent { get; set; } = 40;
+
+    // Over 100,000 roubles the share of the room shrinks by (100,000 / normal)^this, so a dear item can't go far
+    // over in roubles. 0 = the same share for every price.
+    [JsonPropertyName("overpriceDearShrink")]
+    public double OverpriceDearShrink { get; set; } = 0.2;
+
+    // Over 100,000 roubles the wait over normal is (normal / 100,000)^this times as long. 0 = no longer.
+    [JsonPropertyName("overpriceDearSlowdown")]
+    public double OverpriceDearSlowdown { get; set; } = 0.4;
+
+    // The usual extra wait, in minutes, for an offer a whole room over normal (x 1): x^1.5 times this.
+    [JsonPropertyName("overpriceWaitMinutes")]
+    public double OverpriceWaitMinutes { get; set; } = 30;
+
+    // From this normal price in roubles an item counts as dear (overpriceDearShrink, overpriceDearSlowdown).
+    [JsonPropertyName("dearFromRoubles")]
+    public double DearFromRoubles { get; set; } = 100000;
+
+    // Gear (a gun, armour, a helmet, a rig with plates, anything with durability or with parts in it) gets this % of
+    // its normal price as room over normal, instead of 0.8 x expensivePercent: its value hangs on its parts, plates
+    // and wear, so nobody, buyer or seller, knows it to the rouble. Single items (wires, a LEDX, a key) don't.
+    [JsonPropertyName("gearOverpricePercent")]
+    public double GearOverpricePercent { get; set; } = 20;
+
+    // Gear dearer than this many roubles gets less of that room, by (this / normal)^overpriceDearShrink.
+    [JsonPropertyName("gearDearFromRoubles")]
+    public double GearDearFromRoubles { get; set; } = 300000;
+
+    // Wrecked armour or a wrecked helmet waits this many times as long for its buyer.
+    [JsonPropertyName("wreckedWaitMultiplier")]
+    public double WreckedWaitMultiplier { get; set; } = 3;
+
+    // One thing with durability listed on its own (glasses, a bare helmet, a plate) that another seller has cheaper waits
+    // this many times as long. Guns and gear with parts or plates in them aren't compared (SaleDelayGate.BeginListing).
+    [JsonPropertyName("cheaperWaitMultiplier")]
+    public double CheaperWaitMultiplier { get; set; } = 2;
 }
 
 // Buyers for the item on screen and for items players have listed: each takes the cheapest offer.
@@ -192,8 +249,10 @@ public record UndercutConfig
 
 public record FlipPenaltyConfig
 {
+    // Off by default. On: buying many of one item and listing it straight away waits longer, and anything bought in the
+    // last 48 hours (its parts too) never sells more than expensivePercent over normal (FlipPenaltyGate.BoughtLately).
     [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; } = false;
 
     [JsonPropertyName("windowMinutes")]
     public double WindowMinutes { get; set; } = 30;

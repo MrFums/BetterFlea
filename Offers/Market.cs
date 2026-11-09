@@ -98,8 +98,10 @@ internal static class OfferLifecycle
         var quality = gun ? BetterFlea.Prices.GunPricing.Condition(items)
             : items.Min(UsedListingsGate.PriceQuality);
 
-        // Where the wipe, drift or demand has moved an item's price, that price is normal for buyers too.
-        normal *= BetterFlea.Prices.WipeEconomy.Factor(items[0].Template) * BetterFlea.Prices.PriceGate.MarketFactor(items[0].Template);
+        // Where the wipe, drift or demand has moved an item's price, that price is normal for buyers too, and so is the
+        // market multiplier every offer gets (SellerPricing.ApplyMultiplier). A gun's value has its drift already.
+        normal *= BetterFlea.Prices.WipeEconomy.Factor(items[0].Template) * (_config!.Mod.Prices.PriceMultiplier)
+            * (gun ? 1 : BetterFlea.Prices.PriceGate.MarketFactor(items[0].Template));
         return normal <= 0 ? 1 : price / (normal * quality);
     }
 
@@ -315,19 +317,29 @@ internal static class OfferLifecycle
 
         // Always the same number of rolls, so a name's place in each range stays put as the wipe goes on.
         var (newRoll, regularRoll, shareRoll) = (roll.NextDouble(), roll.NextDouble(), roll.NextDouble());
+        var (topRoll, topShare) = (roll.NextDouble(), roll.NextDouble());
         if (quantity == 1 && newRoll < settings.NewSellerChance * (1 - 0.85 * grown))
         {
             return Math.Round(-2 + shareRoll * (Math.Min(Math.Max(settings.Min, -2), 1) + 2), 2);
         }
 
         // Someone with several of one item is usually a flipper with a long flea history. Not always.
+        // A seller far above max: seldom, nearly always someone selling in bulk, and hardly any early in the wipe. The
+        // higher, the much rarer (most 500 to 1,000, a 2,000+ now and then).
+        var topChance = (quantity == 1 ? settings.TopChance : settings.TopBulkChance) * (0.2 + 0.8 * grown);
+        if (settings.TopMax > settings.Max && topRoll < topChance)
+        {
+            var top = Math.Max(1, settings.Max);
+            return Math.Round(Math.Exp(Math.Log(top) + Math.Pow(topShare, 2.5) * (Math.Log(settings.TopMax) - Math.Log(top))), 2);
+        }
+
         var regularChance = quantity == 1 ? settings.RegularChance : Math.Min(0.9, settings.FlipperChance + 0.03 * (quantity - 2));
         regularChance += (0.5 - regularChance) * 0.6 * grown;
         var regular = regularRoll < regularChance;
         var everydayMax = Math.Max(settings.Min, Math.Min(settings.EverydayMax * (1 + grown), settings.Max));
         var everydayMin = settings.Min + (Math.Min(5, everydayMax) - settings.Min) * grown;
         var (low, high, bias) = regular
-            ? (Math.Min(20, settings.Max), settings.Max, 1.2 - 0.3 * grown)
+            ? (Math.Min(20, settings.Max), settings.Max, 1.8 - 0.4 * grown)
             : (everydayMin, everydayMax, 1.0 - 0.3 * grown);
         low = Math.Max(0.01, low);
         high = Math.Max(low, high);

@@ -50,9 +50,12 @@ the gun keeps, because few players can buy it there:
 The higher of the loyalty share and the quest share counts. How hard each quest is comes from scoring SPT's whole
 quest tree: see [The SPT quest tree](06-quest-tree.md). A gun no trader sells (Fence doesn't count) keeps its flea price.
 
-**2. Every attachment** is worth its own base price, what it sells for on its own (`guns.partsAtFleaPrice`, on). So a
-gun with a Vudu on it costs about a Vudu more, and taking a gun apart makes no money. Turn it off and attachments go by
-trader prices too, the same way as the gun.
+**2. Every attachment** goes by its own base price, what it sells for on its own (`guns.partsAtFleaPrice`, on), at
+`guns.attachedPartPercent` (70%) of it when it's been added: buyers pay less for parts on a gun than bought one by one,
+so a 100k gun with a 50k grip is about 135k. The parts the gun comes with (its default build), sights, scopes,
+suppressors, tactical devices and loaded rounds keep their full price, so a stock gun costs what it always did and a
+gun with a Vudu on it costs about a Vudu more. Taking a gun apart and selling the parts makes a little; the flip penalty slows that down. Turn
+`partsAtFleaPrice` off and attachments go by trader prices too, the same way as the gun.
 
 **3. Wear.** A worn gun is worth less as a whole, not just its receiver:
 

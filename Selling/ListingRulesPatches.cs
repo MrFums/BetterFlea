@@ -3,6 +3,7 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.Controllers;
 using SPTarkov.Server.Core.DI;
+using SPTarkov.Server.Core.Helpers.Items;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
@@ -19,7 +20,8 @@ public class DisableFleaSellingPatchesLoad(
     ConfigManager configManager,
     HttpResponseUtil httpResponseUtil,
     EventOutputHolder eventOutputHolder,
-    RagfairConfig ragfairConfig) : IOnLoad
+    RagfairConfig ragfairConfig,
+    ItemHelper itemHelper) : IOnLoad
 {
     public Task OnLoadAsync(CancellationToken cancellationToken)
     {
@@ -28,7 +30,7 @@ public class DisableFleaSellingPatchesLoad(
             configManager.Load();
         }
 
-        FleaSellingGate.Bind(configManager, httpResponseUtil, eventOutputHolder, ragfairConfig);
+        FleaSellingGate.Bind(configManager, httpResponseUtil, eventOutputHolder, ragfairConfig, itemHelper);
         new DisableFleaSellingPatch().Enable();
         return Task.CompletedTask;
     }
@@ -43,18 +45,32 @@ internal static class FleaSellingGate
     private static HttpResponseUtil? _http;
     private static EventOutputHolder? _output;
     private static RagfairConfig? _ragfair;
+    private static ItemHelper? _itemHelper;
 
     public static void Bind(
         ConfigManager configManager,
         HttpResponseUtil http,
         EventOutputHolder output,
-        RagfairConfig ragfair)
+        RagfairConfig ragfair,
+        ItemHelper itemHelper)
     {
         _config = configManager;
         _http = http;
         _output = output;
         _ragfair = ragfair;
+        _itemHelper = itemHelper;
     }
+
+    public const string BannedPlateMessage = "Take out the armor plates that can't be sold at the Flea Market first.";
+
+    // Armor plates the flea doesn't take (class 5 and 6 front and back plates), anywhere in the listing: as live, the
+    // armor can't go up with them in. Only plates: a gun's banned parts are allowed (ModdedParts.AllowFleaBannedParts).
+    private static readonly MongoId PlateBase = new("644120aa86ffbe10ee032b6f");
+    private static readonly MongoId SoftInsertBase = new("65649eb40bf0ed77b8044453");
+
+    public static bool AnyBannedPlate(IEnumerable<Item> listed) => _itemHelper is { } helper && listed.Any(item =>
+        helper.IsOfBaseclass(item.Template, PlateBase) && !helper.IsOfBaseclass(item.Template, SoftInsertBase)
+        && helper.GetItem(item.Template).Value?.Properties?.CanSellOnRagfair == false);
 
     public static bool Blocked => _config is not null && !_config.Mod.PlayerSelling.Enabled;
 
@@ -150,6 +166,12 @@ public class DisableFleaSellingPatch : AbstractPatch
         if (FleaSellingGate.AnyBanned(listed.Where(item => roots.Contains(item.Id.ToString()))))
         {
             __result = FleaSellingGate.Fail(sessionID, FleaSellingGate.BannedMessage);
+            return false;
+        }
+
+        if (FleaSellingGate.AnyBannedPlate(listed))
+        {
+            __result = FleaSellingGate.Fail(sessionID, FleaSellingGate.BannedPlateMessage);
             return false;
         }
 

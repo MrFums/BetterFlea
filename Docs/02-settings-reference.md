@@ -85,6 +85,7 @@ How many of an item one offer holds, for items that don't stack (ammo and money 
 | `signalFlares` | up to 2 | Signal flares and toy gun disks. |
 | `ammoBoxes` | up to 3 | Ammo boxes. |
 | `grenadeWeights` | 1, 4, 3, 1, ... | Chance weights for 1, 2, 3... grenades per offer. |
+| `fullMedWeights` | 70, 16, 8, 3.5, 1.5, 1 | Chance weights for 1, 2, 3... full meds per offer: mostly one at a time. |
 | `grenadeBulk`, `stimBulk`, `stimBatch` | rare | Now and then a pile of grenades, a handful of one stim, or a whole stored batch. |
 | `fullStacks` | 3% | Now and then a big stack of full meds, food or drinks (an IFAK x30). |
 | `usedMedStacks` | 3% | A flipper's stack of used medkits, all with the same amount left. |
@@ -196,13 +197,16 @@ plate removal.
 | Setting | Default | What it does |
 |---|---|---|
 | `enabled` | on | Off = SPT's own plates and condition. |
-| `plates` | both 0.6, front 0.12, back 0.08, none 0.2 | Which front and back plates armour comes with. |
+| `plates` | both 0.45, front 0.09, back 0.06, none 0.4 | Which front and back plates armour comes with. |
 | `mixedClassChance` | 0.2 | One class 3 and one class 4 plate. |
 | `class3Chance` | 0.15 | Both class 3 (old or budget kit). |
 | `sidePlateChance` | 0.3 | Armour that takes side plates has them. |
 | `bestKitChance` | 0.05 | Class 4 front and back plus class 6 sides, all mint. The dearest there is. |
 | `flippedDownChance` | 0.3 | A face shield, visor or night vision listed flipped down. |
-| `helmetAttachmentChance` | 0.2 | A helmet comes with something on it. |
+| `helmetAttachmentChance` | 0.2 | A helmet comes with something on it (not a face shield). |
+| `noFaceShieldChance` | 0.25 | A helmet that normally has a face shield (Killa's) is listed without it, priced to match. |
+| `noFaceShieldScamChance` | 0.1 | Of those, the share priced as if the face shield were still on. |
+| `faceShieldChance` | 0.2 | A helmet that comes without a face shield (an Altyn, a Rys-T, a FAST) is listed with one that fits it. |
 | `helmetDamage` | 0.5 | Helmets are rarely wrecked. 1 = as damaged as other armour. |
 | `bossHelmetChance` | 0.25 | A helmet bosses wear sometimes comes off one: good max, low current. |
 | `repairBuffChance` | 0.02 | A repaired piece now and then has a repair kit bonus. |
@@ -252,6 +256,9 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 |---|---|---|
 | `priceMultiplier` | 1.0 | Every generated offer. 1.5 = 50% dearer. The simplest way to make the flea harder or easier. |
 | `categoryMultipliers` | all 1 | **Prices by category**: every kind of item from the Bans tab with its own multiplier, on top of the price multiplier: `ammo.rounds` 0.8, `weapons.guns` 1.5, `other.barterItems` 2. Changes other sellers' offers and the normal price your listing is measured against. Traders unchanged. An item or category ID works in the file too. |
+| `unusableKeys.enabled` | on | **Keys that open nothing**: the door or safe is always open, or gone (Tushonkapedia's list; the live game's map data on tarkov.dev has no lock for any of the doors). They're always listed new, since nobody can have used one, and cost `pricePercent` of their usual price, never under what a trader pays (`floor`). |
+| `unusableKeys.pricePercent` | 10 | What those keys cost, in % of their usual price. |
+| `unusableKeys.keys` | 24 keys | Every key with no use: the ten Health Resort room keys on Shoreline, the Gas station, Store, Weapon and Weather station safe keys, the Folding car, VAZ and Yotota car keys, both Pumping station keys, the Pinewood hotel room 206 key, the Unity Credit Bank archive room key, the RB-PP key and the Missam forklift key. Add any key a map mod leaves without a use. |
 | `floor.enabled` | on | No generated offer under the most a trader pays for the item, so nobody buys on the flea to sell to a trader. |
 | `floor.marginPercent` | 10 | The cheapest offer is this % over that trader price. |
 | `floor.logTraderProfitLoops` | off | Log the items one trader sells for less than another pays. |
@@ -273,7 +280,8 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `demand.recoverMinutes` | 60 | Half the change wears off in this long. |
 | `guns.enabled` | on | Price guns against what traders sell them for, not the sum of their parts' flea prices. [Details](04-guns-and-attachments.md#how-a-gun-is-priced) |
 | `guns.traderPricePercent` | 95 | A part a trader sells is worth this % of the trader's price. |
-| `guns.partsAtFleaPrice` | on | A gun's parts are worth their own flea price; only the gun itself goes by trader prices. So stripping a gun makes no money. |
+| `guns.partsAtFleaPrice` | on | A gun's parts go by their own flea price; only the gun itself goes by trader prices. |
+| `guns.attachedPartPercent` | 70 | With the above: an added part on a gun is worth this % of its own flea price. The gun's default parts, sights, scopes, suppressors, tactical devices and loaded rounds keep 100%. |
 | `guns.fleaShareByLoyalty` | LL3 0.2, LL4 0.5 | Share of the flea price kept over the trader price, by the loyalty the part needs. |
 | `guns.fleaShareByDifficulty` | medium 0.2, hard 0.5, very hard 0.9 | The same by how hard its quest unlock is. [The quest tree](06-quest-tree.md) |
 | `guns.priceAtHalfDurabilityPercent` | 50 | A gun at half durability is worth this % of a new one. 50 = straight line. SPT's own is about 71. |
@@ -291,13 +299,25 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `enabled` | on | Off = players can't sell on the flea at all. |
 | `foundInRaidOnly` | off | Only found-in-raid items can be sold. Off, like live. |
 | `saleDelay.enabled` | on | How fast a listing sells depends on its price against normal. Off = SPT's own sale rolls. |
-| `saleDelay.minMinutes`, `maxMinutes` | 2 to 8 | Wait at the normal price. |
-| `saleDelay.noDelayChance` | 0.1 | Chance of no wait for an offer at or under normal. Not for guns or armour. |
-| `saleDelay.uniqueMinMinutes`, `uniqueMaxMinutes` | 5 to 20 | Wait for a gun, armour or anything with durability at about 100,000 roubles; dearer ones longer. |
-| `saleDelay.slowSaleMaxHours` | 4 | A low-chance sale that happens finds its buyer any time up to this long after listing. |
-| `saleDelay.expensivePercent` | 15 | This far over normal, 1 buyer in 20 is still interested. Dearer still sells now and then, later. |
-| `saleDelay.neverSellsPercent` | 100 | This far over normal it never sells. 100 = twice the normal price. |
-| `saleDelay.cheaperOfferShare` | 0.35 | Another seller has it cheaper: this share of buyers is left for you. |
+| `saleDelay.minMinutes`, `maxMinutes` | 2 to 8 | Only with buyers off: wait for a plain item at the normal price. With buyers on, the buyers decide. Advanced. |
+| `saleDelay.noDelayChance` | 0.1 | Only with buyers off: chance of no wait for a plain item at or under normal. Advanced. |
+| `saleDelay.uniqueMinMinutes` | 1 | Usual wait for a gun, armour or anything with durability at the normal price at 20,000 roubles or less, times the square root of how many times dearer it is (about 2.3 minutes at 110,000, 4 at 340,000). A dear plain item that seldom trades (a GPU, a LEDX) waits the same; a busy one (wires) only seconds. Each wait is random around it, most between half and twice it. |
+| `saleDelay.uniqueMaxMinutes` | 60 | The usual wait at the normal price is never longer than this. A marked key takes about 30 minutes. |
+| `saleDelay.rareWaitMultiplier`, `superrareWaitMultiplier` | 1.25, 1.5 | A rare or superrare item (the game's rarity) waits this many times as long at the normal price: a LEDX about 9 minutes, an 8,250,000 marked key about 30. Advanced. |
+| `saleDelay.slowSaleMaxHours` | 4 | Only with buyers off: a pile priced over normal that does sell finds its buyer any time up to this long after listing. |
+| `saleDelay.expensivePercent` | 15 | Room over normal: 0.8 x this share of the normal price (12%), plus `overpriceRoubles`. Up to half the room over it always sells, at the whole room half the time, from one and a half times the room never; decided once per listing. An item you bought lately never sells past this much over. [Details](07-selling.md#how-likely-it-sells) |
+| `saleDelay.overpriceRoubles` | 8,000 | The rest of the room over normal, in roubles, so a few thousand over on a cheap item hardly matters. |
+| `saleDelay.overpriceRoublesMaxPercent` | 40 | The room in roubles is never more than this share of the normal price. Advanced. |
+| `saleDelay.overpriceDearShrink` | 0.2 | Over 100,000 roubles the room's share of the normal price is (100,000 / normal) to this power times as big: 8% on a LEDX, 5% on a marked key. 0 = off. Advanced. |
+| `saleDelay.overpriceWaitMinutes` | 30 | Usual extra wait for an offer a whole room over normal, where it sells half the time; x^1.5 times this, x being how many rooms over. Advanced. |
+| `saleDelay.dearFromRoubles` | 100,000 | From this normal price an item counts as dear (`overpriceDearShrink`, `overpriceDearSlowdown`). Advanced. |
+| `saleDelay.gearOverpricePercent` | 20 | Room over normal for gear, in % of its normal price: guns, armour, helmets, rigs with plates, anything with durability or with parts in it. Its value hangs on parts, plates and wear, so nobody knows it to the rouble. Single items (wires, a LEDX, a key) get 0.8 × `expensivePercent` instead. |
+| `saleDelay.gearDearFromRoubles` | 300,000 | Gear dearer than this gets less of that room, by (this / normal)^`overpriceDearShrink`. Advanced. |
+| `saleDelay.classicOverpricing` | off | Not recommended. On: 2.5.1's percent rule in place of the room over normal: the same share of the price for every item, no rouble room, no gear room, and buyers keep looking until the offer ends, so a 12 hour offer 40% over still sells most of the time. Only for anyone who preferred how 2.5.1 felt. |
+| `saleDelay.wreckedWaitMultiplier` | 3 | Wrecked armour or a wrecked helmet waits this many times as long for its buyer. Advanced. |
+| `saleDelay.cheaperWaitMultiplier` | 2 | A single thing with durability listed on its own (glasses, a bare helmet, a plate) that another seller has cheaper waits this many times as long. Guns and gear with parts or plates in them aren't compared. Advanced. |
+| `saleDelay.overpriceDearSlowdown` | 0.4 | Over 100,000 roubles an offer over normal waits (normal / 100,000) to this power times as long: twice on a LEDX, 6 times on a marked key. 0 = off. Advanced. |
+| `saleDelay.neverSellsPercent` | 100 | Safety cap: this far over normal nothing sells. 100 = twice the normal price. At the defaults nothing sells past 78% over anyway. |
 | `buyers.enabled` | on | Buyers go down the list, cheapest first. |
 | `buyers.minMinutes`, `maxMinutes` | 0.05 to 0.2 | Time between buyers for an item of about 20,000 roubles; dearer, rarer and less-wanted items wait longer. |
 | `buyers.slowdown`, `recoverMinutes` | 1.1, 10 | Each sale from your offer makes the next buyer a little slower, and it wears off. A pile sells a bit at a time. |
@@ -305,7 +325,7 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `buyers.relistMinMinutes`, `relistMaxMinutes` | 1 to 5 | A bought offer is replaced this long later. |
 | `buyers.rarityMultipliers` | Common 1, Rare 1.5, Superrare 3 | Buyers take this many times longer for a rare item than a common one. 1 = no longer. Advanced. |
 | `saleTime.enabled` | off | Set sale times: a player's offer sells after a wait set per rarity, in place of buyers, other sellers' offers and undercuts. Advanced. [Details](07-selling.md#set-sale-times) |
-| `saleTime.ignorePrice` | off | On: sells in its time whatever the price. Off: over normal it sells less often and later, past `neverSellsPercent` never. |
+| `saleTime.ignorePrice` | off | On: sells in its time whatever the price. Off: over normal it sells less often and later, far enough over never. |
 | `saleTime.commonMinMinutes`, `commonMaxMinutes` | 0 to 1 | Wait for a common item. 0 and 0 = straight away. The defaults are about what an item at the normal price takes with set sale times off. |
 | `saleTime.rareMinMinutes`, `rareMaxMinutes` | 1 to 3 | Wait for a rare item. |
 | `saleTime.superrareMinMinutes`, `superrareMaxMinutes` | 3 to 8 | Wait for a very rare item. |
@@ -313,11 +333,11 @@ Class 5 and 6 front and back plates are flea-banned in this game version, so fro
 | `fleaAccess.repGainMultiplier` | 1 | Flea rep from each sale x this. SPT: +0.02 per 100,000 roubles sold. |
 | `fleaAccess.extraOfferSlots` | 0 | Added to each rep step's offer slots, after the multiplier. Never under 1. |
 | `fleaAccess.offerSlotsMultiplier` | 1 | Each flea rep step's offer slots x this (SPT: 4 at the start, 15 at rep 1000). |
-| `undercut.enabled` | on | When yours is the cheapest offer, now and then another seller lists just under it and takes most of your buyers. |
+| `undercut.enabled` | on | When yours is the cheapest offer, now and then another seller lists just under it and takes most of your buyers. Never for guns, armour or anything with durability. |
 | `undercut.chanceAtNormal`, `chanceWhenDear` | 0.35, 0.8 | How often, at the normal price and at `expensivePercent` over. |
 | `undercut.safeBelowPercent` | 10 | This far under normal you're hardly ever undercut. |
 | `undercut.minMinutes`, `maxMinutes`, `buyersLeft` | 1 to 10, 0.15 | When it happens, and the share of buyers you keep. |
-| `flipPenalty.enabled` | on | Buy many of one item and list them straight away: buyers take longer. |
+| `flipPenalty.enabled` | off | Buy many of one item and list them straight away: buyers take longer. Also, anything bought in the last 48 hours (a part in it too, like one plate) never sells more than 15% over normal; its offers show a Flip penalty tag on the Lookup tab. |
 | `flipPenalty.windowMinutes`, `freePurchases`, `purchasesForMaxPenalty`, `maxExtraMinutes` | 30, 2, 10, 10 | Purchases within 30 minutes count; 2 are free; at 10 the extra wait is the full 10 minutes. |
 | `flipPenalty.countFleaPurchases`, `fenceMultiplier` | on, 3 | Flea purchases count too; one item from Fence counts as three. |
 | `purchaseLock.enabled` | off | Items bought from a trader (Fence too) can never be sold on the flea. Parts on a bought gun too. Stackable items aren't locked. Purchases are remembered while it's off, so turning it on mid-wipe locks what was bought before. |
@@ -367,6 +387,14 @@ Better Flea pricing and live prices aren't meant to run together; with Better Fl
 
 `configs/debug.jsonc`. `debugLogging` (off): write a lot of extra lines to the server log, including every sale
 roll. Only for testing or a bug report.
+
+`saleSpeed` (1): every wait before a player's offer sells is this many times shorter, so a sell test that takes hours
+takes minutes (at 20, a 30-minute sale comes in 90 seconds). Whether an offer sells doesn't change, and the sale odds
+tables show the shorter waits too. Only for testing; leave it at 1 to play.
+
+`showSaleOdds` (off): the settings page shows exactly how often and how fast an offer sells at each price (Item lookup,
+and every player's offer). It counts as a cheat, since a player who can see it prices right up to the limit. Off, each
+player's offer only says roughly how it's priced.
 
 ## Web
 

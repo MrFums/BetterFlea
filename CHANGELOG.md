@@ -1,5 +1,37 @@
 # Changelog
 
+## 2.6.0
+
+**Changes**
+- **Reworked how buyers reach your offers.** Whether an offer sells is decided once, when you list it, so leaving it up longer doesn't help.
+  - Guns and armour at the normal price sell in a few minutes, longer for dearer items. A LEDX takes about 9 minutes and a marked key about 30. Rare and superrare items wait a bit longer (`saleDelay.rareWaitMultiplier`, `superrareWaitMultiplier`).
+  - Plain items sell as fast as they trade. Wires and bulbs go in under a minute, while a GPU or a defibrillator takes a few minutes.
+  - Overpricing is judged in roubles. Each offer gets 12% of its normal price plus 8,000 roubles of room over normal (`saleDelay.overpriceRoubles`, never more than 40% of the price). Up to half that room it always sells, at the full room half the time, and past one and a half times the room it never sells. Dear items get less room and wait longer.
+  - Gear (guns, armour, helmets, rigs with plates) gets more room: 20% of its normal price (`saleDelay.gearOverpricePercent`).
+  - Guns, armour and anything with durability are no longer undercut.
+- **Old overpricing** (Selling tab, `saleDelay.classicOverpricing`, off): goes back to 2.5.1's percentage rule. It's there if you want it, but there's little reason to use it.
+- **The flip penalty is off by default** (`flipPenalty.enabled`). The 48-hour rule (anything bought in the last 48 hours never sells more than 15% over normal) now goes with it. When it's on, the Lookup tab says so and tags the offers it affects. If you changed this setting, yours is kept.
+- **Sale odds are hidden by default.** Offers on the flea now say roughly how each one is priced: underpriced, priced well, a bit dear or overpriced. Admins can show the exact odds with Show exact sale odds (Debug tab, `showSaleOdds`).
+- **Attachments added to a gun count for 70% of their price** (`guns.attachedPartPercent`). A gun's stock parts, sights, suppressors and loaded rounds count in full.
+- **Worn armour keeps more of its value.** Armour, helmets, plates and inserts are never priced under 40% of a new one, however worn. The floor is 55% for class 5 and 65% for class 6, plus 5% more for rare parts and 10% more for superrare ones. A wrecked Killa helmet with its face shield went for about 50k and now goes for about 85k.
+- **More bare plate carriers:** 40% of armour and rigs come with no plates (was 20%).
+- Seller ratings mostly run up to 500 (was 300). Now and then a top seller goes up to 3,000.
+
+**New**
+- **Keys that open nothing** (Prices tab, `unusableKeys`): 24 keys with no use in the game are always listed new and cost 10% of their usual price, never under what a trader pays. The list includes the Health Resort room keys, several safe and car keys, both Pumping station keys and the Missam forklift key.
+- **Helmets without their face shield** (25%) and **helmets with one added** (20%), priced to match.
+- Debug tab: `saleSpeed` makes sales faster, for testing.
+- The settings page is fully translated again.
+
+**Fixes**
+- A gun or armour offer whose sale was lost (the server stopped before the profile saved) never sold. Such offers are now rolled again once after a restart, and never more than once.
+- Armour with class 5 or 6 plates in it (which the flea doesn't take) could be listed. It's now refused until they're taken out.
+- A plain item listed over its normal price could still be bought by the flea's normal buyers, so a marked key a few percent over nearly always sold.
+- Plain items listed for a barter never sold while buyers were on.
+- Wrecked armour and helmets could never sell. Now they sell at a fair price, just slower.
+- The found in raid barter settings showed as "Fir only" on the settings page.
+- With the price multiplier or the wipe cycle on, a gun's normal price ignored them.
+
 ## 2.5.1
 
 **New**
@@ -30,7 +62,7 @@
 - **Flea access** (Selling tab): the level the Flea Market opens at, how many offers a player can have up, and how fast flea rep grows. Offer slots still go up with rep: a multiplier and extra slots change every rep step (2x = 8 at the start, 30 at the top, from SPT's 4 and 15). Players see a new level or slot count after logging in again. Left at the defaults, SPT's values (or another mod's) are kept.
 
 **Changes**
-- **Flea styles** brought up to date. The default, Balanced, is now called **Better Flea (recommended)**: Better Flea as it ships, with its own prices. **Rough market** also makes your own items sell slower, and **Flea sale** faster. **Low memory** also turns price history off. **Base SPT** also turns seller badges off. Picking a style no longer resets Flea access (unlock level, offer slots, rep gain); Reset everything still does.
+- **Flea styles** brought up to date. The default, Balanced, is now called **Better Flea (recommended)**: Better Flea as it ships, with its own prices. **Rough market** also makes your own items sell slower, and **Flea sale** faster. **Low memory** also turns price history off. **Base SPT** also turns seller badges off, but keeps keys that open nothing new and cheap. Picking a style no longer resets Flea access (unlock level, offer slots, rep gain); Reset everything still does.
 - Item lookup shows a gun's base price as the gun only, with its default build's base price (the gun and its parts) under it; the price list on the Economy tab shows the default build next to each gun too. A gun's base price is the bare gun because its parts are priced separately, which made guns look cheap.
 - Modded items show which mod adds them, as a small tag after the name: in Item lookup (search and the item), the players' offers, the Stocks tab and the Economy tab's price list.
 - The settings page says more clearly how Sale speed (the market works each sale out) and Set sale times (fixed waits you choose) differ.

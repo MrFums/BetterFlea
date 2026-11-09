@@ -95,7 +95,111 @@ internal static class ArmorOffers
         }
     }
 
+    // A face shield or armored visor on a helmet: it flips (HasHinge) and it's armor.
+    private static bool IsFaceShield(MongoId tpl) =>
+        _itemHelper!.GetItem(tpl).Value?.Properties?.HasHinge == true && IsHardArmor(tpl);
+
+    // What a face shield left off a scam listing was worth, in roubles: added to its price (ChargeMissingFaceShield).
+    [ThreadStatic] private static double _missingFaceShield;
+
+    // MaybeDropFaceShield took this helmet's face shield off, so FitFaceShield doesn't put another on.
+    [ThreadStatic] private static bool _droppedFaceShield;
+
+    // Now and then a helmet that normally has a face shield (Killa's, an Altyn) is listed without it. Its price is
+    // worked out from what's left, so it's cheaper, except now and then a seller asks the price with the shield on.
+    public static void MaybeDropFaceShield(List<Item> items)
+    {
+        _missingFaceShield = 0;
+        _droppedFaceShield = false;
+        var settings = Settings;
+        var helmet = items.FirstOrDefault();
+        if (!settings.Enabled || helmet is null || !_itemHelper!.IsOfBaseclass(helmet.Template, HeadwearBase))
+        {
+            return;
+        }
+
+        var slots = _itemHelper.GetItem(helmet.Template).Value?.Properties?.Slots ?? [];
+        var shield = items.FirstOrDefault(item => item.ParentId == helmet.Id && IsFaceShield(item.Template)
+            && slots.Any(slot => slot.Name == item.SlotId && slot.Required != true));
+        if (shield is null || Random.Shared.NextDouble() >= settings.NoFaceShieldChance)
+        {
+            return;
+        }
+
+        var gone = new HashSet<string> { shield.Id.ToString() };
+        for (var grew = true; grew;)
+        {
+            grew = false;
+            foreach (var item in items.Where(item => item.ParentId is { } parent && gone.Contains(parent) && !gone.Contains(item.Id.ToString())))
+            {
+                grew |= gone.Add(item.Id.ToString());
+            }
+        }
+
+        if (Random.Shared.NextDouble() < settings.NoFaceShieldScamChance)
+        {
+            _missingFaceShield = items.Where(item => gone.Contains(item.Id.ToString())).Sum(item => BetterFlea.Prices.BookPrice.Of(item.Template));
+        }
+
+        items.RemoveAll(item => gone.Contains(item.Id.ToString()));
+        _droppedFaceShield = true;
+    }
+
+    // Now and then a helmet that comes without a face shield (an Altyn, a Rys-T, a FAST) is listed with one that fits
+    // it, as its last owner had it. Priced with it on, like any part. Not a helmet whose own shield was just taken off
+    // (MaybeDropFaceShield), and not one that already has a shield.
+    public static void FitFaceShield(List<Item> items)
+    {
+        var settings = Settings;
+        var helmet = items.FirstOrDefault();
+        if (!settings.Enabled || helmet is null || _droppedFaceShield || !_itemHelper!.IsOfBaseclass(helmet.Template, HeadwearBase)
+            || items.Any(item => item.ParentId == helmet.Id && IsFaceShield(item.Template))
+            || Random.Shared.NextDouble() >= settings.FaceShieldChance)
+        {
+            return;
+        }
+
+        var options = (_itemHelper.GetItem(helmet.Template).Value?.Properties?.Slots ?? [])
+            .Where(slot => slot.Required != true && slot.Name is not null
+                && !items.Any(item => item.ParentId == helmet.Id && item.SlotId == slot.Name))
+            .SelectMany(slot => PresetOfferGate.Parts(slot)
+                .Where(tpl => IsFaceShield(tpl) && PresetOfferGate.CanGoOnBuild(tpl, slot))
+                .Select(tpl => (Slot: slot.Name!, Tpl: tpl)))
+            .ToList();
+        if (options.Count == 0)
+        {
+            return;
+        }
+
+        var (slotName, shield) = options[Random.Shared.Next(options.Count)];
+        var max = _itemHelper.GetItem(shield).Value?.Properties?.MaxDurability ?? 0;
+        items.Add(new Item
+        {
+            Id = new MongoId(),
+            Template = shield,
+            ParentId = helmet.Id,
+            SlotId = slotName,
+            Upd = max > 0 ? new Upd { Repairable = new UpdRepairable { Durability = max, MaxDurability = max } } : null
+        });
+    }
+
+    // A scam listing from MaybeDropFaceShield: the price with the face shield still on. Before the price is humanised.
+    public static void ChargeMissingFaceShield(SPTarkov.Server.Core.Models.Spt.Ragfair.CreateFleaOfferDetails details)
+    {
+        var missing = _missingFaceShield;
+        _missingFaceShield = 0;
+        if (missing <= 0 || details.Creator != SPTarkov.Server.Core.Models.Enums.OfferCreator.FakePlayer
+            || details.BarterScheme is not [{ Count: { } price } barter] || !_itemHelper!.IsOfBaseclass(barter.Template, SPTarkov.Server.Core.Models.Enums.BaseClasses.MONEY))
+        {
+            return;
+        }
+
+        barter.Count = Math.Round(price + BuildQuality.FromRoubles(missing, barter.Template));
+        DebugLog.Write(() => $"No face shield: {_itemHelper.GetItem(details.Items![0].Template).Value?.Name} priced as if it had one, {price:0} -> {barter.Count:0}");
+    }
+
     // Now and then a helmet has something on it, as its last owner had it: a Bastion's armor plate, a shroud, ears.
+    // Not a face shield: those go by faceShieldChance (FitFaceShield).
     public static void FitHelmetAttachment(List<Item> items)
     {
         var settings = Settings;
@@ -116,7 +220,7 @@ internal static class ArmorOffers
         }
 
         var slot = free[Random.Shared.Next(free.Count)];
-        var parts = PresetOfferGate.Parts(slot).Where(tpl => PresetOfferGate.CanGoOnBuild(tpl, slot)).ToList();
+        var parts = PresetOfferGate.Parts(slot).Where(tpl => !IsFaceShield(tpl) && PresetOfferGate.CanGoOnBuild(tpl, slot)).ToList();
         if (parts.Count == 0)
         {
             return;

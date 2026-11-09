@@ -66,16 +66,23 @@ internal static class SaleDelayGate
     [ThreadStatic] private static bool _lowest;
     [ThreadStatic] private static MongoId? _listedTpl;
     [ThreadStatic] private static bool _plain;
+    [ThreadStatic] private static bool _gear;
     [ThreadStatic] private static double? _normalUsed;
     [ThreadStatic] private static bool _wrecked;
 
-    // Wrecked armour or a wrecked helmet (SellerPricing.IsWrecked) is a hard sell even at its normal price: fewer
-    // buyers want it at all (each roll keeps this share of them, so about 4 in 10 never sell), and the ones who do
-    // take this many times longer to come. Over normal it's harder still, as for anything.
-    internal const double WreckedBuyerShare = 0.6;
-    internal const double WreckedWaitMultiplier = 3;
+    // Wrecked armour or a wrecked helmet (SellerPricing.IsWrecked) is a slow sell even at its normal price: buyers
+    // take this many times longer to come (wreckedWaitMultiplier, 3). It still sells at a fair price, and over normal
+    // as often as anything.
+    internal static double WreckedWaitMultiplier => Math.Max(1, _config?.Mod.PlayerSelling.SaleDelay.WreckedWaitMultiplier ?? 3);
+
+    // One thing with durability listed on its own (glasses, a bare helmet, a plate) that another seller has cheaper (not
+    // well under normal): its buyer takes this many times as long to come (cheaperWaitMultiplier, 2). Guns and anything
+    // with parts or plates in it aren't compared, so this never applies to them.
+    private static double CheaperWaitMultiplier => Math.Max(1, _config?.Mod.PlayerSelling.SaleDelay.CheaperWaitMultiplier ?? 2);
 
     [ThreadStatic] private static bool _bought;
+    [ThreadStatic] private static bool _cheaperUp;
+    [ThreadStatic] private static double _overX;
 
     // How the listing went: its price against normal, and whether no other seller was cheaper. Null ratio = not judged.
     public static (double? Ratio, bool Lowest) Outcome => (_priceRatio, _lowest);
@@ -83,7 +90,7 @@ internal static class SaleDelayGate
     // packUnits: how many of the item a pack offer sells at once (its price is for all of them). 1 otherwise.
     // bought: the player bought it lately (FlipPenaltyGate.BoughtLately), so it gets no long tail: buying at normal and
     // listing far over isn't a way to make money.
-    public static void BeginListing(List<Item>? listed, ItemHelper itemHelper, int packUnits, bool bought = false)
+    public static void BeginListing(List<Item>? listed, ItemHelper itemHelper, int packUnits, bool bought = false, bool moneyOnly = true)
     {
         EndListing();
         _packUnits = Math.Max(1, packUnits);
@@ -96,9 +103,11 @@ internal static class SaleDelayGate
         _listedTpl = listed[0].Template;
         _wrecked = _packUnits == 1 && BetterFlea.Prices.SellerPricing.IsWrecked(listed);
         // Only what the order book's buyers take (OrderBook.Handles): a lone gun or thing with durability (glasses,
-        // a bare helmet) gets the roll, or nothing would ever buy it.
-        _plain = listed.Count == 1 && _packUnits == 1 && listed[0].Upd?.Repairable is null
+        // a bare helmet) gets the roll, or nothing would ever buy it. Nor does a barter (items asked, not money): the
+        // buyers only pay money, so it's rolled once like a gun.
+        _plain = moneyOnly && listed.Count == 1 && _packUnits == 1 && listed[0].Upd?.Repairable is null
             && !itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON);
+        _gear = IsGear(listed, itemHelper);
 
         // One plain item (not a gun, not a pack) is up against the same item from other sellers.
         if (listed.Count == 1 && _packUnits == 1 && !itemHelper.IsOfBaseclass(listed[0].Template, BaseClasses.WEAPON))
@@ -110,11 +119,26 @@ internal static class SaleDelayGate
         // A gun goes by the trader-based value the flea's guns use; with that off, by its parts like anything else.
         if (BetterFlea.Prices.GunPricing.Applies(listed))
         {
-            _gunValue = BetterFlea.Prices.GunPricing.Value(listed) * BetterFlea.Prices.GunPricing.Condition(listed);
+            _gunValue = GunNormal(listed);
             return;
         }
 
         _contentsValue = ContentsValue(listed);
+    }
+
+    // Gear, which gets more room over normal (gearOverpricePercent): a gun, anything with durability (armour, a
+    // helmet, glasses), or anything with parts in it (plates, inserts, attachments). Not a single plain item, nor a
+    // pack of them.
+    public static bool IsGear(List<Item> items, ItemHelper itemHelper)
+    {
+        if (items.Count == 0)
+        {
+            return false;
+        }
+
+        var ids = items.Select(item => item.Id.ToString()).ToHashSet();
+        return itemHelper.IsOfBaseclass(items[0].Template, BaseClasses.WEAPON)
+            || items.Any(item => item.Upd?.Repairable is not null || (item.ParentId is { } parent && ids.Contains(parent.ToString())));
     }
 
     // What one of this item (with everything in it) normally sells for in roubles: the price SellChance measures a
@@ -128,11 +152,19 @@ internal static class SaleDelayGate
 
         if (BetterFlea.Prices.GunPricing.Applies(listed))
         {
-            return BetterFlea.Prices.GunPricing.Value(listed) * BetterFlea.Prices.GunPricing.Condition(listed);
+            return GunNormal(listed);
         }
 
         return ContentsValue(listed);
     }
+
+    // A gun's normal price: its value for its condition, moved by the market multiplier and the wipe as other
+    // sellers' guns are (SellerPricing.ApplyMultiplier), so it's measured against the same prices they ask. Never
+    // under what traders pay for all of it, as with other sellers' guns.
+    private static double GunNormal(List<Item> listed) =>
+        Math.Max(BetterFlea.Prices.GunPricing.Value(listed) * BetterFlea.Prices.GunPricing.Condition(listed)
+            * (_config?.Mod.Prices.PriceMultiplier ?? 1.0) * BetterFlea.Prices.WipeEconomy.Factor(listed[0].Template),
+            BetterFlea.Prices.PriceGate.FloorForItems(listed, Money.ROUBLES));
 
     public static void EndListing()
     {
@@ -144,17 +176,117 @@ internal static class SaleDelayGate
         _lowest = false;
         _listedTpl = null;
         _plain = false;
+        _gear = false;
         _normalUsed = null;
         _wrecked = false;
         _bought = false;
+        _cheaperUp = false;
+        _overX = 0;
+        _firstBuyer = null;
     }
 
-    // Chance a buyer takes an offer at this price against normal: certain up to normal, falling to 1 in 20 at
-    // expensivePercent over, then on to none at neverSellsPercent over. It's a buyer's chance, and buyers keep coming
-    // (the order book's re-rolls), so a dear offer (a worn armour at what new ones go for) still sells, just later:
-    // a 47k armour at 40% over in about 2 hours, at 80% over 1 in 3 before it expires.
-    // tail false: nothing past expensivePercent (an item the player bought lately).
-    public static double BuyerTakes(double ratio, bool tail = true)
+    // A gun, armour or anything else the order book doesn't take: minutes from listing to its buyer, if it sells.
+    // Null for anything else.
+    [ThreadStatic] private static double? _firstBuyer;
+
+    // How far over normal an offer is, as buyers feel it (x): the roubles over against an allowance of
+    // 0.8 x expensivePercent of the normal price (12% at 15) plus overpriceRoubles (8,000), that part never more than
+    // overpriceRoublesMaxPercent of the normal price (40%). Over DearFrom (100,000) the 12% shrinks by
+    // (100,000 / normal)^overpriceDearShrink (0.22): 9% on a 730,000 LEDX, 4.6% on an 8,250,000 marked key, so nobody
+    // makes a million on a dear item by overpricing it. A few thousand over on a cheap item hardly counts, and the same
+    // share over on a dear one does. Price and normal are for one of the item, as listed (a key's uses left, armour's
+    // durability and plates, a gun's parts). 0 at or under normal.
+    // gear (IsGear): the share is gearOverpricePercent (20%) instead, shrinking only past gearDearFromRoubles (300,000).
+    public static double OverpriceX(double price, double normal, bool gear = false)
+    {
+        if (normal <= 0 || price <= normal)
+        {
+            return 0;
+        }
+
+        var settings = _config?.Mod.PlayerSelling.SaleDelay;
+        var shrink = Math.Max(0, settings?.OverpriceDearShrink ?? 0.22);
+        var share = gear
+            ? Math.Max(0.01, (settings?.GearOverpricePercent ?? 20) / 100.0)
+                * Math.Pow(Math.Min(1, Math.Max(1, settings?.GearDearFromRoubles ?? 300000) / normal), shrink)
+            : Math.Max(0.01, (settings?.ExpensivePercent ?? 15) / 100.0 * 0.8) * Math.Pow(Math.Min(1, DearFrom / normal), shrink);
+        var flat = Math.Min(Math.Max(0, settings?.OverpriceRoubles ?? 8000),
+            Math.Max(0, settings?.OverpriceRoublesMaxPercent ?? 40) / 100.0 * normal);
+        return (price - normal) / Math.Max(1, share * normal + flat);
+    }
+
+    // Chance an offer at this price sells at all before it ends, decided once, so leaving it up longer doesn't help.
+    // Certain up to x 0.5 (OverpriceX), then falling smoothly, 0.5^((2x-1)^3): 96% at x 0.7, half at x 1, 1 in 7
+    // at x 1.2, 1 in 30 at x 1.35, none from x 1.5. Never from neverSellsPercent over normal. tail false (an item
+    // the player bought lately, FlipPenaltyGate.BoughtLately): none past expensivePercent over.
+    public static double OverpriceSells(double price, double normal, bool tail = true, bool gear = false)
+    {
+        if (normal <= 0 || price <= normal)
+        {
+            return 1;
+        }
+
+        if (Classic)
+        {
+            return ClassicSells(price / normal, normal, tail);
+        }
+
+        var over = price / normal - 1;
+        var settings = _config?.Mod.PlayerSelling.SaleDelay;
+        if (over >= (settings?.NeverSellsPercent ?? 100) / 100.0 || (!tail && over > (settings?.ExpensivePercent ?? 15) / 100.0))
+        {
+            return 0;
+        }
+
+        var x = OverpriceX(price, normal, gear);
+        if (x <= 0.5)
+        {
+            return 1;
+        }
+
+        return x >= 1.5 ? 0 : Math.Pow(0.5, Math.Pow(2 * x - 1, 3));
+    }
+
+    // Where an item counts as dear (dearFromRoubles, 100,000): past this, the room over normal shrinks and the wait
+    // over normal grows.
+    private static double DearFrom => Math.Max(1, _config?.Mod.PlayerSelling.SaleDelay.DearFromRoubles ?? 100000);
+
+    // Median minutes an offer this far over (OverpriceX) that sells waits on top of its wait at the normal price:
+    // 30 x x^1.5, so 3 at x 0.2, 17 at x 0.68, 30 at x 1, 50 at x 1.4. Over DearFrom, times
+    // (normal / 100,000)^overpriceDearSlowdown (0.4): twice as long for a 730,000 LEDX, 6 times for an 8,250,000 key.
+    public static double OverpriceMinutes(double x, double normal)
+    {
+        if (x <= 0)
+        {
+            return 0;
+        }
+
+        var slowdown = Math.Max(0, _config?.Mod.PlayerSelling.SaleDelay.OverpriceDearSlowdown ?? 0.4);
+        var minutes = Math.Max(0, _config?.Mod.PlayerSelling.SaleDelay.OverpriceWaitMinutes ?? 30);
+        return minutes * Math.Pow(x, 1.5) * Math.Pow(Math.Max(1, normal / DearFrom), slowdown);
+    }
+
+    // One such wait: OverpriceMinutes give or take, never straight away. Most land between half and twice it, about
+    // 1 in 100 under a quarter of it, so an offer that usually takes 3 hours doesn't sell in 10 minutes.
+    public static double OverpriceWait(double x, double normal) => OverpriceMinutes(x, normal) * Spread(0.6) * Speed;
+
+    // The wait over normal for an offer that sells: OverpriceWait, or with classicOverpricing on, ClassicWait.
+    // price and normal of one item; x its OverpriceX.
+    internal static double OverWait(double price, double normal, double x, bool tail = true) =>
+        Classic ? ClassicWait(normal > 0 ? price / normal : 1, normal, tail) : OverpriceWait(x, normal);
+
+    // classicOverpricing (off by default, not recommended): 2.5.1's overpricing in place of the rouble room above.
+    // Every item gets the same room as a share of its price (expensivePercent), with no rouble room, no gear room and
+    // no less room on dear items. In 2.5.1 a new buyer looked at an offer every so often until it ended, each taking
+    // it as often as BuyerTakes says, so a dear offer still sold if left up long enough. Here those looks are summed
+    // into the one chance decided at listing (ClassicSells), and the wait is when the buyer that took it came
+    // (ClassicWait). Only OverpriceSells and OverWait read it, so with it off nothing here runs.
+    internal static bool Classic => _config?.Mod.PlayerSelling.SaleDelay.ClassicOverpricing == true;
+
+    // 2.5.1's chance one buyer takes an offer at this price against normal: certain up to normal, falling to 1 in 20
+    // at expensivePercent over, then on to none at neverSellsPercent over. tail false: nothing past expensivePercent
+    // (an item the player bought lately).
+    internal static double BuyerTakes(double ratio, bool tail = true)
     {
         var over = ratio - 1;
         var settings = _config?.Mod.PlayerSelling.SaleDelay;
@@ -164,6 +296,48 @@ internal static class SaleDelayGate
             : over <= limit ? Math.Exp(-Math.Log(20) / limit * over)
             : over >= never || !tail ? 0
             : 0.05 * Math.Pow((never - over) / (never - limit), 2);
+    }
+
+    // 2.5.1: minutes between buyers looking at an offer, half a unique wait (5 to 20 minutes, 12.5 on average, times
+    // how dear it is: the square root of normal / 100,000, from 0.5 to 3).
+    private static double ClassicGapMinutes(double normal) =>
+        12.5 * Math.Clamp(Math.Sqrt(Math.Max(1, normal) / 100000), 0.5, 3) * OrderBook.BuyerGap;
+
+    // How many buyers look at an offer before it ends (the first one when it's listed).
+    private static int ClassicLooks(double normal) => 1 + (int)(OfferHours * 60 / ClassicGapMinutes(normal));
+
+    // Chance one of those buyers takes it: 1 - (1 - BuyerTakes)^looks. About 95% at 40% over for a 12 hour offer.
+    internal static double ClassicSells(double ratio, double normal, bool tail = true)
+    {
+        var p = BuyerTakes(ratio, tail);
+        return p >= 1 ? 1 : p <= 0 ? 0 : 1 - Math.Pow(1 - p, ClassicLooks(normal));
+    }
+
+    // Minutes after its normal wait that the buyer who took it came, given that one did: the look it happened on,
+    // drawn as 2.5.1 would have it.
+    internal static double ClassicWait(double ratio, double normal, bool tail = true)
+    {
+        var p = BuyerTakes(ratio, tail);
+        if (ratio <= 1 || p <= 0 || p >= 1)
+        {
+            return 0;
+        }
+
+        var any = 1 - Math.Pow(1 - p, ClassicLooks(normal));
+        var look = Math.Floor(Math.Log(1 - Random.Shared.NextDouble() * any) / Math.Log(1 - p));
+        return look * ClassicGapMinutes(normal) * Speed;
+    }
+
+    // Testing only (debug.jsonc saleSpeed): every wait before a player's offer sells is this share as long. 1 = real time.
+    internal static double Speed => 1 / Math.Clamp(_config?.Mod.SaleSpeed ?? 1, 1, 1000);
+
+    // A random factor around 1 (lognormal): half the time under 1, half over; with spread 0.6 most fall between 0.5
+    // and 2, with 0.5 between 0.55 and 1.8.
+    internal static double Spread(double spread)
+    {
+        var u = 1 - Random.Shared.NextDouble();
+        var gauss = Math.Sqrt(-2 * Math.Log(u)) * Math.Cos(2 * Math.PI * Random.Shared.NextDouble());
+        return Math.Exp(spread * gauss);
     }
 
     // How much longer than at the normal price a buyer takes at this price: about a tenth 10% under, 4x at 15% over,
@@ -208,6 +382,24 @@ internal static class SaleDelayGate
         var chance = Math.Clamp((sellChancePercent ?? 0) / 100, 0, 1);
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var end = OfferEndsAt() ?? now + 24 * 3600;
+
+        // A gun, armour or anything with durability: whether it sells at all is decided now, as often as the price
+        // says (OverpriceSells). If it does, its buyer comes after the wait at the normal price plus the longer wait
+        // for how far over it is (OverpriceWait).
+        if (!_plain)
+        {
+            var first = FirstBuyerWait(OverWait((_priceRatio ?? 1) * (_normalUsed ?? 0), _normalUsed ?? 0, _overX, !_bought));
+            _firstBuyer = first;
+            var firstAt = now + Math.Max(5, (long)Math.Round(first * 60));
+            if (Random.Shared.NextDouble() >= chance || firstAt > end)
+            {
+                DebugLog.Write(() => $"Sale roll: the first buyer in {first:0.#} min passes at x{_priceRatio ?? 1:0.00} ({chance:P0})");
+                return [];
+            }
+
+            DebugLog.Write(() => $"Sale roll: sells in {first:0.#} min at x{_priceRatio ?? 1:0.00}");
+            return [new SellResult { SellTime = firstAt, Amount = count }];
+        }
         var ammo = _itemHelper.IsOfBaseclass(tpl, BaseClasses.AMMO);
         var stackMax = Math.Max(1, _itemHelper.GetItem(tpl).Value?.Properties?.StackMaxSize ?? 1);
         var shortest = _ragfairConfig.Sell.Time.Min * 60;
@@ -234,6 +426,45 @@ internal static class SaleDelayGate
         return sales;
     }
 
+    // A gun or armour offer that came back from a restart with no sale and no note of its roll (GearRolls): rolled
+    // now as RollForSale would have when it was listed, for the time it has left. The flip penalty's wait isn't
+    // added again.
+    internal static void RollLoaded(RagfairOffer offer, MongoId player, long now)
+    {
+        if (Settings is null || Fixed is not null || _itemHelper is null || offer.Items is not { Count: > 0 } items
+            || offer.RequirementsCost is not { } price || price <= 0 || offer.EndTime is not { } end)
+        {
+            return;
+        }
+
+        var moneyOnly = offer.Requirements?.All(requirement => _itemHelper.IsOfBaseclass(requirement.TemplateId, BaseClasses.MONEY)) != false;
+        try
+        {
+            BeginListing(items, _itemHelper, 1, FlipPenaltyGate.BoughtLately(player, items), moneyOnly);
+            if (_plain || NormalPrice(items) is not { } normal || SellChance(normal, price, 1) is not { } percent)
+            {
+                return;
+            }
+
+            var first = FirstBuyerWait(OverWait((_priceRatio ?? 1) * (_normalUsed ?? 0), _normalUsed ?? 0, _overX, !_bought));
+            var at = now + Math.Max(5, (long)Math.Round(first * 60));
+            var name = items[0].Template;
+            if (Random.Shared.NextDouble() >= percent / 100 || at > end)
+            {
+                DebugLog.Summary(() => $"Sale roll after a restart: {name} at x{_priceRatio ?? 1:0.00} ({percent:0.#}%) finds no buyer");
+                return;
+            }
+
+            offer.SellResults ??= [];
+            offer.SellResults.Add(new SellResult { SellTime = at, Amount = Math.Max(1, offer.Quantity) });
+            DebugLog.Summary(() => $"Sale roll after a restart: {name} at x{_priceRatio ?? 1:0.00} sells in {first:0.#} min");
+        }
+        finally
+        {
+            EndListing();
+        }
+    }
+
     // Set sale times (saleTime), or null with them off.
     internal static SaleTimeConfig? Fixed =>
         _config?.Mod.PlayerSelling is { Enabled: true } selling && selling.SaleTime.Enabled ? selling.SaleTime : null;
@@ -252,9 +483,9 @@ internal static class SaleDelayGate
     }
 
     // Under set sale times: the chance an offer at this price sells at all, and how many times the wait it takes.
-    // Over normal, as with saleDelay (BuyerTakes, WaitScale), unless ignorePrice.
-    internal static double FixedChance(SaleTimeConfig set, double ratio, bool bought = false) =>
-        set.IgnorePrice ? 1 : BuyerTakes(ratio, !bought);
+    // Over normal, as with saleDelay (OverpriceSells, WaitScale), unless ignorePrice. Price and normal of one item.
+    internal static double FixedChance(SaleTimeConfig set, double price, double normal, bool bought = false) =>
+        set.IgnorePrice ? 1 : OverpriceSells(price, normal, !bought);
 
     internal static double FixedScale(SaleTimeConfig set, double ratio) =>
         set.IgnorePrice || ratio <= 1 ? 1 : WaitScale(ratio);
@@ -409,25 +640,32 @@ internal static class SaleDelayGate
 
         var ratio = listedPrice / normal;
         _priceRatio = ratio;
-        _normalUsed = normal / Math.Max(1, _packUnits);
+        // One of the item: the rouble allowance over normal (OverpriceX) is per item, not per pack.
+        var each = listedPrice / Math.Max(1, _packUnits);
+        var normalEach = normal / Math.Max(1, _packUnits);
+        _normalUsed = normalEach;
         DebugLog.Write(() => $"Sale check: listed {listedPrice:0} RUB against a normal {normal:0} (SPT's average says {normalPrice:0}), x{ratio:0.00}");
         if (set is not null)
         {
-            return Math.Round(100 * FixedChance(set, ratio, _bought), 1);
+            return Math.Round(100 * FixedChance(set, each, normalEach, _bought), 1);
         }
 
-        var chance = 100 * BuyerTakes(ratio, !_bought) * (_wrecked ? WreckedBuyerShare : 1);
+        // Whether it sells at all, decided once: leaving it up longer doesn't help a dear offer.
+        _overX = OverpriceX(each, normalEach, _gear);
+        var chance = 100 * OverpriceSells(each, normalEach, !_bought, _gear);
         if (chance <= 0)
         {
             return 0;
         }
 
-        // Buyers take a cheaper offer of the same item first, unless this one is well under normal.
+        // Buyers take a cheaper offer of the same item first, unless this one is well under normal: a gun, armour or
+        // anything with durability waits longer for its buyer (CheaperWaitMultiplier). A plain item's buyers go
+        // cheapest first anyway (OrderBook).
         _lowest = _cheapest is not { } cheapest || listedPrice <= cheapest;
         var safe = 1 - Math.Clamp(_config!.Mod.PlayerSelling.Undercut.SafeBelowPercent, 0, 90) / 100;
         if (!_lowest && ratio > safe)
         {
-            chance *= Math.Clamp(settings!.CheaperOfferShare, 0, 1);
+            _cheaperUp = true;
             DebugLog.Write(() => $"Sale check: another seller has it for {_cheapest:0} RUB, cheaper than {listedPrice:0}");
         }
 
@@ -444,24 +682,47 @@ internal static class SaleDelayGate
         _ragfairConfig = ragfairConfig;
     }
 
-    // How much longer a dear unique item takes than a cheap one: 1 at 100,000 roubles, with the root of the price.
-    internal static double Dearness(double? normal = null) =>
-        Math.Clamp(Math.Sqrt(Math.Max(1, normal ?? _normalUsed ?? 100000) / 100000), 0.5, 3);
-
-    // One wait at the normal price for a unique item worth this much: uniqueMinMinutes to uniqueMaxMinutes, longer
-    // the dearer. At least a minute.
-    public static double UniqueWaitMinutes(double normal)
+    // Usual minutes an item at the normal price waits for a buyer, by what it's worth: uniqueMinMinutes at 20,000
+    // roubles or less, times the square root of how many times dearer it is, times rareWaitMultiplier (1.25) or
+    // superrareWaitMultiplier (1.5) for a rare item, never over uniqueMaxMinutes. At 1 and 60: a 33k gun 1.3, a 110k
+    // one 2.3, a 300k GPU (superrare) 5.7, a 720k LEDX (superrare) 9, an 8,250,000 marked key (superrare) 30.
+    internal static double PriceWait(double? normal = null, MongoId? tpl = null)
     {
         var settings = _config?.Mod.PlayerSelling.SaleDelay;
-        var low = settings?.UniqueMinMinutes ?? 5;
-        var high = Math.Max(low, settings?.UniqueMaxMinutes ?? 20);
-        return Math.Max(1, (low + Random.Shared.NextDouble() * (high - low)) * Dearness(normal));
+        var low = Math.Max(0, settings?.UniqueMinMinutes ?? 1);
+        var high = Math.Max(low, settings?.UniqueMaxMinutes ?? 60);
+        var rarity = (tpl ?? _listedTpl) is { } id ? _itemHelper?.GetItem(id).Value?.Properties?.RarityPvE : null;
+        var rare = rarity switch
+        {
+            "Superrare" => Math.Max(0, settings?.SuperrareWaitMultiplier ?? 1.5),
+            "Rare" => Math.Max(0, settings?.RareWaitMultiplier ?? 1.25),
+            _ => 1
+        };
+        var dearer = Math.Max(1, (normal ?? _normalUsed ?? 100000) / 20000);
+        return Math.Min(high, low * Math.Sqrt(dearer) * rare);
     }
+
+    // One such wait: PriceWait give or take, most between about half and twice it (Spread 0.5), so a marked key at
+    // the normal price usually takes 15 minutes to an hour and seldom sells straight away.
+    internal static double RolledPriceWait(double? normal = null, MongoId? tpl = null) => PriceWait(normal, tpl) * Spread(0.5) * Speed;
+
+    // Minutes to the buyer of the gun or armour being listed: one unique wait, less when it's cheaper than normal
+    // (WaitScale), three times as long when wrecked, plus extraMinutes for how far over normal it is (OverpriceWait),
+    // all twice as long when another seller has it cheaper, plus the flip penalty.
+    private static double FirstBuyerWait(double extraMinutes = 0)
+    {
+        var wait = RolledPriceWait() * WaitScale(Math.Min(1, _priceRatio ?? 1)) * (_wrecked ? WreckedWaitMultiplier : 1) + extraMinutes;
+        return wait * (_cheaperUp ? CheaperWaitMultiplier : 1) + FlipPenaltyGate.ExtraWaitMinutes();
+    }
+
+    // One wait at the normal price for a unique item worth this much (RolledPriceWait). At least a minute.
+    public static double UniqueWaitMinutes(double normal, MongoId? tpl = null) => Math.Max(Speed, RolledPriceWait(normal, tpl));
 
     public static void Delay(List<SellResult> sales)
     {
         var settings = _config?.Mod.PlayerSelling.SaleDelay;
-        if (settings is null || !settings.Enabled || sales.Count == 0 || Fixed is not null)
+        // A gun or armour was timed when it was rolled (RollForSale).
+        if (settings is null || !settings.Enabled || sales.Count == 0 || Fixed is not null || _firstBuyer is not null)
         {
             return;
         }
@@ -478,10 +739,10 @@ internal static class SaleDelayGate
         }
 
         var scale = WaitScale(ratio);
-        var (low, high) = unique
-            ? (settings.UniqueMinMinutes * Dearness(), settings.UniqueMaxMinutes * Dearness())
-            : (settings.MinMinutes, settings.MaxMinutes);
-        var waitMinutes = (low + Random.Shared.NextDouble() * Math.Max(0, high - low)) * scale * (_wrecked ? WreckedWaitMultiplier : 1) + flipMinutes;
+        var low = settings.MinMinutes;
+        var high = Math.Max(low, settings.MaxMinutes);
+        var wait = unique ? RolledPriceWait() : (low + Random.Shared.NextDouble() * (high - low)) * Speed;
+        var waitMinutes = wait * scale * (_wrecked ? WreckedWaitMultiplier : 1) + flipMinutes;
         var waitSeconds = (long)Math.Round(waitMinutes * 60.0);
         if (waitSeconds <= 0)
         {
@@ -609,7 +870,7 @@ internal static class FlipPenaltyGate
     private static readonly ConcurrentDictionary<MongoId, ConcurrentDictionary<string, long>> BoughtItems = new();
 
     // Player -> item id -> when it was bought, for NoTailHours whatever the flip penalty's settings, so an item bought
-    // to sell on gets no long tail (SaleDelayGate.BuyerTakes): past expensivePercent over normal it never sells.
+    // to sell on gets no long tail (SaleDelayGate.OverpriceSells): past expensivePercent over normal it never sells.
     private static readonly ConcurrentDictionary<MongoId, ConcurrentDictionary<string, long>> HeldItems = new();
     private const double NoTailHours = 48;
 
@@ -851,7 +1112,8 @@ internal static class FlipPenaltyGate
             ? (int)(offerRequest.Items ?? []).Sum(id => pmcData.Inventory!.Items!.FirstOrDefault(i => i.Id == id)?.Upd?.StackObjectsCount ?? 1)
             : 1;
         var tree = item is null ? null : pmcData.Inventory!.Items!.GetItemWithChildren(item.Id);
-        SaleDelayGate.BeginListing(tree, _itemHelper!, packUnits, tree is not null && BoughtLately(player, tree));
+        var moneyOnly = offerRequest.Requirements?.All(requirement => _itemHelper!.IsOfBaseclass(requirement.Template, BaseClasses.MONEY)) != false;
+        SaleDelayGate.BeginListing(tree, _itemHelper!, packUnits, tree is not null && BoughtLately(player, tree), moneyOnly);
     }
 
     public static void EndListing()
@@ -964,7 +1226,7 @@ internal static class FlipPenaltyGate
         }
 
         var weight = RecentWeight(listing.Player, listing.Tpl);
-        var extra = ShareOfMax(settings, weight) * settings.MaxExtraMinutes;
+        var extra = ShareOfMax(settings, weight) * settings.MaxExtraMinutes * SaleDelayGate.Speed;
         if (extra > 0)
         {
             DebugLog.Write(() => $"Flip penalty: {Name(listing.Tpl)} listed after buying {weight:0.0} recently, +{extra:0} min before the first buyer");
@@ -996,7 +1258,8 @@ internal static class FlipPenaltyGate
     // goes by its item type, since stacks split and merge under new ids.
     public static bool BoughtLately(MongoId player, IEnumerable<Item> items)
     {
-        if (!HeldItems.TryGetValue(player, out var held) || held.IsEmpty)
+        // Part of the flip penalty: off with it.
+        if (Settings is null || !HeldItems.TryGetValue(player, out var held) || held.IsEmpty)
         {
             return false;
         }
@@ -1079,6 +1342,14 @@ public class ListingContextPatch : AbstractPatch
         try
         {
             var (ratio, lowest) = SaleDelayGate.Outcome;
+            // A gun or armour was rolled just now: note it, so a restart never rolls it again (GearRolls).
+            if (__result?.Warnings is not { Count: > 0 }
+                && __result?.ProfileChanges?.GetValueOrDefault(sessionID)?.RagFairOffers?.LastOrDefault() is { } listed
+                && listed.SellInOnePiece != true && listed.Items is { Count: > 0 } && !OrderBook.Handles(listed))
+            {
+                GearRolls.Mark(listed);
+            }
+
             Undercuts.AfterListing(sessionID, pmcData.RagfairInfo?.Offers, __result, ratio, lowest);
             if (__result?.Warnings is not { Count: > 0 })
             {

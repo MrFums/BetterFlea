@@ -7,21 +7,34 @@
   "notifications": true,             // false = no pop-ups or Messenger messages about the flip penalty, or about a trader item that can't be listed
 
   // How fast a player's offer sells depends on its price against the normal price.
-  // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: longer and
-  // less likely: past expensivePercent over the normal price only now and then, after a long wait, and past
-  // neverSellsPercent over it never sells. The normal price goes by what's in
+  // Cheaper than normal: sells in under a minute. At the normal price: minMinutes to maxMinutes. Dearer: whether it
+  // sells at all is decided once, by the roubles over: against an allowance of 0.8 x expensivePercent of the normal
+  // price plus overpriceRoubles. Up to half the allowance over it always sells, at the whole allowance half the time,
+  // from one and a half times it never; the further over, the longer it takes. The normal price goes by what's in
   // the item: its parts, plates and their condition, and where the market has the item right now.
   "saleDelay": {
     "enabled": true,
-    "minMinutes": 2,                 // shortest wait at the normal price
-    "maxMinutes": 8,                 // longest wait at the normal price
-    "noDelayChance": 0.1,            // chance of no wait at all, for offers at or under the normal price. 0.1 = 10%. Not for guns or armour
-    "uniqueMinMinutes": 5,           // a gun, armour or anything with durability at the normal price waits this long for a buyer
-    "uniqueMaxMinutes": 20,          // (random between) at about 100,000 roubles; dearer ones longer (a 500,000 gun about twice as long)
-    "slowSaleMaxHours": 4,           // an offer with a low chance to sell (priced over normal) that does sell finds its buyer any time up to this many hours later
-    "expensivePercent": 15,          // this much over the normal price, only 1 in 20 buyers is still interested; dearer still sells now and then, much later
-    "neverSellsPercent": 100,        // this much over the normal price (100 = twice it), it never sells
-    "cheaperOfferShare": 0.35        // another seller already has it cheaper: this share of buyers is left. Not for offers well under normal (undercut.safeBelowPercent)
+    "minMinutes": 2,                 // only with buyers off: shortest wait for a plain item at the normal price
+    "maxMinutes": 8,                 // only with buyers off: longest wait for a plain item at the normal price
+    "noDelayChance": 0.1,            // only with buyers off: chance of no wait at all for a plain item at or under the normal price. 0.1 = 10%
+    "uniqueMinMinutes": 1,           // a gun, armour or anything with durability at the normal price usually waits this long at 20,000 roubles or less, times the square root of how many times dearer (dear plain items like a GPU too)
+    "uniqueMaxMinutes": 60,          // ...but usually never longer than this. About 2.3 minutes at 110,000, 9 for a LEDX, 30 for a marked key
+    "rareWaitMultiplier": 1.25,      // a rare item (the game's rarity) waits this many times as long at the normal price
+    "superrareWaitMultiplier": 1.5,  // and a superrare one this many times
+    "slowSaleMaxHours": 4,           // only with buyers off: a pile priced over normal that does sell finds its buyer any time up to this many hours later
+    "expensivePercent": 15,          // 0.8 x this share of the normal price (12%) is part of the allowance over normal. An item you bought lately never sells past this much over
+    "neverSellsPercent": 100,        // safety cap: this much over the normal price (100 = twice it), nothing sells. At the defaults nothing sells past 78% over anyway
+    "overpriceRoubles": 8000,        // the rest of the allowance over normal, in roubles, so a few thousand over on a cheap item hardly matters...
+    "overpriceRoublesMaxPercent": 40, // ...but never more than this share of the normal price
+    "overpriceDearShrink": 0.2,      // over 100,000 roubles the 12% shrinks by (100,000 / normal)^this: 8% on a LEDX, 5% on a marked key. 0 = off
+    "overpriceDearSlowdown": 0.4,    // over 100,000 roubles the wait over normal is (normal / 100,000)^this times as long: twice on a LEDX, 6 times on a marked key. 0 = off
+    "overpriceWaitMinutes": 30,      // usual extra wait at the whole room over normal (where it sells half the time); x^1.5 times this, x = how many rooms over
+    "dearFromRoubles": 100000,       // from this normal price an item counts as dear (overpriceDearShrink, overpriceDearSlowdown)
+    "gearOverpricePercent": 20,      // room over normal for gear (guns, armour, helmets, rigs with plates, anything with durability or parts in it), in % of its normal price; single items get 0.8 x expensivePercent
+    "gearDearFromRoubles": 300000,   // gear dearer than this gets less of that room (overpriceDearShrink)
+    "classicOverpricing": false,     // true = 2.5.1's percent rule in place of the room above. Not recommended: only for anyone who preferred how 2.5.1 felt
+    "wreckedWaitMultiplier": 3,      // wrecked armour or a wrecked helmet waits this many times as long for its buyer
+    "cheaperWaitMultiplier": 2       // one thing with durability on its own (glasses, a bare helmet, a plate) that another seller has cheaper waits this many times as long
   },
 
   // Buyers go down the list. For the item you have open and every item a player has listed (one item per offer, not
@@ -75,6 +88,7 @@
   // Other sellers watch the market. A player's offer that's the cheapest one up gets, now and then, another seller
   // listing just under it (a rouble under, or a round number under) a few minutes later, who takes most of its
   // buyers. The dearer the offer, the likelier. One well under the normal price sells before anyone bothers.
+  // Guns, armour and anything with durability are never undercut: buyers judge each on its own price.
   "undercut": {
     "enabled": true,
     "chanceAtNormal": 0.35,          // chance for an offer at the normal price
@@ -87,9 +101,11 @@
 
   // A player who buys many of one item, then sells it on the Flea Market, waits longer for a buyer.
   // Only the items bought wait, not ones of the same kind the player already had. Items that stack (ammo) go by type.
+  // Also, while this is on, anything bought in the last 48 hours (a part in it too, like one plate) never sells more than
+  // expensivePercent over normal. Off by default.
   // This only works when saleDelay is on. Recent purchases are saved in data\recent-purchases.json, so a restart doesn't wipe them.
   "flipPenalty": {
-    "enabled": true,
+    "enabled": false,
     "windowMinutes": 30,             // purchases older than this do not count
     "freePurchases": 2,              // a player can buy this many of one item with no extra wait
     "purchasesForMaxPenalty": 10,    // at this many purchases, the extra wait is the longest

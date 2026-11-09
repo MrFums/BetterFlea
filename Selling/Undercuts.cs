@@ -122,13 +122,17 @@ internal static class Undercuts
             return;
         }
 
+        // Anything else was decided when it was listed (SaleDelayGate.RollForSale).
         if (OrderBook.On && OrderBook.Handles(offer))
         {
             OrderBook.Listed(offer, ratio, FlipPenaltyGate.ExtraWaitMinutes());
         }
-        else
+
+        // A gun, armour or anything with durability is its own thing: buyers judge it on its own price, not against
+        // other sellers', so nobody undercuts it.
+        if (!OrderBook.Handles(offer))
         {
-            OrderBook.Rolled(offer, FlipPenaltyGate.ExtraWaitMinutes());
+            return;
         }
 
         if (!lowest || Settings is not { } settings || ratio is not { } r || profileOffers is null)
@@ -150,7 +154,7 @@ internal static class Undercuts
         }
 
         var low = Math.Max(0.1, settings.MinMinutes);
-        var wait = TimeSpan.FromMinutes(low + Random.Shared.NextDouble() * Math.Max(0, settings.MaxMinutes - low));
+        var wait = TimeSpan.FromMinutes((low + Random.Shared.NextDouble() * Math.Max(0, settings.MaxMinutes - low)) * SaleDelayGate.Speed);
         DebugLog.Write(() => $"Undercut: {Name(offer)} listed at x{r:0.00} of normal, someone lists under it in {wait.TotalMinutes:0.0} min");
         _ = Task.Delay(wait).ContinueWith(_ => Undercut(profileOffers, offer), TaskScheduler.Default);
     }
