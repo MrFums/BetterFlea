@@ -4,6 +4,7 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Generators.Ragfair;
+using SPTarkov.Server.Core.Extensions;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.Common;
@@ -892,17 +893,23 @@ internal static class LostGunOffers
         DataFiles.Write(FileName, copy);
     }
 }
+// Hooked on the BTR delivery step, which SPT runs on every raid end just before the PMC's post-raid handling. Not on
+// LocationLifecycleService.HandlePostRaidPmc: patching that recompiles it, which can inline the small methods it calls
+// (HandleInsuredItemLostEvent) and cut out other mods' patches on them (Instant Insurance).
 public class LostGunPatch : AbstractPatch
 {
     protected override MethodBase GetTargetMethod()
     {
-        return typeof(LocationLifecycleService).GetMethod("HandlePostRaidPmc", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        return typeof(BtrDeliveryService).GetMethod(nameof(BtrDeliveryService.HandleItemTransferEvent), BindingFlags.Instance | BindingFlags.Public)!;
     }
 
     [PatchPrefix]
-    public static void Prefix(bool isDead, EndLocalRaidRequestData request)
+    public static void Prefix(EndLocalRaidRequestData request)
     {
-        if (!isDead || request.Results?.Profile is not { } profile)
+        // A PMC raid (not a scav one) the player died in.
+        var raid = request.ServerId?.Split('.');
+        if (raid is not { Length: > 1 } || !raid[1].Contains("pmc", StringComparison.OrdinalIgnoreCase)
+            || request.Results is not { Result: not null } results || !results.IsPlayerDead() || results.Profile is not { } profile)
         {
             return;
         }

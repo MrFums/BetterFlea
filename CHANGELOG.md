@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.2 (beta)
+
+**Fixes**
+- Instant Insurance didn't return insured items with Better Flea installed. Better Flea's check for guns lost on death hooked the same part of SPT and could cut Instant Insurance out. It now hooks a different step.
+
 ## 2.6.1
 
 **New**
