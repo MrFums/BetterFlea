@@ -1194,6 +1194,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "지난 48시간 안에 상인이나 벼룩시장에서 구매함(또는 안에 든 부품이): 정상가보다 15% 넘게 비싸게 팔리지 않습니다.",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "되팔기 페널티가 켜져 있습니다: 지난 48시간 안에 상인이나 벼룩시장에서 산 것(또는 산 부품이 들어 있는 것)은 정상가보다 15% 넘게 비싸게 팔리지 않으며, 같은 아이템을 많이 사서 바로 올리면 구매자가 더 늦게 옵니다. 확률에는 나타나지 않습니다.",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "되팔기 페널티: 지난 48시간 안에 상인이나 벼룩시장에서 구매함(또는 안에 든 부품이)? 그러면 정상가보다 15% 넘게 비싸게 팔리지 않습니다.",
-  "See every change by category": "카테고리별 모든 변경 사항 보기"
+  "See every change by category": "카테고리별 모든 변경 사항 보기",
+  "High-pen ammo costs more": "관통력이 높은 탄약은 더 비쌈",
+  "Starts above penetration": "이 관통력 초과부터 시작",
+  "Full premium at penetration": "이 관통력에서 최대 할증",
+  "Full premium (times the price)": "최대 할증 (가격의 배수)",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "관통력이 높은 탄은 벼룩시장에서 평소 가격보다 더 비쌉니다. Better Flea 가격 및 실시간 가격과 함께 작동합니다. 탄약 상자는 안에 든 탄을 따릅니다. 상인 가격은 바뀌지 않습니다.",
+  "Rounds at this penetration or under keep their usual price.": "이 관통력 이하의 탄은 평소 가격을 유지합니다.",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "이 관통력 이상의 탄은 최대 할증을 받습니다. 그 사이에서는 할증이 직선으로 올라갑니다.",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "가장 좋은 탄의 가격을 평소 가격의 배수로 정합니다. 2 = 두 배 가격."
  }
 }

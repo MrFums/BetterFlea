@@ -49,6 +49,15 @@
     ]
   },
 
+  // High-pen rounds cost more, on top of their usual price: nothing at minPenetration or under, then more and more up
+  // to maxMultiplier times the price at fullPenetration and over. Ammo boxes go with the rounds in them.
+  "ammoPremium": {
+    "enabled": false,
+    "minPenetration": 40,
+    "fullPenetration": 60,
+    "maxMultiplier": 2
+  },
+
   // An offer is never cheaper than the most a trader pays for the item.
   // This stops players buying on the Flea Market and selling to a trader for profit.
   "floor": {

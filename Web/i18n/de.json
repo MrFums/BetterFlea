@@ -1194,6 +1194,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "In den letzten 48 Stunden bei einem Händler oder auf dem Flohmarkt gekauft (oder ein Teil darin): verkauft sich nie mehr als 15 % über normal.",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "Flip-Strafe ist an: Alles, was in den letzten 48 Stunden bei einem Händler oder auf dem Flohmarkt gekauft wurde (oder ein gekauftes Teil enthält), verkauft sich nie mehr als 15 % über normal, und wer viel von einem Gegenstand kauft und sofort einstellt, bekommt langsamer Käufer. Die Chancen zeigen das nicht.",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "Flip-Strafe: in den letzten 48 Stunden bei einem Händler oder auf dem Flohmarkt gekauft (oder ein Teil darin)? Dann verkauft es sich nie mehr als 15 % über normal.",
-  "See every change by category": "Alle Änderungen nach Kategorie"
+  "See every change by category": "Alle Änderungen nach Kategorie",
+  "High-pen ammo costs more": "Munition mit hoher Durchschlagskraft kostet mehr",
+  "Starts above penetration": "Beginnt über Durchschlagskraft",
+  "Full premium at penetration": "Voller Aufschlag ab Durchschlagskraft",
+  "Full premium (times the price)": "Voller Aufschlag (mal der Preis)",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Patronen mit hoher Durchschlagskraft kosten auf dem Flohmarkt mehr, zusätzlich zu ihrem üblichen Preis. Funktioniert mit der Better-Flea-Preisgestaltung und Live-Preisen. Munitionsschachteln richten sich nach den Patronen darin. Händlerpreise ändern sich nicht.",
+  "Rounds at this penetration or under keep their usual price.": "Patronen mit dieser Durchschlagskraft oder weniger behalten ihren üblichen Preis.",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Patronen mit dieser Durchschlagskraft oder mehr bekommen den vollen Aufschlag. Dazwischen steigt der Aufschlag gleichmäßig an.",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Was die besten Patronen kosten, als Vielfaches ihres üblichen Preises. 2 = doppelter Preis."
  }
 }

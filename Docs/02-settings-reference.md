@@ -88,14 +88,13 @@ How many of an item one offer holds, for items that don't stack (ammo and money 
 | `fullMedWeights` | 70, 16, 8, 3.5, 1.5, 1 | Chance weights for 1, 2, 3... full meds per offer: mostly one at a time. |
 | `grenadeBulk`, `stimBulk`, `stimBatch` | rare | Now and then a pile of grenades, a handful of one stim, or a whole stored batch. |
 | `fullStacks` | 3% | Now and then a big stack of full meds, food or drinks (an IFAK x30). |
-| `usedMedStacks` | 3% | A flipper's stack of used medkits, all with the same amount left. |
 | `stockGunStacks` | 12% | Factory guns as found, several to an offer (a boss farmer's haul). |
 | `helmetStacks` | 5% | Easy-to-get helmets at full durability, several to an offer. |
 | `traderGunStacks` | 2% | A trader's gun bought to flip, at 100/100, several to an offer. |
 
 ### Currency
 
-`offerCurrency`: roubles 100, dollars 2, euros 2. Only the ratios matter. SPT's own is 78 / 14 / 8. 0 = never.
+`offerCurrency`: roubles 100, dollars 1, euros 1. Only the ratios matter. SPT's own is 78 / 14 / 8. 0 = never.
 
 ---
 
@@ -118,7 +117,7 @@ Less left means cheaper. See [Armour and condition](05-armour-and-condition.md) 
 
 | Setting | Meds | Food | Fuel | Repair kits | What it does |
 |---|---|---|---|---|---|
-| `usedChance` | 0.12 | 0.08 | 0.5 | 0.55 | Share of offers that are partly used. |
+| `usedChance` | 0.15 | 0.08 | 0.5 | 0.55 | Share of offers that are partly used. |
 | `lowAmountBias` | 1.3 | 1.3 | 1.5 | 2.0 | 1 = any amount left. Higher = more that are low. Never under about 15% left. |
 | `usedPricePercent` | 90 | 68 | 85 | 100 | A used one's price, in % of a full one. |
 | `amountPriceWeight` | 0.5 | 0.15 | 0.2 | 1 | How much the amount left counts on top. 0 = a used one costs the same whatever is left; 1 = the price follows the amount. `100` and `1` together are SPT's own way. |

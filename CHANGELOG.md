@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.6.1
+
+**New**
+- **High-pen ammo costs more** (Prices tab, `ammoPremium`, off): rounds over penetration 40 cost more, up to twice the price at penetration 60 and over. Ammo boxes go with the rounds in them. Works with Better Flea pricing and live prices.
+
+**Changes**
+- Fewer offers priced in dollars or euros: about 1 in 100 each, was 2 in 100 (`offerCurrency`). Existing configs keep their own numbers.
+- A few more used meds: `meds.usedChance` 0.12 to 0.15, and meds counted in uses (CALOK-B, splints, TIFZ ResQ) are no longer cut further. About 1 in 7 is used, was 1 in 11. Existing configs keep their own number.
+
+**Fixes**
+- Used CALOK-Bs and splints almost never turned up on the flea (about 1 in 50 offers). The rule that keeps cheap used meds rare went by their low handbook price. It no longer applies to meds counted in uses.
+- Used meds, food, fuel, repair kits and keys are always one per offer, packs included. A flipper's stack of 16 AFAKs all at 206/400 could turn up. The `usedMedStacks` setting is gone.
+- Meds that look the same now cost the same. The game keeps hidden decimals (a CALOK-B at 1.45 of 3, an AFAK at 399.1 of 400), and flea and trader prices went by them. Now they go by what the game shows: a CALOK-B at 2.64 is priced as 2/3, an AFAK at 399.1 as 399. Needs the client plugin for trader prices.
+- Your prices: items with no flea price at all (many the real flea bans, like 9x39 BP gs or the black Rys-T) started at a made-up 10,000 with no usual price next to them. They now start at the price the flea uses for them.
+
 ## 2.6.0
 
 **Changes**

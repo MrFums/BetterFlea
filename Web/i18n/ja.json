@@ -1194,6 +1194,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "過去 48 時間以内にトレーダーかフリーマーケットで購入（または中の部品が購入品）：通常価格の 15% を超えて売れることはありません。",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "転売ペナルティがオンです：過去 48 時間以内にトレーダーかフリーマーケットで買ったもの（または購入した部品が入っているもの）は通常価格の 15% を超えて売れることはなく、同じアイテムを大量に買ってすぐ出品すると買い手が来るのも遅くなります。確率には反映されていません。",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "転売ペナルティ：過去 48 時間以内にトレーダーかフリーマーケットで購入（または中の部品が購入品）？ その場合、通常価格の 15% を超えて売れることはありません。",
-  "See every change by category": "カテゴリ別にすべての変更を見る"
+  "See every change by category": "カテゴリ別にすべての変更を見る",
+  "High-pen ammo costs more": "高貫通弾は高くなる",
+  "Starts above penetration": "この貫通力を超えると開始",
+  "Full premium at penetration": "この貫通力で上乗せ最大",
+  "Full premium (times the price)": "最大上乗せ（価格の倍率）",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "貫通力の高い弾はフリーマーケットで通常価格より高くなります。Better Flea の価格設定やライブ価格と一緒に使えます。弾薬箱は中の弾に合わせます。トレーダーの価格は変わりません。",
+  "Rounds at this penetration or under keep their usual price.": "この貫通力以下の弾は通常価格のままです。",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "この貫通力以上の弾は最大の上乗せになります。その間は直線的に上がります。",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "最も良い弾の価格を、通常価格の何倍かで指定します。2 = 2倍の価格。"
  }
 }

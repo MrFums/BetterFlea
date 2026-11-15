@@ -45,7 +45,7 @@
   // Live, meds and food are nearly always listed full.
   "meds": {
     "enabled": true,
-    "usedChance": 0.12,
+    "usedChance": 0.15,
     "lowAmountBias": 1.3,
     "usedPricePercent": 90,
     "amountPriceWeight": 0.5

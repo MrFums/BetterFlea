@@ -1194,6 +1194,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "Kupione u handlarza lub na pchlim targu w ciągu ostatnich 48 godzin (albo część w środku): nigdy nie sprzeda się drożej niż 15% ponad normę.",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "Kara za odsprzedaż jest włączona: wszystko kupione u handlarza lub na pchlim targu w ciągu ostatnich 48 godzin (albo z kupioną częścią w środku) nigdy nie sprzeda się drożej niż 15% ponad normę, a kupowanie dużo jednego przedmiotu, by od razu go wystawić, spowalnia kupujących. Szanse tego nie pokazują.",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "Kara za odsprzedaż: kupione u handlarza lub na pchlim targu w ciągu ostatnich 48 godzin (albo część w środku)? Wtedy nigdy nie sprzeda się drożej niż 15% ponad normę.",
-  "See every change by category": "Zobacz wszystkie zmiany według kategorii"
+  "See every change by category": "Zobacz wszystkie zmiany według kategorii",
+  "High-pen ammo costs more": "Amunicja o wysokiej penetracji kosztuje więcej",
+  "Starts above penetration": "Zaczyna się powyżej penetracji",
+  "Full premium at penetration": "Pełna dopłata od penetracji",
+  "Full premium (times the price)": "Pełna dopłata (razy cena)",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Naboje o wysokiej penetracji kosztują więcej na pchlim targu, ponad ich zwykłą cenę. Działa z cenami Better Flea i cenami na żywo. Pudełka z amunicją idą za nabojami w środku. Ceny handlarzy się nie zmieniają.",
+  "Rounds at this penetration or under keep their usual price.": "Naboje o tej penetracji lub niższej zachowują zwykłą cenę.",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Naboje o tej penetracji lub wyższej dostają pełną dopłatę. Pomiędzy dopłata rośnie liniowo.",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Ile kosztują najlepsze naboje, jako wielokrotność ich zwykłej ceny. 2 = podwójna cena."
  }
 }

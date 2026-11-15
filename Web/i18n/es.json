@@ -1194,6 +1194,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "Comprado a un comerciante o en el mercadillo en las últimas 48 horas (o una pieza dentro): nunca se vende más de un 15 % por encima de lo normal.",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "La penalización por reventa está activada: todo lo comprado a un comerciante o en el mercadillo en las últimas 48 horas (o con una pieza comprada dentro) nunca se vende más de un 15 % por encima de lo normal, y comprar mucho de un objeto para publicarlo enseguida hace que los compradores tarden más. Las probabilidades no lo muestran.",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "Penalización por reventa: ¿comprado a un comerciante o en el mercadillo en las últimas 48 horas (o una pieza dentro)? Entonces nunca se vende más de un 15 % por encima de lo normal.",
-  "See every change by category": "Ver todos los cambios por categoría"
+  "See every change by category": "Ver todos los cambios por categoría",
+  "High-pen ammo costs more": "La munición de alta penetración cuesta más",
+  "Starts above penetration": "Empieza por encima de penetración",
+  "Full premium at penetration": "Recargo completo a partir de penetración",
+  "Full premium (times the price)": "Recargo completo (veces el precio)",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Las balas con alta penetración cuestan más en el Mercadillo, además de su precio habitual. Funciona con los precios de Better Flea y los precios en vivo. Las cajas de munición van con las balas que contienen. Los precios de los comerciantes no cambian.",
+  "Rounds at this penetration or under keep their usual price.": "Las balas con esta penetración o menos mantienen su precio habitual.",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Las balas con esta penetración o más reciben el recargo completo. Entre medias, el recargo sube en línea recta.",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Lo que cuestan las mejores balas, en veces su precio habitual. 2 = el doble de precio."
  }
 }

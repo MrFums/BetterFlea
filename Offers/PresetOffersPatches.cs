@@ -2047,6 +2047,7 @@ public class OfferPricingPatch : AbstractPatch
             }
         }
 
+        OfferQuantityGate.OneIfUsed(details);
         if (!BarterOffers.MaybeInsteadOfMoney(details))
         {
             BetterFlea.Prices.GunPricing.Apply(details);

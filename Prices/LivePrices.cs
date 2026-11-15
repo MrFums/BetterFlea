@@ -673,12 +673,14 @@ internal static class LivePrices
     // What each overridden item's base price would be without the admin's own, for the settings page.
     private static readonly Dictionary<MongoId, double> Usual = new();
 
-    // The item's base price as Better Flea sets it, before the admin's own (Your prices).
+    // The item's base price as Better Flea sets it, before the admin's own (Your prices). Items with no flea price at
+    // all (many the real flea bans) go by their handbook price, as SPT prices them.
     public static double UsualPrice(MongoId tpl)
     {
         lock (Gate)
         {
-            return Usual.TryGetValue(tpl, out var usual) ? usual : _templates?.Prices.GetValueOrDefault(tpl) ?? 0;
+            var usual = Usual.TryGetValue(tpl, out var own) ? own : _templates?.Prices.GetValueOrDefault(tpl) ?? 0;
+            return usual > 0 ? usual : Handbook.Value.GetValueOrDefault(tpl);
         }
     }
 

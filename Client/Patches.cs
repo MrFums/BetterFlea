@@ -184,3 +184,39 @@ internal class AmmoBoxCanSellOnRagfairPatch : ModulePatch
     [PatchPostfix]
     public static void Postfix(Item __instance, ref bool __result) => CanSellOnRagfair.Apply(__instance, ref __result);
 }
+
+// Meds are priced by what the game shows, not the hidden decimals: two CALOKs both at 1/3 get the same trader price,
+// and so do AFAKs at 399 and 399.1. The game pays a trader sale at this price. Whole uses or HP, rounded down as the
+// inspect window shows them. The amount is put back as soon as the price is worked out. The server does the same for
+// flea prices.
+internal class MedPricePatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod() =>
+        typeof(EFT.Trading.PriceCalculator).GetMethod(nameof(EFT.Trading.PriceCalculator.CalculateBasePriceForSingleItem), BindingFlags.Public | BindingFlags.Static);
+
+    [PatchPrefix]
+    public static void Prefix(Item item, out float? __state)
+    {
+        __state = null;
+        if (item == null || !item.TryGetItemComponent<MedKitComponent>(out var medKit))
+        {
+            return;
+        }
+
+        var usable = (float)Math.Floor(medKit.HpResource + 1e-3f);
+        if (usable != medKit.HpResource)
+        {
+            __state = medKit.HpResource;
+            medKit.HpResource = usable;
+        }
+    }
+
+    [PatchFinalizer]
+    public static void Finalizer(Item item, float? __state)
+    {
+        if (__state is { } original && item.TryGetItemComponent<MedKitComponent>(out var medKit))
+        {
+            medKit.HpResource = original;
+        }
+    }
+}

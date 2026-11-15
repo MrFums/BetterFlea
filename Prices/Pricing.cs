@@ -1283,6 +1283,31 @@ public class FleaPriceMultipliers(
             }
         }
 
+        // High-pen rounds (ammoPremium) cost more by their penetration, on top of the above. Ammo boxes go with the
+        // rounds in them, so opening a box doesn't make cheap rounds.
+        if (prices.AmmoPremium is { Enabled: true } premium)
+        {
+            foreach (var (tpl, item) in templates.Items)
+            {
+                var round = item;
+                if (itemHelper.IsOfBaseclass(tpl, BaseClasses.AMMO_BOX)
+                    && item.Properties?.StackSlots?.FirstOrDefault()?.Properties?.Filters?.FirstOrDefault()?.Filter?.FirstOrDefault() is { } inside)
+                {
+                    round = templates.Items.GetValueOrDefault(inside);
+                }
+                else if (!itemHelper.IsOfBaseclass(tpl, BaseClasses.AMMO))
+                {
+                    continue;
+                }
+
+                var factor = premium.Factor(round?.Properties?.PenetrationPower ?? 0);
+                if (factor > 1)
+                {
+                    wanted[tpl] = wanted.GetValueOrDefault(tpl, 1.0) * factor;
+                }
+            }
+        }
+
         var priceMultipliers = ragfairConfig.Dynamic.ItemPriceMultiplier ??= new();
         var changed = 0;
         foreach (var tpl in _applied.Keys.Union(wanted.Keys).ToList())

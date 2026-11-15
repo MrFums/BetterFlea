@@ -33,6 +33,7 @@ public class UsedListingsPatchesLoad(
         UsedListingsGate.Bind(configManager, itemHelper, ragfairConfig);
         new UsedListingsPatch().Enable();
         new ArmorQualityPatch().Enable();
+        new MedQualityPatch().Enable();
         return Task.CompletedTask;
     }
 }
@@ -81,9 +82,12 @@ internal static class UsedListingsGate
             var max = props.MaxHpResource ?? 0;
             // A Surv12 wears down over several raids, so any amount is as likely. A CMS (3 uses) is treated like a splint.
             var bigSurgical = max > 5 && OfferQuantityGate.IsSurgical(props);
-            // Nobody bothers listing a half-used AI-2 or Car: the cheaper the med, the rarer a used one.
-            var meds = used.Meds with { UsedChance = used.Meds.UsedChance * Math.Clamp(BuildQuality.HandbookPrice(itemDetails.Id) / CheapMedPrice, 0.2, 1) };
-            var left = max <= FewUsesMax && !bigSurgical ? RollFewUsesLeft(max, meds)
+            var fewUses = max <= FewUsesMax && !bigSurgical;
+            // Nobody bothers listing a half-used AI-2 or Car: the cheaper the med, the rarer a used one. Not for meds
+            // counted in uses (CALOK-B, splints): their handbook price is low but a 1/3 or 2/3 one is worth listing.
+            var meds = fewUses ? used.Meds
+                : used.Meds with { UsedChance = used.Meds.UsedChance * Math.Clamp(BuildQuality.HandbookPrice(itemDetails.Id) / CheapMedPrice, 0.2, 1) };
+            var left = fewUses ? RollFewUsesLeft(max, meds)
                 : RollResourceLeft(max, bigSurgical ? meds with { LowAmountBias = 1.0 } : meds);
             if (left is { } hp)
             {
@@ -290,7 +294,7 @@ internal static class UsedListingsGate
 
         var used = _config.Mod.GeneratedOffers.UsedItems;
         (double Left, double Max, ResourceListingSettings Settings)? resource =
-            upd.MedKit is { HpResource: { } hp } ? (hp, props.MaxHpResource ?? 0, used.Meds)
+            upd.MedKit is { HpResource: { } hp } ? (MedQualityPatch.Usable(hp), props.MaxHpResource ?? 0, used.Meds)
             : upd.FoodDrink is { HpPercent: { } food } ? (food, props.MaxResource ?? 0, used.FoodAndDrink)
             : upd.RepairKit is { Resource: { } kit } ? (kit, props.MaxRepairResource ?? 0, used.RepairKits)
             : upd.Resource is { Value: { } fuel } && _itemHelper.IsOfBaseclass(tpl, FleaCategories.Fuel) ? (fuel, props.MaxResource ?? 0, used.Fuel)
@@ -503,7 +507,6 @@ internal static class UsedListingsGate
     // CALOK-B, splints, Ibuprofen. A used one is mostly just a use or two down; now and then nearly finished
     // (an Ibuprofen with 1-4 of 8 left, mostly 1 or 2: the last pills of a box get sold off).
     public const int FewUsesMax = 10;
-    private const double FewUsesUsedShare = 0.75;
     private const double FewUsesFurtherDown = 0.25;
     private const double FewUsesNearlyGone = 0.35;
 
@@ -514,7 +517,7 @@ internal static class UsedListingsGate
             return null;
         }
 
-        if (Random.Shared.NextDouble() >= settings.UsedChance * FewUsesUsedShare)
+        if (Random.Shared.NextDouble() >= settings.UsedChance)
         {
             return max;
         }
@@ -561,6 +564,30 @@ public class UsedListingsPatch : AbstractPatch
 // 8/35 one, and a 5/33 one bought and repaired made about 9k. The max is what an armour piece can ever be repaired
 // to, so it counts most; the current only for the repair still to pay (a little under half the price at nothing
 // left). 33/40 is about 80%, 5/33 about half, 8/14 under a quarter. Flea, listings and Fence use it; traders don't.
+// Meds are priced by what the game shows, not the hidden decimals: two CALOKs both at 1/3 cost the same, and so do
+// AFAKs at 399 and 399.1. Whole uses or HP, rounded down as the inspect window shows them; a value a hair under a whole
+// number (2.9999999989, read by the game as 3) counts as that number. The client plugin does the same for trader prices.
+public class MedQualityPatch : AbstractPatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return typeof(ItemHelper).GetMethod(nameof(ItemHelper.GetItemQualityModifier), BindingFlags.Instance | BindingFlags.Public)!;
+    }
+
+    [PatchPostfix]
+    public static void Postfix(Item item, ref double __result)
+    {
+        if (item.Upd?.MedKit?.HpResource is not { } left || BookPrice.Helper?.GetItem(item.Template).Value?.Properties is not { MaxHpResource: > 0 } props)
+        {
+            return;
+        }
+
+        __result = Math.Max(0.01, Usable(left) / props.MaxHpResource!.Value);
+    }
+
+    internal static double Usable(double left) => Math.Floor(left + 1e-4);
+}
+
 public class ArmorQualityPatch : AbstractPatch
 {
     private const double MaxWeight = 1.2;

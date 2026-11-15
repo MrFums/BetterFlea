@@ -7,7 +7,7 @@ using SPT.Reflection.Patching;
 
 namespace BetterFlea.Client;
 
-[BepInPlugin("com.fums.betterflea", "Fums-BetterFleaClient", "2.6.0")]
+[BepInPlugin("com.fums.betterflea", "Fums-BetterFleaClient", "2.6.1")]
 [BepInDependency("com.SPT.core", BepInDependency.DependencyFlags.HardDependency)]
 public class Plugin : BaseUnityPlugin
 {
@@ -37,6 +37,7 @@ public class Plugin : BaseUnityPlugin
         Enable(() => new CategoryLevelPatch());
         Enable(() => new CategorySelectPatch());
         Enable(() => new CategoryDeselectPatch());
+        Enable(() => new MedPricePatch());
     }
 
     private void Update()

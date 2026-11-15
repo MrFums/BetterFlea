@@ -577,6 +577,9 @@ public class ConfigManager(
         delay.CheaperWaitMultiplier = Math.Clamp(delay.CheaperWaitMultiplier, 1.0, 20.0);
         Mod.Prices.UnusableKeys.PricePercent = Math.Clamp(Mod.Prices.UnusableKeys.PricePercent, 1.0, 100.0);
         Mod.Prices.UnusableKeys.Keys ??= [];
+        Mod.Prices.AmmoPremium.MinPenetration = Math.Clamp(Mod.Prices.AmmoPremium.MinPenetration, 0.0, 100.0);
+        Mod.Prices.AmmoPremium.FullPenetration = Math.Clamp(Mod.Prices.AmmoPremium.FullPenetration, Mod.Prices.AmmoPremium.MinPenetration + 1, 101.0);
+        Mod.Prices.AmmoPremium.MaxMultiplier = Math.Clamp(Mod.Prices.AmmoPremium.MaxMultiplier, 1.0, 10.0);
         delay.RareWaitMultiplier = Math.Clamp(delay.RareWaitMultiplier, 0.0, 10.0);
         delay.SuperrareWaitMultiplier = Math.Clamp(delay.SuperrareWaitMultiplier, 0.0, 10.0);
         delay.OverpriceDearSlowdown = Math.Clamp(delay.OverpriceDearSlowdown, 0.0, 1.0);
@@ -667,7 +670,7 @@ public class ConfigManager(
         playerGuns.LostGunMinMinutes = Math.Max(0.0, playerGuns.LostGunMinMinutes);
         playerGuns.LostGunMaxMinutes = Math.Max(playerGuns.LostGunMinMinutes, playerGuns.LostGunMaxMinutes);
         var stacks = Mod.GeneratedOffers.ItemsPerOffer;
-        foreach (var bulk in new[] { stacks.GrenadeBulk, stacks.StimBulk, stacks.FullStacks, stacks.UsedMedStacks, stacks.StockGunStacks, stacks.TraderGunStacks, stacks.HelmetStacks })
+        foreach (var bulk in new[] { stacks.GrenadeBulk, stacks.StimBulk, stacks.FullStacks, stacks.StockGunStacks, stacks.TraderGunStacks, stacks.HelmetStacks })
         {
             bulk.Chance = Math.Clamp(bulk.Chance, 0.0, 1.0);
             bulk.Min = Math.Clamp(bulk.Min, 1, 100);

@@ -36,6 +36,9 @@ public record PricesConfig
     [JsonPropertyName("unusableKeys")]
     public UnusableKeysConfig UnusableKeys { get; set; } = new();
 
+    [JsonPropertyName("ammoPremium")]
+    public AmmoPremiumConfig AmmoPremium { get; set; } = new();
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Unknown { get; set; }
 }
@@ -80,6 +83,34 @@ public record UnusableKeysConfig
     ];
 
     public bool Has(string tpl) => Enabled && Keys.Contains(tpl);
+}
+
+// High-pen rounds cost more: nothing at minPenetration or under, rising in a straight line to maxMultiplier at
+// fullPenetration and over. Ammo boxes go with the rounds in them. Off by default.
+public record AmmoPremiumConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = false;
+
+    [JsonPropertyName("minPenetration")]
+    public double MinPenetration { get; set; } = 40;
+
+    [JsonPropertyName("fullPenetration")]
+    public double FullPenetration { get; set; } = 60;
+
+    [JsonPropertyName("maxMultiplier")]
+    public double MaxMultiplier { get; set; } = 2;
+
+    public double Factor(double penetration)
+    {
+        if (!Enabled || penetration <= MinPenetration)
+        {
+            return 1;
+        }
+
+        var span = Math.Max(1, FullPenetration - MinPenetration);
+        return 1 + (MaxMultiplier - 1) * Math.Clamp((penetration - MinPenetration) / span, 0, 1);
+    }
 }
 
 public record PriceFloorConfig

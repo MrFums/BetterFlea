@@ -1194,6 +1194,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "Куплено у торговца или на барахолке за последние 48 часов (или деталь в нём): никогда не продаётся дороже нормы больше чем на 15%.",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "Штраф за перепродажу включён: всё, что куплено у торговца или на барахолке за последние 48 часов (или с купленной деталью внутри), никогда не продаётся дороже нормы больше чем на 15%, а если купить много одного предмета и сразу выставить, покупатели приходят медленнее. Шансы этого не показывают.",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "Штраф за перепродажу: куплено у торговца или на барахолке за последние 48 часов (или деталь в нём)? Тогда никогда не продаётся дороже нормы больше чем на 15%.",
-  "See every change by category": "Все изменения по категориям"
+  "See every change by category": "Все изменения по категориям",
+  "High-pen ammo costs more": "Бронебойные патроны дороже",
+  "Starts above penetration": "Начинается выше пробития",
+  "Full premium at penetration": "Полная надбавка с пробития",
+  "Full premium (times the price)": "Полная надбавка (во сколько раз дороже)",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Патроны с высоким пробитием стоят на барахолке дороже, сверх обычной цены. Работает с ценами Better Flea и живыми ценами. Коробки с патронами идут по патронам внутри. Цены торговцев не меняются.",
+  "Rounds at this penetration or under keep their usual price.": "Патроны с таким пробитием или ниже сохраняют обычную цену.",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Патроны с таким пробитием или выше получают полную надбавку. В промежутке надбавка растёт равномерно.",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Сколько стоят лучшие патроны, во сколько раз дороже обычной цены. 2 = в два раза дороже."
  }
 }

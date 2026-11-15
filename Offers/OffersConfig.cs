@@ -595,10 +595,10 @@ public record OfferCurrencyConfig
     public double Roubles { get; set; } = 100;
 
     [JsonPropertyName("dollars")]
-    public double Dollars { get; set; } = 2;
+    public double Dollars { get; set; } = 1;
 
     [JsonPropertyName("euros")]
-    public double Euros { get; set; } = 2;
+    public double Euros { get; set; } = 1;
 }
 
 public record OfferQuantityConfig
@@ -643,10 +643,6 @@ public record OfferQuantityConfig
     // Now and then someone dumps a big stack of full meds or drinks (an IFAK x30, water x31).
     [JsonPropertyName("fullStacks")]
     public BulkOfferConfig FullStacks { get; set; } = new() { Chance = 0.03, Min = 10, Max = 30 };
-
-    // A flipper's stack of used medkits, all at the same amount (four AFAK stacks of 9 to 27 at 324-336/400).
-    [JsonPropertyName("usedMedStacks")]
-    public BulkOfferConfig UsedMedStacks { get; set; } = new() { Chance = 0.03, Min = 5, Max = 27 };
 
     // Factory guns as found (ground loot) now and then several to an offer: people farming a boss list their haul.
     [JsonPropertyName("stockGunStacks")]
@@ -709,7 +705,7 @@ public record UsedListingsConfig
     public KeyListingSettings Keycards { get; set; } = new() { UsedChance = 0.4, UsesLeftFalloff = 0.9, OneUsePricePercent = 20 };
 
     [JsonPropertyName("meds")]
-    public ResourceListingSettings Meds { get; set; } = new() { UsedChance = 0.12, LowAmountBias = 1.3, UsedPricePercent = 90, AmountPriceWeight = 0.5 };
+    public ResourceListingSettings Meds { get; set; } = new() { UsedChance = 0.15, LowAmountBias = 1.3, UsedPricePercent = 90, AmountPriceWeight = 0.5 };
 
     [JsonPropertyName("foodAndDrink")]
     public ResourceListingSettings FoodAndDrink { get; set; } = new() { UsedChance = 0.08, LowAmountBias = 1.3, UsedPricePercent = 68, AmountPriceWeight = 0.15 };

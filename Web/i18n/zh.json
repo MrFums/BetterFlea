@@ -1194,6 +1194,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "过去 48 小时内从商人或跳蚤市场买来（或里面的部件是）：永远不会以高于正常价 15% 以上的价格卖出。",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "倒卖惩罚已开启：过去 48 小时内从商人或跳蚤市场买到的东西（或里面有买来的部件）永远不会以高于正常价 15% 以上的价格卖出；大量购买同一物品后立刻上架，买家也会来得更慢。几率里不会体现这一点。",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "倒卖惩罚：过去 48 小时内从商人或跳蚤市场买来（或里面的部件是）？那就永远不会以高于正常价 15% 以上的价格卖出。",
-  "See every change by category": "按类别查看所有更改"
+  "See every change by category": "按类别查看所有更改",
+  "High-pen ammo costs more": "高穿透弹药更贵",
+  "Starts above penetration": "穿透力高于此值开始",
+  "Full premium at penetration": "穿透力达到此值时加价最高",
+  "Full premium (times the price)": "最高加价（价格倍数）",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "高穿透的子弹在跳蚤市场上比平常价格更贵。可与 Better Flea 定价和实时价格一起使用。弹药盒按其中的子弹计算。商人价格不变。",
+  "Rounds at this penetration or under keep their usual price.": "穿透力不高于此值的子弹保持平常价格。",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "穿透力达到或高于此值的子弹获得最高加价。中间按直线上升。",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "最好的子弹的价格，按平常价格的倍数计算。2 = 两倍价格。"
  }
 }

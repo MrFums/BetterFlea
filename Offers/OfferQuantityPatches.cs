@@ -178,8 +178,27 @@ internal static class OfferQuantityGate
     private static readonly MongoId FoodBase = new("5448e8d04bdc2ddf718b4569");
     private static readonly MongoId DrinkBase = new("5448e8d64bdc2dce718b4568");
 
-    // Once used, big kits, food, fuel and repair kits are one per offer, except a flipper's stack of used medkits
-    // (usedMedStacks); few-use meds can still come a couple at a time. Full meds come in ones, or now and then a few
+    // A used med, food, fuel, repair kit or key is always one per offer, packs too: nobody has a pile of AFAKs all at
+    // 206/400. Before pricing, so a pack is priced as the single item it becomes. Whatever itemsPerOffer says.
+    public static void OneIfUsed(SPTarkov.Server.Core.Models.Spt.Ragfair.CreateFleaOfferDetails details)
+    {
+        if (details.Creator != SPTarkov.Server.Core.Models.Enums.OfferCreator.FakePlayer || details.Items is not { Count: 1 } items
+            || _itemHelper is null || details.Quantity <= 1 && !details.SellInOnePiece)
+        {
+            return;
+        }
+
+        var root = items[0];
+        var props = _itemHelper.GetItem(root.Template).Value?.Properties;
+        var used = root.Upd?.Key?.NumberOfUsages > 0 || props is not null && ResourceOf(root, props) is { } resource && resource.Left < resource.Max;
+        if (used)
+        {
+            details.Quantity = 1;
+            details.SellInOnePiece = false;
+        }
+    }
+
+    // Once used, meds, food, fuel and repair kits are one per offer. Full meds come in ones, or now and then a few
     // (fullMedWeights); full meds and drinks rarely in a big stack (fullStacks).
     public static void MatchCondition(SPTarkov.Server.Core.Models.Spt.Ragfair.CreateFleaOfferDetails details)
     {
@@ -197,39 +216,33 @@ internal static class OfferQuantityGate
             return;
         }
 
-        var full = resource.Left >= resource.Max;
+        // Used: already one per offer (OneIfUsed).
+        if (resource.Left < resource.Max)
+        {
+            return;
+        }
+
         var medical = _itemHelper.IsOfBaseclass(root.Template, MedicalBase);
         var big = !medical || resource.Max > UsedListingsGate.FewUsesMax || IsSurgical(props);
 
-        // Now and then a big stack: full meds or drinks someone stocked up on, or a flipper's used medkits.
+        // Now and then a big stack: full meds or drinks someone stocked up on.
         var provisions = medical || _itemHelper.IsOfBaseclasses(root.Template, [FoodBase, DrinkBase]);
-        var stack = full && provisions ? RollBulk(settings.FullStacks)
-            : !full && medical && big ? RollBulk(settings.UsedMedStacks)
-            : null;
-        if (stack is { } bigStack)
+        if ((provisions ? RollBulk(settings.FullStacks) : null) is { } bigStack)
         {
             details.Quantity = bigStack;
             return;
         }
 
-        if (full && medical)
+        if (medical)
         {
             details.Quantity = RollWeighted(settings.FullMedWeights);
             return;
         }
 
-        if (details.Quantity <= 1)
+        if (details.Quantity > 1 && big)
         {
-            return;
+            details.Quantity = Random.Shared.NextDouble() < BigFullSeveralChance ? Math.Min(details.Quantity, 5) : 1;
         }
-
-        details.Quantity = (big, full) switch
-        {
-            (true, false) => 1,
-            (true, true) => Random.Shared.NextDouble() < BigFullSeveralChance ? Math.Min(details.Quantity, 5) : 1,
-            (false, false) => Random.Shared.NextDouble() < FewUsedSeveralChance ? Math.Min(details.Quantity, 3) : 1,
-            _ => details.Quantity
-        };
     }
 
     // Factory guns as found (ground loot), now and then several to an offer: someone farming a boss lists the haul.
@@ -297,7 +310,6 @@ internal static class OfferQuantityGate
     private static readonly MongoId HeadwearBase = new("5a341c4086f77401f2541505");
     private static readonly MongoId FaceCoverBase = new("5a341c4686f77469e155819e");
     private const double BigFullSeveralChance = 0.25;
-    private const double FewUsedSeveralChance = 0.2;
     private static readonly MongoId MedicalBase = new("543be5664bdc2dd4348b4569");
     private static readonly MongoId FuelBase = new("5d650c3e815116009f6201d2");
     private static readonly MongoId RepairKitBase = new("616eb7aea207f41933308f46");
@@ -307,7 +319,7 @@ internal static class OfferQuantityGate
         var upd = item.Upd;
         if (_itemHelper!.IsOfBaseclass(item.Template, MedicalBase) && (props.MaxHpResource ?? 0) > 0)
         {
-            return (upd?.MedKit?.HpResource ?? props.MaxHpResource!.Value, props.MaxHpResource!.Value);
+            return (upd?.MedKit?.HpResource is { } hp ? MedQualityPatch.Usable(hp) : props.MaxHpResource!.Value, props.MaxHpResource!.Value);
         }
 
         if (_itemHelper.IsOfBaseclasses(item.Template, [FoodBase, DrinkBase]) && (props.MaxResource ?? 0) > 0)

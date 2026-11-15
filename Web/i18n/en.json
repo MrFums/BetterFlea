@@ -1192,6 +1192,14 @@
   "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.": "Bought from a trader or the flea in the last 48 hours (or a part in it was): it never sells more than 15% over normal.",
   "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.": "Flip penalty is on: anything bought from a trader or the flea in the last 48 hours (or with a bought part in it) never sells more than 15% over normal, and buying lots of one item to list straight away makes buyers slower. The odds don't show it.",
   "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.": "Flip penalty: bought from a trader or the flea in the last 48 hours (or a part in it was)? Then it never sells more than 15% over normal.",
-  "See every change by category": "See every change by category"
+  "See every change by category": "See every change by category",
+  "High-pen ammo costs more": "High-pen ammo costs more",
+  "Starts above penetration": "Starts above penetration",
+  "Full premium at penetration": "Full premium at penetration",
+  "Full premium (times the price)": "Full premium (times the price)",
+  "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.",
+  "Rounds at this penetration or under keep their usual price.": "Rounds at this penetration or under keep their usual price.",
+  "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.",
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "What the best rounds cost, in times their usual price. 2 = twice the price."
  }
 }
