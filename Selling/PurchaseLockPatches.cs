@@ -315,7 +315,7 @@ public class ClientDataRoute(
         new("5448bf274bdc2dfc2f8b456a") // secure containers
     ];
     // Built again if the bans change: the server answers before startup has applied them.
-    private (int Bans, List<string> Ids)? _fleaBanned;
+    private (int Bans, HashSet<MongoId> SellBans, List<string> Ids)? _fleaBanned;
     private readonly object _sync = new();
 
     public bool CanHandle(HttpContext context)
@@ -349,8 +349,10 @@ public class ClientDataRoute(
     {
         lock (_sync)
         {
+            // Sell-only bans count too: the plugin only uses this list to stop listing. They change live.
             var bans = FleaSellingGate.BanCount;
-            if (_fleaBanned is { } cached && cached.Bans == bans)
+            var sellBans = FleaSellingGate.SellBanned();
+            if (_fleaBanned is { } cached && cached.Bans == bans && ReferenceEquals(cached.SellBans, sellBans))
             {
                 return cached.Ids;
             }
@@ -362,11 +364,12 @@ public class ClientDataRoute(
                     && !itemHelper.IsDogtag(item.Value!.Id)
                     && !itemHelper.IsOfBaseclasses(item.Value!.Id, NeverListed)
                     && (FleaSellingGate.IsBanned(item.Value!.Id)
+                        || FleaSellingGate.IsSellBanned(item.Value!.Id)
                         || item.Value?.Properties?.CanSellOnRagfair != true
                         || !ragfairServerHelper.IsItemValidRagfairItem(item)))
                 .Select(item => item.Value!.Id.ToString())
                 .ToList();
-            _fleaBanned = (bans, ids);
+            _fleaBanned = (bans, sellBans, ids);
             return ids;
         }
     }

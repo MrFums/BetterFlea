@@ -3,6 +3,7 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Reflection.Patching;
 using SPTarkov.Server.Core.Controllers;
 using SPTarkov.Server.Core.DI;
+using SPTarkov.Server.Core.Helpers.Ragfair;
 using SPTarkov.Server.Core.Helpers.Items;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
@@ -32,6 +33,7 @@ public class DisableFleaSellingPatchesLoad(
 
         FleaSellingGate.Bind(configManager, httpResponseUtil, eventOutputHolder, ragfairConfig, itemHelper);
         new DisableFleaSellingPatch().Enable();
+        new BuyBanSearchPatch().Enable();
         return Task.CompletedTask;
     }
 }
@@ -124,11 +126,82 @@ internal static class FleaSellingGate
 
     public static int BanCount => _ragfair?.Dynamic.Blacklist.Custom.Count ?? 0;
 
+    public const string SellBannedMessage = "This item can be bought but not sold at the Flea Market.";
+
+    // flea.jsonc sellBannedItems: still on the flea to buy (no generated offers are taken away), only players can't
+    // list them. Read at call time, so a settings-page save applies straight away. Beats allowedItems on purpose:
+    // allowed plus sell-banned is how a game-banned item is made buy-only.
+    public static bool AnySellBanned(IEnumerable<Item> listed)
+    {
+        var set = SellBanned();
+        return set.Count > 0 && listed.Any(item => IsSellBanned(item.Template, set));
+    }
+
+    public static bool IsSellBanned(MongoId tpl) => SellBanned() is { Count: > 0 } set && IsSellBanned(tpl, set);
+
+    private static bool IsSellBanned(MongoId tpl, HashSet<MongoId> set) =>
+        set.Contains(tpl) || Flea.HandbookTree.InAny(tpl, set) || _itemHelper?.IsOfBaseclasses(tpl, set) == true;
+
+    public static HashSet<MongoId> SellBanned() => IdSet(_config?.Mod.Flea.SellBannedItems, ref _sellBanned);
+
+    public const string BuyBannedMessage = "This item can be sold but not bought at the Flea Market.";
+
+    // flea.jsonc buyBannedItems: players can list them, but nobody sees an offer for one (traders', generated or
+    // other players'), except the seller their own. Offers are still made, so selling them works as before. Read
+    // at call time, so a settings-page save applies straight away.
+    public static bool IsBuyBanned(MongoId tpl) => BuyBanned() is { Count: > 0 } set && IsSellBanned(tpl, set);
+
+    public static bool IsBuyBanned(RagfairOffer offer, MongoId viewer) =>
+        offer.Items is { Count: > 0 } items && IsBuyBanned(items[0].Template) && offer.User?.Id.ToString() != viewer.ToString();
+
+    public static HashSet<MongoId> BuyBanned() => IdSet(_config?.Mod.Flea.BuyBannedItems, ref _buyBanned);
+
+    // Built again when the config is reloaded (a save makes a new list).
+    private static (List<string> Source, HashSet<MongoId> Set)? _sellBanned;
+    private static (List<string> Source, HashSet<MongoId> Set)? _buyBanned;
+    private static readonly object IdSetSync = new();
+
+    private static HashSet<MongoId> IdSet(List<string>? source, ref (List<string> Source, HashSet<MongoId> Set)? cache)
+    {
+        if (source is null)
+        {
+            return [];
+        }
+
+        lock (IdSetSync)
+        {
+            if (cache is { } cached && ReferenceEquals(cached.Source, source))
+            {
+                return cached.Set;
+            }
+
+            var set = source.Where(MongoId.IsValidMongoId).Select(id => new MongoId(id)).ToHashSet();
+            cache = (source, set);
+            return set;
+        }
+    }
+
     // No error code on purpose: RagfairUnavailable kicks the player to the menu.
     public static ItemEventRouterResponse Fail(MongoId sessionID, string message)
     {
         var output = _output!.GetOutput(sessionID);
         return _http!.AppendErrorToOutput(output, message);
+    }
+}
+
+// Hides offers for buyBannedItems from every flea search (before paging, so counts stay right), builds included.
+public class BuyBanSearchPatch : AbstractPatch
+{
+    protected override MethodBase GetTargetMethod() =>
+        typeof(RagfairOfferHelper).GetMethod("PassesSearchFilterCriteria", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+    [PatchPostfix]
+    public static void Postfix(RagfairOffer offer, PmcData pmcData, ref bool __result)
+    {
+        if (__result && FleaSellingGate.IsBuyBanned(offer, pmcData.Id ?? default))
+        {
+            __result = false;
+        }
     }
 }
 
@@ -166,6 +239,12 @@ public class DisableFleaSellingPatch : AbstractPatch
         if (FleaSellingGate.AnyBanned(listed.Where(item => roots.Contains(item.Id.ToString()))))
         {
             __result = FleaSellingGate.Fail(sessionID, FleaSellingGate.BannedMessage);
+            return false;
+        }
+
+        if (FleaSellingGate.AnySellBanned(listed.Where(item => roots.Contains(item.Id.ToString()))))
+        {
+            __result = FleaSellingGate.Fail(sessionID, FleaSellingGate.SellBannedMessage);
             return false;
         }
 

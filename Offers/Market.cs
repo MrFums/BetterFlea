@@ -711,6 +711,13 @@ internal static class SoldBeforeYou
             {
                 return Refuse(sessionId, tooLow);
             }
+
+            // Hidden from searches, but a list opened before the setting changed can still show one.
+            if (wanted.Id is { } bannedId && _offers!.GetOfferByOfferId(bannedId) is { } banned
+                && BetterFlea.Selling.FleaSellingGate.IsBuyBanned(banned, sessionId))
+            {
+                return Refuse(sessionId, BetterFlea.Selling.FleaSellingGate.BuyBannedMessage);
+            }
         }
 
         foreach (var wanted in request.Offers)

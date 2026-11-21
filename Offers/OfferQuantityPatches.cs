@@ -86,6 +86,17 @@ internal static class OfferQuantityGate
             return Roll(settings.AmmoBoxes);
         }
 
+        // Loose rounds (flares are handled above): SPT's roll, or now and then a dumped heap.
+        if (_itemHelper.IsOfBaseclass(tpl, AmmoRound))
+        {
+            return RollBulk(settings.AmmoDumps) ?? sptCount;
+        }
+
+        if (IsCommonMagazine(tpl))
+        {
+            return Roll(settings.Magazines);
+        }
+
         if (_itemHelper.IsOfBaseclass(tpl, Throwable))
         {
             return IsBulkGrenade(tpl) && RollBulk(settings.GrenadeBulk) is { } pile ? pile : RollWeighted(settings.GrenadeWeights);
@@ -114,6 +125,16 @@ internal static class OfferQuantityGate
     }
 
     public static QuantityTier TierFor(MongoId tpl) => Tiers.GetOrAdd(tpl, Classify);
+
+    private static readonly MongoId AmmoRound = new("5485a8684bdc2da71d8b4567");
+    private static readonly MongoId MagazineBase = new("5448bc234bdc2d3c308b4569");
+    private static readonly ConcurrentDictionary<MongoId, bool> CommonMagazines = new();
+
+    // Any magazine that doesn't stack and isn't superrare (those stay one or a few, as before).
+    private static bool IsCommonMagazine(MongoId tpl) => CommonMagazines.GetOrAdd(tpl, id =>
+        _itemHelper!.IsOfBaseclass(id, MagazineBase)
+        && _itemHelper.GetItem(id).Value?.Properties is { } props
+        && (props.StackMaxSize ?? 1) == 1 && props.RarityPvE != "Superrare");
 
     private static readonly ConcurrentDictionary<MongoId, bool> Cosmetics = new();
 

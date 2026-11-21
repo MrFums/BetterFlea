@@ -17,6 +17,14 @@ public record FleaConfig
     [JsonPropertyName("allowedItems")]
     public List<string> AllowedItems { get; set; } = new();
 
+    // Item or category IDs players can buy on the flea but not list there. Applies straight away (no restart).
+    [JsonPropertyName("sellBannedItems")]
+    public List<string> SellBannedItems { get; set; } = new();
+
+    // Item or category IDs players can list on the flea but nobody can buy there. Applies straight away (no restart).
+    [JsonPropertyName("buyBannedItems")]
+    public List<string> BuyBannedItems { get; set; } = new();
+
     // Mod name -> "all", or the item types (bannedCategories names like "weapons.guns") to ban from that mod.
     [JsonPropertyName("bannedModItems")]
     public Dictionary<string, List<string>> BannedModItems { get; set; } = new();

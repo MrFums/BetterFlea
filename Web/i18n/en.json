@@ -519,7 +519,6 @@
   "Put every setting on this tab back to its default": "Put every setting on this tab back to its default",
   "Off": "Off",
   "On": "On",
-  "Bans apply after a server restart. Item unlock levels apply straight away.": "Bans apply after a server restart. Item unlock levels apply straight away.",
   "Better Flea pricing is on, so live prices aren't used. Turn one of them off.": "Better Flea pricing is on, so live prices aren't used. Turn one of them off.",
   "Live prices and the Wipe Cycle aren't made to run together. You may run into issues.": "Live prices and the Wipe Cycle aren't made to run together. You may run into issues.",
   "Better Flea's {0} changes are off: this part of the flea works like plain SPT.": "Better Flea's {0} changes are off: this part of the flea works like plain SPT.",
@@ -1200,6 +1199,15 @@
   "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.",
   "Rounds at this penetration or under keep their usual price.": "Rounds at this penetration or under keep their usual price.",
   "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.",
-  "What the best rounds cost, in times their usual price. 2 = twice the price.": "What the best rounds cost, in times their usual price. 2 = twice the price."
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "What the best rounds cost, in times their usual price. 2 = twice the price.",
+  "Buy only (no selling)": "Buy only (no selling)",
+  "Sell only (no buying)": "Sell only (no buying)",
+  "Items or whole categories players can buy on the Flea Market but not sell there. Beats Always allowed, so a game-banned item in both is buy-only. Applies straight away.": "Items or whole categories players can buy on the Flea Market but not sell there. Beats Always allowed, so a game-banned item in both is buy-only. Applies straight away.",
+  "Items or whole categories players can list on the Flea Market but nobody can buy there: no trader, generated or player offers show for them (sellers still see their own). Applies straight away.": "Items or whole categories players can list on the Flea Market but nobody can buy there: no trader, generated or player offers show for them (sellers still see their own). Applies straight away.",
+  "Bans apply after a server restart. Buy only, Sell only and item unlock levels apply straight away.": "Bans apply after a server restart. Buy only, Sell only and item unlock levels apply straight away.",
+  "Empty magazines": "Empty magazines",
+  "Ammo dumps": "Ammo dumps",
+  "Empty magazines: usually several to an offer, often 5 or 10, sometimes just one. Superrare ones (drums and the like) count as rare and big items.": "Empty magazines: usually several to an offer, often 5 or 10, sometimes just one. Superrare ones (drums and the like) count as rare and big items.",
+  "Loose rounds keep SPT's own amounts (up to about 360). Now and then someone dumps a heap of them. Chance per ammo offer.": "Loose rounds keep SPT's own amounts (up to about 360). Now and then someone dumps a heap of them. Chance per ammo offer."
  }
 }

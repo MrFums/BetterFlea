@@ -521,7 +521,6 @@
   "Put every setting on this tab back to its default": "Вернуть все настройки этой вкладки к значениям по умолчанию",
   "Off": "Выкл.",
   "On": "Вкл.",
-  "Bans apply after a server restart. Item unlock levels apply straight away.": "Запреты применяются после перезапуска сервера. Уровни открытия предметов применяются сразу.",
   "Better Flea pricing is on, so live prices aren't used. Turn one of them off.": "Цены Better Flea включены, поэтому реальные цены не используются. Выключите что-то одно.",
   "Live prices and the Wipe Cycle aren't made to run together. You may run into issues.": "Реальные цены и Цикл вайпа не рассчитаны на совместную работу. Возможны проблемы.",
   "Better Flea's {0} changes are off: this part of the flea works like plain SPT.": "Изменения Better Flea в разделе «{0}» выключены: эта часть Барахолки работает как в обычном SPT.",
@@ -1202,6 +1201,15 @@
   "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Патроны с высоким пробитием стоят на барахолке дороже, сверх обычной цены. Работает с ценами Better Flea и живыми ценами. Коробки с патронами идут по патронам внутри. Цены торговцев не меняются.",
   "Rounds at this penetration or under keep their usual price.": "Патроны с таким пробитием или ниже сохраняют обычную цену.",
   "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Патроны с таким пробитием или выше получают полную надбавку. В промежутке надбавка растёт равномерно.",
-  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Сколько стоят лучшие патроны, во сколько раз дороже обычной цены. 2 = в два раза дороже."
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Сколько стоят лучшие патроны, во сколько раз дороже обычной цены. 2 = в два раза дороже.",
+  "Buy only (no selling)": "Только покупка (без продажи)",
+  "Sell only (no buying)": "Только продажа (без покупки)",
+  "Items or whole categories players can buy on the Flea Market but not sell there. Beats Always allowed, so a game-banned item in both is buy-only. Applies straight away.": "Предметы или целые категории, которые игроки могут купить на барахолке, но не могут там продать. Важнее, чем «Всегда разрешено», так что запрещённый игрой предмет в обоих списках можно только купить. Действует сразу.",
+  "Items or whole categories players can list on the Flea Market but nobody can buy there: no trader, generated or player offers show for them (sellers still see their own). Applies straight away.": "Предметы или целые категории, которые игроки могут выставить на барахолку, но никто не может там купить: предложения торговцев, сгенерированные и игроков для них не показываются (продавцы видят свои). Действует сразу.",
+  "Bans apply after a server restart. Buy only, Sell only and item unlock levels apply straight away.": "Запреты действуют после перезапуска сервера. «Только покупка», «Только продажа» и уровни открытия действуют сразу.",
+  "Empty magazines": "Пустые магазины",
+  "Ammo dumps": "Кучи патронов",
+  "Empty magazines: usually several to an offer, often 5 or 10, sometimes just one. Superrare ones (drums and the like) count as rare and big items.": "Пустые магазины: обычно несколько в одном предложении, часто 5 или 10, иногда один. Очень редкие (барабаны и подобные) считаются редкими и крупными предметами.",
+  "Loose rounds keep SPT's own amounts (up to about 360). Now and then someone dumps a heap of them. Chance per ammo offer.": "Россыпь патронов идёт в количествах SPT (примерно до 360). Иногда кто-то сбрасывает целую кучу. Шанс на каждое предложение патронов."
  }
 }

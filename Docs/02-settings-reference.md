@@ -24,6 +24,8 @@ players**, because the game reads which items can be sold only when it starts.
 | `bannedCategories` | all off | Take a whole kind of item off the flea: guns, throwables, melee, rounds, ammo boxes, magazines, sights, suppressors, other weapon parts, body armour, armoured rigs, chest rigs, backpacks, plates, headwear, helmet parts, face covers, eyewear, headphones, armbands, containers, mechanical keys, marked keys, keycards, medkits, bandages and splints, painkillers, stims, food and drink, barter items, info items, maps, posters, special equipment. Each item is in exactly one of these. |
 | `bannedItems` | none | Single items (or SPT category ids) that are never on the flea. Search by name on the page. |
 | `allowedItems` | none | Single items that are always on the flea, even when their kind is banned above. "Ban all guns except the Mosin" is a banned category plus one allowed item. |
+| `sellBannedItems` | none | Items (or SPT category ids) players can buy on the flea but not sell there. Beats `allowedItems`, so a BSG-banned item in both is buy-only. Applies straight away, no restart. |
+| `buyBannedItems` | none | Items (or SPT category ids) players can sell on the flea but nobody can buy there: trader, generated and other players' offers are hidden (a seller still sees their own). Applies straight away, no restart. |
 | `bannedModItems` | none | Ban what another server mod adds: everything (`["all"]`) or some kinds (`["weapons.guns"]`). The page shows one card per mod that adds items. |
 | `allowedModItems` | none | The other way round: let on the flea items a mod itself marks as not sellable there. Everything, or some kinds. |
 | `levelLock.enabled` | off | Item unlock levels, like live: some items can only be bought and sold from a set level (the M4A1 from 25, a graphics card from 40). The real game's levels. With the plugin, items show their level when inspected and flea categories show a lock. |
@@ -84,6 +86,8 @@ How many of an item one offer holds, for items that don't stack (ammo and money 
 | `few` | up to 3, falloff 0.3 | Very rare or big items and all gear: GPUs, LEDX, rigs. |
 | `signalFlares` | up to 2 | Signal flares and toy gun disks. |
 | `ammoBoxes` | up to 3 | Ammo boxes. |
+| `magazines` | up to 10 | Empty magazines: usually several, often 5 or 10. Superrare ones count as rare and big. |
+| `ammoDumps` | 3%, 600 to 2000 | Loose rounds keep SPT's amounts (up to about 360); now and then a dumped heap. |
 | `grenadeWeights` | 1, 4, 3, 1, ... | Chance weights for 1, 2, 3... grenades per offer. |
 | `fullMedWeights` | 70, 16, 8, 3.5, 1.5, 1 | Chance weights for 1, 2, 3... full meds per offer: mostly one at a time. |
 | `grenadeBulk`, `stimBulk`, `stimBatch` | rare | Now and then a pile of grenades, a handful of one stim, or a whole stored batch. |

@@ -521,7 +521,6 @@
   "Put every setting on this tab back to its default": "将此标签页的所有设置恢复为默认",
   "Off": "关",
   "On": "开",
-  "Bans apply after a server restart. Item unlock levels apply straight away.": "禁售在服务器重启后生效。物品解锁等级立即生效。",
   "Better Flea pricing is on, so live prices aren't used. Turn one of them off.": "Better Flea 定价已开启，所以不使用实时价格。请关闭其中一个。",
   "Live prices and the Wipe Cycle aren't made to run together. You may run into issues.": "实时价格和删档周期并非为同时运行设计，可能会出现问题。",
   "Better Flea's {0} changes are off: this part of the flea works like plain SPT.": "Better Flea 的{0}改动已关闭：跳蚤市场的这部分和原版 SPT 一样。",
@@ -1202,6 +1201,15 @@
   "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "高穿透的子弹在跳蚤市场上比平常价格更贵。可与 Better Flea 定价和实时价格一起使用。弹药盒按其中的子弹计算。商人价格不变。",
   "Rounds at this penetration or under keep their usual price.": "穿透力不高于此值的子弹保持平常价格。",
   "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "穿透力达到或高于此值的子弹获得最高加价。中间按直线上升。",
-  "What the best rounds cost, in times their usual price. 2 = twice the price.": "最好的子弹的价格，按平常价格的倍数计算。2 = 两倍价格。"
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "最好的子弹的价格，按平常价格的倍数计算。2 = 两倍价格。",
+  "Buy only (no selling)": "仅可购买（不可出售）",
+  "Sell only (no buying)": "仅可出售（不可购买）",
+  "Items or whole categories players can buy on the Flea Market but not sell there. Beats Always allowed, so a game-banned item in both is buy-only. Applies straight away.": "玩家可以在跳蚤市场购买但不能在那里出售的物品或整个类别。优先于“始终允许”，因此同时在两个列表中的游戏禁售物品只能购买。立即生效。",
+  "Items or whole categories players can list on the Flea Market but nobody can buy there: no trader, generated or player offers show for them (sellers still see their own). Applies straight away.": "玩家可以在跳蚤市场上架但无人能在那里购买的物品或整个类别：不会显示商人、生成或玩家的报价（卖家仍能看到自己的）。立即生效。",
+  "Bans apply after a server restart. Buy only, Sell only and item unlock levels apply straight away.": "禁令在服务器重启后生效。“仅可购买”、“仅可出售”和解锁等级立即生效。",
+  "Empty magazines": "空弹匣",
+  "Ammo dumps": "成堆弹药",
+  "Empty magazines: usually several to an offer, often 5 or 10, sometimes just one. Superrare ones (drums and the like) count as rare and big items.": "空弹匣：一个报价通常有好几个，常常是 5 个或 10 个，有时只有一个。极稀有的（弹鼓之类）按稀有大件物品处理。",
+  "Loose rounds keep SPT's own amounts (up to about 360). Now and then someone dumps a heap of them. Chance per ammo offer.": "散装子弹沿用 SPT 自己的数量（最多约 360 发）。偶尔会有人抛售一大堆。每个弹药报价的几率。"
  }
 }

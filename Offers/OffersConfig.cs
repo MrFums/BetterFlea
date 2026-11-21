@@ -624,6 +624,14 @@ public record OfferQuantityConfig
     [JsonPropertyName("ammoBoxes")]
     public QuantityProfile AmmoBoxes { get; set; } = new() { Max = 3, Falloff = 0.5 };
 
+    // Empty magazines: spares get cleared out by the handful, often 5 or 10 at once. Superrare ones stay "few".
+    [JsonPropertyName("magazines")]
+    public QuantityProfile Magazines { get; set; } = new() { Max = 10, Falloff = 0.8 };
+
+    // Loose rounds keep SPT's own roll (10-600% of a stack: up to about 360). Now and then someone dumps a heap.
+    [JsonPropertyName("ammoDumps")]
+    public BulkOfferConfig AmmoDumps { get; set; } = new() { Chance = 0.03, Min = 600, Max = 2000 };
+
     [JsonPropertyName("grenadeWeights")]
     public List<double> GrenadeWeights { get; set; } = new() { 1, 4, 3, 1, 0.5, 0.25, 0.1, 0.05 };
 

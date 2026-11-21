@@ -532,6 +532,8 @@ const LABELS = {
   "flea.jsonc:bannedCategories.weaponParts.otherParts": "Other weapon parts",
   "flea.jsonc:bannedItems": "Banned items",
   "flea.jsonc:allowedItems": "Always allowed",
+  "flea.jsonc:sellBannedItems": "Buy only (no selling)",
+  "flea.jsonc:buyBannedItems": "Sell only (no buying)",
   "flea.jsonc:bannedModItems": "Mod items",
   "flea.jsonc:allowedModItems": "Flea-banned mod items",
   "flea.jsonc:levelLock": "Item unlock levels",
@@ -581,6 +583,8 @@ const LABELS = {
   "listings.jsonc:itemsPerOffer.traderGunStacks": "Trader gun flips",
   "listings.jsonc:itemsPerOffer.helmetStacks": "Several mint helmets",
   "listings.jsonc:itemsPerOffer.cosmeticStacks": "Several masks or hats",
+  "listings.jsonc:itemsPerOffer.magazines": "Empty magazines",
+  "listings.jsonc:itemsPerOffer.ammoDumps": "Ammo dumps",
   "condition.jsonc:keys.usedChanceByRarity": "Used keys by rarity",
   "condition.jsonc:guns.bossGunGroundShare": "Boss guns as found",
   "condition.jsonc:guns.bossGunWear": "Boss gun wear",
@@ -746,6 +750,8 @@ const DESC = {
   "flea.jsonc:bannedCategories": "Turn a type of item on to take it off the Flea Market completely.",
   "flea.jsonc:bannedItems": "Items or whole categories that are never on the Flea Market.",
   "flea.jsonc:allowedItems": "Items or whole categories that are always on the Flea Market, even if banned above.",
+  "flea.jsonc:sellBannedItems": "Items or whole categories players can buy on the Flea Market but not sell there. Beats Always allowed, so a game-banned item in both is buy-only. Applies straight away.",
+  "flea.jsonc:buyBannedItems": "Items or whole categories players can list on the Flea Market but nobody can buy there: no trader, generated or player offers show for them (sellers still see their own). Applies straight away.",
   "flea.jsonc:bannedModItems": "Items that server mods add, for the whole mod or per type: as the mod sets them, banned from the flea, or allowed (the ones the mod itself keeps off the flea, let on anyway). Only mods that add items are listed.",
   "flea.jsonc:allowedModItems": "Some mods mark their own items as not sellable on the flea. Let them on anyway: all of a mod's, or only some types. Only mods that ban some of their items are listed.",
   "flea.jsonc:levelLock": "Items can only be bought and sold from the level the real flea needs (the M4A1 from 25, a graphics card from 40). In game, items show the level they unlock at and flea categories show a lock. Off by default; the Live progression flea style turns it on. Applies straight away.",
@@ -775,6 +781,8 @@ const DESC = {
   "listings.jsonc:itemsPerOffer.few": "Rare, valuable or big items and all gear: usually one.",
   "listings.jsonc:itemsPerOffer.signalFlares": "Signal flares and the toy gun's 20x1mm disks. Usually one per offer.",
   "listings.jsonc:itemsPerOffer.ammoBoxes": "Usually one, sometimes up to three.",
+  "listings.jsonc:itemsPerOffer.magazines": "Empty magazines: usually several to an offer, often 5 or 10, sometimes just one. Superrare ones (drums and the like) count as rare and big items.",
+  "listings.jsonc:itemsPerOffer.ammoDumps": "Loose rounds keep SPT's own amounts (up to about 360). Now and then someone dumps a heap of them. Chance per ammo offer.",
   "listings.jsonc:itemsPerOffer.*.max": "Most items in one offer.",
   "listings.jsonc:itemsPerOffer.*.falloff": "How fast bigger amounts get rarer. Lower = more offers of just one.",
   "listings.jsonc:itemsPerOffer.grenadeWeights": "How likely each amount is. Box 1 is one grenade, box 2 is two and so on. A bigger number makes that amount more likely.",
@@ -1082,7 +1090,7 @@ const DESC = {
 const ADVANCED = [
   "listings.jsonc:listings.rarityMultipliers", "listings.jsonc:listings.superrareMinimumOffers", "listings.jsonc:listings.onDemand",
   "listings.jsonc:itemsPerOffer.bulk", "listings.jsonc:itemsPerOffer.stock", "listings.jsonc:itemsPerOffer.few",
-  "listings.jsonc:itemsPerOffer.signalFlares", "listings.jsonc:itemsPerOffer.ammoBoxes", "listings.jsonc:itemsPerOffer.grenadeWeights",
+  "listings.jsonc:itemsPerOffer.signalFlares", "listings.jsonc:itemsPerOffer.ammoBoxes", "listings.jsonc:itemsPerOffer.magazines", "listings.jsonc:itemsPerOffer.grenadeWeights",
   "listings.jsonc:itemsPerOffer.fullMedWeights", "listings.jsonc:itemsPerOffer.*.min", "listings.jsonc:itemsPerOffer.*.max",
   "condition.jsonc:*.usesLeftFalloff", "condition.jsonc:*.lowAmountBias", "condition.jsonc:guns.wearByBuild",
   "condition.jsonc:guns.maxWear", "condition.jsonc:guns.lowMaxMin", "condition.jsonc:guns.lowMaxMax",
@@ -1130,7 +1138,7 @@ const CHOICES = {
 };
 
 // Lists of item ids.
-const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems", "prices.jsonc:unusableKeys.keys"];
+const ITEM_LISTS = ["flea.jsonc:bannedItems", "flea.jsonc:allowedItems", "flea.jsonc:sellBannedItems", "flea.jsonc:buyBannedItems", "prices.jsonc:unusableKeys.keys"];
 // Item or category ids, each with a level.
 const LEVEL_TABLES = ["flea.jsonc:levelLock.levels"];
 // Item or category -> price multiplier, the same table with multipliers in place of levels.
@@ -1747,7 +1755,7 @@ function render() {
   }
   section.appendChild(head);
 
-  if (f.file === "flea.jsonc") section.appendChild(notice("Bans apply after a server restart. Item unlock levels apply straight away."));
+  if (f.file === "flea.jsonc") section.appendChild(notice("Bans apply after a server restart. Buy only, Sell only and item unlock levels apply straight away."));
   if (f.file === "economy.jsonc" && getAt(f.values, ["betterFleaPricing", "enabled"]) && getAt(f.values, ["livePrices", "enabled"]))
     section.appendChild(notice("Better Flea pricing is on, so live prices aren't used. Turn one of them off."));
   else if (f.file === "economy.jsonc" && getAt(f.values, ["livePrices", "enabled"]) && getAt(f.values, ["wipeCycle", "enabled"]))

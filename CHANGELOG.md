@@ -1,6 +1,14 @@
 # Changelog
 
-## 2.6.2 (beta)
+## 2.6.2
+
+**New**
+- **Buy only** (Bans tab, `sellBannedItems`): items or categories players can buy on the flea but not sell there. Beats Always allowed, so a game-banned item in both lists is buy-only. Applies straight away, no restart.
+- **Sell only** (Bans tab, `buyBannedItems`): items or categories players can sell on the flea but nobody can buy there. No trader, generated or player offers show for them; a seller still sees their own. Applies straight away, no restart.
+
+**Changes**
+- Empty magazines come several to an offer: usually 2 to 10, often 5 or 10, sometimes just one (`itemsPerOffer.magazines`). Was 1 to 3, mostly 1. Superrare ones (drums and the like) stay 1 to 3. Loaded loose magazines are rarer as a result, since only single ones get rounds.
+- Now and then someone dumps a heap of loose rounds: 3 in 100 ammo offers have 600 to 2,000 (`itemsPerOffer.ammoDumps`). The rest keep SPT's amounts, up to about 360.
 
 **Fixes**
 - Instant Insurance didn't return insured items with Better Flea installed. Better Flea's check for guns lost on death hooked the same part of SPT and could cut Instant Insurance out. It now hooks a different step.

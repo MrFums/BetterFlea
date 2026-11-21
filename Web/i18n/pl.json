@@ -521,7 +521,6 @@
   "Put every setting on this tab back to its default": "Przywróć domyślne wartości wszystkich ustawień na tej karcie",
   "Off": "Wył.",
   "On": "Wł.",
-  "Bans apply after a server restart. Item unlock levels apply straight away.": "Bany działają po restarcie serwera. Poziomy odblokowania przedmiotów działają od razu.",
   "Better Flea pricing is on, so live prices aren't used. Turn one of them off.": "Ceny Better Flea są włączone, więc ceny live nie są używane. Wyłącz jedne z nich.",
   "Live prices and the Wipe Cycle aren't made to run together. You may run into issues.": "Ceny live i Cykl wipe'u nie są zaprojektowane do wspólnej pracy. Mogą wystąpić problemy.",
   "Better Flea's {0} changes are off: this part of the flea works like plain SPT.": "Zmiany Better Flea w sekcji {0} są wyłączone: ta część targu działa jak zwykłe SPT.",
@@ -1202,6 +1201,15 @@
   "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "Naboje o wysokiej penetracji kosztują więcej na pchlim targu, ponad ich zwykłą cenę. Działa z cenami Better Flea i cenami na żywo. Pudełka z amunicją idą za nabojami w środku. Ceny handlarzy się nie zmieniają.",
   "Rounds at this penetration or under keep their usual price.": "Naboje o tej penetracji lub niższej zachowują zwykłą cenę.",
   "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "Naboje o tej penetracji lub wyższej dostają pełną dopłatę. Pomiędzy dopłata rośnie liniowo.",
-  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Ile kosztują najlepsze naboje, jako wielokrotność ich zwykłej ceny. 2 = podwójna cena."
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "Ile kosztują najlepsze naboje, jako wielokrotność ich zwykłej ceny. 2 = podwójna cena.",
+  "Buy only (no selling)": "Tylko kupno (bez sprzedaży)",
+  "Sell only (no buying)": "Tylko sprzedaż (bez kupna)",
+  "Items or whole categories players can buy on the Flea Market but not sell there. Beats Always allowed, so a game-banned item in both is buy-only. Applies straight away.": "Przedmioty lub całe kategorie, które gracze mogą kupić na pchlim targu, ale nie mogą tam sprzedać. Ma pierwszeństwo przed „Zawsze dozwolone”, więc przedmiot zakazany przez grę na obu listach można tylko kupić. Działa od razu.",
+  "Items or whole categories players can list on the Flea Market but nobody can buy there: no trader, generated or player offers show for them (sellers still see their own). Applies straight away.": "Przedmioty lub całe kategorie, które gracze mogą wystawić na pchlim targu, ale nikt nie może ich tam kupić: nie pokazują się dla nich oferty handlarzy, generowane ani graczy (sprzedający widzą swoje). Działa od razu.",
+  "Bans apply after a server restart. Buy only, Sell only and item unlock levels apply straight away.": "Zakazy działają po restarcie serwera. Tylko kupno, Tylko sprzedaż i poziomy odblokowania działają od razu.",
+  "Empty magazines": "Puste magazynki",
+  "Ammo dumps": "Sterty amunicji",
+  "Empty magazines: usually several to an offer, often 5 or 10, sometimes just one. Superrare ones (drums and the like) count as rare and big items.": "Puste magazynki: zwykle kilka w ofercie, często 5 lub 10, czasem tylko jeden. Superrzadkie (bębny i podobne) liczą się jako rzadkie i duże przedmioty.",
+  "Loose rounds keep SPT's own amounts (up to about 360). Now and then someone dumps a heap of them. Chance per ammo offer.": "Luźne naboje mają ilości z SPT (do około 360). Od czasu do czasu ktoś pozbywa się całej sterty. Szansa na każdą ofertę amunicji."
  }
 }

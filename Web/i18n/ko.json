@@ -521,7 +521,6 @@
   "Put every setting on this tab back to its default": "이 탭의 모든 설정을 기본값으로 되돌립니다",
   "Off": "끔",
   "On": "켬",
-  "Bans apply after a server restart. Item unlock levels apply straight away.": "금지 목록은 서버를 재시작해야 적용됩니다. 아이템 해금 레벨은 바로 적용됩니다.",
   "Better Flea pricing is on, so live prices aren't used. Turn one of them off.": "Better Flea 가격이 켜져 있어 라이브 가격을 쓰지 않습니다. 둘 중 하나를 끄세요.",
   "Live prices and the Wipe Cycle aren't made to run together. You may run into issues.": "라이브 가격과 와이프 사이클은 함께 쓰도록 만들어지지 않았습니다. 문제가 생길 수 있습니다.",
   "Better Flea's {0} changes are off: this part of the flea works like plain SPT.": "Better Flea의 {0} 변경 사항이 꺼져 있습니다. 플리의 이 부분은 일반 SPT처럼 작동합니다.",
@@ -1202,6 +1201,15 @@
   "Rounds with high penetration cost more on the Flea Market, on top of their usual price. Works with Better Flea pricing and live prices. Ammo boxes go with the rounds in them. Trader prices don't change.": "관통력이 높은 탄은 벼룩시장에서 평소 가격보다 더 비쌉니다. Better Flea 가격 및 실시간 가격과 함께 작동합니다. 탄약 상자는 안에 든 탄을 따릅니다. 상인 가격은 바뀌지 않습니다.",
   "Rounds at this penetration or under keep their usual price.": "이 관통력 이하의 탄은 평소 가격을 유지합니다.",
   "Rounds at this penetration or over get the full premium. In between, the premium rises in a straight line.": "이 관통력 이상의 탄은 최대 할증을 받습니다. 그 사이에서는 할증이 직선으로 올라갑니다.",
-  "What the best rounds cost, in times their usual price. 2 = twice the price.": "가장 좋은 탄의 가격을 평소 가격의 배수로 정합니다. 2 = 두 배 가격."
+  "What the best rounds cost, in times their usual price. 2 = twice the price.": "가장 좋은 탄의 가격을 평소 가격의 배수로 정합니다. 2 = 두 배 가격.",
+  "Buy only (no selling)": "구매만 (판매 불가)",
+  "Sell only (no buying)": "판매만 (구매 불가)",
+  "Items or whole categories players can buy on the Flea Market but not sell there. Beats Always allowed, so a game-banned item in both is buy-only. Applies straight away.": "플리마켓에서 살 수는 있지만 팔 수는 없는 아이템 또는 카테고리 전체. \"항상 허용\"보다 우선하므로, 게임에서 금지된 아이템을 두 목록에 모두 넣으면 구매만 가능합니다. 바로 적용됩니다.",
+  "Items or whole categories players can list on the Flea Market but nobody can buy there: no trader, generated or player offers show for them (sellers still see their own). Applies straight away.": "플리마켓에 올릴 수는 있지만 아무도 살 수 없는 아이템 또는 카테고리 전체: 상인, 생성, 플레이어 매물이 보이지 않습니다(판매자에게는 자기 매물이 보입니다). 바로 적용됩니다.",
+  "Bans apply after a server restart. Buy only, Sell only and item unlock levels apply straight away.": "금지는 서버를 재시작한 뒤 적용됩니다. 구매만, 판매만, 해금 레벨은 바로 적용됩니다.",
+  "Empty magazines": "빈 탄창",
+  "Ammo dumps": "탄약 대량 처분",
+  "Empty magazines: usually several to an offer, often 5 or 10, sometimes just one. Superrare ones (drums and the like) count as rare and big items.": "빈 탄창: 보통 한 매물에 여러 개, 5개나 10개도 흔하고 가끔 하나만 있습니다. 초희귀 탄창(드럼 탄창 등)은 희귀하고 큰 아이템으로 취급합니다.",
+  "Loose rounds keep SPT's own amounts (up to about 360). Now and then someone dumps a heap of them. Chance per ammo offer.": "낱개 탄약은 SPT 기본 수량을 따릅니다(최대 약 360발). 가끔 누군가 한 무더기를 처분합니다. 탄약 매물마다의 확률입니다."
  }
 }
